@@ -473,9 +473,7 @@
     "OPPORTUNITY_STD": {
       "cr570_technicalaudit_lookup": {
         "Ja": "Yes",
-        "ja": "Yes",
-        "Nein": "No",
-        "nein": "No"
+        "Nein": "No"
       },
       "cr570_productlinie_lookup": {
         "Druck- u. Papiermaschinen": "10 Druck- u. Papiermaschinen",

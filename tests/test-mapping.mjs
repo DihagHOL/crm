@@ -212,6 +212,21 @@ console.log("\nWertzuordnungen");
     "der Quellwert wird vor dem Aufloesen uebersetzt - und die Adresse kodiert");
 }
 {
+  // Gross- und Kleinschreibung darf nicht entscheiden. Zwei Eintraege
+  // "Ja" und "ja" waeren der naheliegende Weg - aber PowerShell liest
+  // JSON-Schluessel ohne Unterscheidung und bricht beim zweiten ab.
+  const zu = [{ aktiv: true, mappingKey: "OPP", sourceColumn: "Pruefung",
+    targetField: "cr570_technicalaudit_lookup", targetType: "Lookup",
+    lookupEntitySet: "cr570_technicalaudit_lookups", lookupKeyField: "cr570_newcolumn",
+    writePolicy: "Always" }];
+  const werte = { "OPP|cr570_technicalaudit_lookup": {
+    werte: { "Ja": "Yes", "Nein": "No" }, standard: null } };
+  const r = MAPPING.baue({ _zeile: 2, Pruefung: "ja" }, zu, { modus: "create", werte });
+  pruefe(String(r.nutzlast["cr570_technicalaudit_lookup@odata.bind"]).includes("Yes"),
+    "kleingeschrieben trifft dieselbe Zuordnung");
+  gleich(r.warnungen.length, 0, "und das ist keine Warnung wert");
+}
+{
   // Ein unbekannter Wert verwirft nicht die Zeile: eine neue Produktgruppe
   // ist kein Grund, die Verkaufschance nicht zu schreiben.
   const zu = [{ aktiv: true, mappingKey: "OPP", sourceColumn: "Gruppe",

@@ -38,7 +38,14 @@ warnt und wird unverändert versucht. Eine neue Produktgruppe ist kein Grund,
 die Verkaufschance nicht zu schreiben — und ob der Wert etwas trifft,
 entscheidet ohnehin gleich darauf der Verweis.
 
-263 automatische Prüfungen in neun Dateien.
+**Nachtrag.** `ConvertFrom-Json` unterscheidet bei Schlüsseln **keine
+Gross- und Kleinschreibung** und bricht ab, sobald zwei kollidieren — `Ja`
+und `ja` nebeneinander einzutragen war also der falsche Weg, die
+Schreibweise abzufangen. Die Zuordnung führt jetzt nur `Ja` und `Nein`;
+gesucht wird erst genau, dann ohne Rücksicht auf die Schreibweise. Das ist
+ohnehin die bessere Stelle dafür.
+
+265 automatische Prüfungen in neun Dateien.
 
 **Nötig vor dem nächsten Lauf:** `setup-crm.ps1 -ProfilLaden`. Es schreibt
 die geänderten Zuordnungen und erstmals die 43 Wertzuordnungen.

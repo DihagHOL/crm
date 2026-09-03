@@ -126,7 +126,15 @@ const MAPPING = (() => {
       // Wertzuordnung (Auswahlfelder)
       const wz = opt.werte?.[`${z.mappingKey}|${z.targetField}`];
       if (wz && !leer(wert)) {
-        const abbild = wz.werte[wert];
+        // Erst genau, dann ohne Rücksicht auf Gross- und Kleinschreibung.
+        // „ja" und „Ja" doppelt einzutragen geht nicht: PowerShell liest
+        // JSON-Schlüssel ohne Unterscheidung und bricht beim zweiten ab.
+        let abbild = wz.werte[wert];
+        if (abbild === undefined) {
+          const k = String(wert).toLowerCase();
+          const treffer = Object.keys(wz.werte).find(x => x.toLowerCase() === k);
+          if (treffer !== undefined) abbild = wz.werte[treffer];
+        }
         if (abbild !== undefined) wert = abbild;
         else if (wz.standard !== null && wz.standard !== undefined) wert = wz.standard;
         // Kein Abbild und kein Standard: den Wert lassen, wie er ist, und
