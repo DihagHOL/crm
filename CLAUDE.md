@@ -110,7 +110,7 @@ SheetJS ist die einzige.
 
 ## 4. Verzeichnisstruktur
 
-Flach, wie in jeder anderen DIHAG-App. `✓` = vorhanden (Phase 1 bis 3).
+Flach, wie in jeder anderen DIHAG-App. `✓` = vorhanden (Phase 1 bis 4).
 
 ```
 crm/
@@ -130,7 +130,7 @@ crm/
 │  ├─ data.js               ✓ Benutzerkontext und Rolle
 │  ├─ app.js                ✓ Oberfläche, Selbsttest, Schrittgerüst
 │  ├─ spFiles.js            ✓ Bibliothek listen, Datei laden, Status setzen
-│  ├─ spListen.js             Phase 4 – Konfigurationslisten, Protokoll
+│  ├─ spListen.js           ✓ Konfigurationslisten lesen
 │  ├─ excel.js              ✓ SheetJS, Kopfzeilen normalisieren
 │  ├─ mapping.js              Phase 4 – Zeile + Mapping → Nutzlast
 │  ├─ transforms.js           Phase 4 – trim, decimal:de, date, empty2null …
@@ -608,11 +608,12 @@ scharf geschaltet werden.
       **213 Chancen nachpflegen**, die einen `#`-Namen tragen und das Feld
       noch nicht gesetzt haben (seit 29.05.2026 wird es nicht mehr gefüllt).
       Sonst legt der Import sie neu an. Details in `docs/03`.
-- [ ] **`dag_dihag_kdnr` ist NICHT eindeutig** — 15 doppelte Nummern bei
-      2.382 Konten, davon 7 mit zwei *aktiven* Konten (teils verschiedene
-      Firmen). Bis das bereinigt ist, lässt sich kein Alternativschlüssel
-      anlegen; Schritt 10 läuft solange über `$filter` und muss
-      Mehrfachtreffer melden. Liste in `docs/03`.
+- [ ] **`dag_dihag_kdnr`: noch 7 doppelte Nummern.** Von ursprünglich 15
+      sind 8 bereinigt (Nummer am deaktivierten Zwilling geleert, 02.09.2026).
+      Die verbleibenden 7 haben **zwei aktive Konten**, teils verschiedene
+      Firmen — welche die Nummer behält, ist eine fachliche Entscheidung.
+      Bis dahin kein Alternativschlüssel auf `accounts`; Schritt 10 läuft über
+      `$filter` und muss Mehrfachtreffer melden. Liste in `docs/03`.
 - [x] ~~Führt die Spalte `Firma` die Kundennummer oder den Namen?~~
       Die **Nummer** — `dag_dihag_kdnr` ist ein Integer.
 - [x] ~~Heißt die Bibliothek unter `/sites/IT` tatsächlich **Austausch**?~~
@@ -674,9 +675,10 @@ scharf geschaltet werden.
       02.09.2026** mit `aufraeumen-b1.ps1`. 76 gelöscht, 0 Fehler, danach
       137 `new_dagextopid` nachgepflegt. Ergebnis: 1.662 Verkaufschancen mit
       Opp-ID, **1.662 verschiedene Werte, 0 Dubletten**.
-- [ ] **Alternativschlüssel auf `new_dagextopid` anlegen.** Die Voraussetzung
-      ist jetzt erfüllt. Power Apps ▸ Tabellen ▸ Verkaufschance ▸ Schlüssel.
-      Status muss auf *Aktiv* gehen, nicht *Ausstehend*.
+- [x] ~~Alternativschlüssel auf `new_dagextopid`~~ — angelegt am 02.09.2026
+      als `dag_TimelineOppId`, Index **Aktiv**. Probe:
+      `GET /opportunities(new_dagextopid=6440)` liefert die Chance.
+      **Befund B2 ist damit erledigt**, der `startswith`-Vergleich entfällt.
 - [ ] Läuft der Altflow während der Entwicklung weiter? Wenn ja, importieren
       zwei Systeme in dieselbe Umgebung. Für den Vergleichslauf muss der Flow
       kurzzeitig abgeschaltet werden, sonst ist nicht zuzuordnen, welche

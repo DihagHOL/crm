@@ -142,5 +142,86 @@ const DV = (() => {
              dubletten: dub, vollstaendig: rows.vollstaendig !== false };
   }
 
-  return { call, alle, dubletten, whoAmI, basis, pruefeKonfiguration };
+  /* ── Metadaten ────────────────────────────────────────────────────────
+     Die Feldliste kommt aus Dataverse, nicht aus einer gepflegten Konstante
+     im Code. Eine Konstante wäre am Tag ihrer Entstehung korrekt und danach
+     nie wieder – und ein Tippfehler im Zielfeldnamen fällt sonst erst beim
+     Schreiben auf. Genau so verliert der Altflow die Zeichnungsnummer.   */
+
+  const META_KEY = "crm_dvmeta";
+  const _meta = (() => {
+    try { return JSON.parse(sessionStorage.getItem(META_KEY) || "{}"); }
+    catch { return {}; }
+  })();
+
+  const metaSichern = () => {
+    try { sessionStorage.setItem(META_KEY, JSON.stringify(_meta)); } catch {}
+  };
+
+  /** Vom Mengennamen (`opportunities`) auf den logischen Namen
+   *  (`opportunity`) schließen. Dataverse führt beides; die Metadaten hängen
+   *  am logischen Namen, das Profil nennt den Mengennamen. */
+  async function logischerName(entitySet) {
+    const k = "set|" + entitySet;
+    if (_meta[k]) return _meta[k];
+    const d = await call(`/EntityDefinitions?$select=LogicalName,EntitySetName`
+      + `&$filter=EntitySetName eq '${entitySet}'`);
+    const e = d?.value?.[0];
+    if (!e) throw new Error(`Tabelle „${entitySet}“ gibt es in dieser Umgebung nicht.`);
+    _meta[k] = e.LogicalName;
+    metaSichern();
+    return e.LogicalName;
+  }
+
+  /** Felder einer Tabelle.
+   *  @returns {Promise<Object<string,{typ:string, anlegbar:boolean,
+   *            aenderbar:boolean, pflicht:string, maxLength:number|null}>>}
+   *    Schlüssel ist der logische Feldname. */
+  async function felder(entitySet) {
+    const k = "felder|" + entitySet;
+    if (_meta[k]) return _meta[k];
+    const ln = await logischerName(entitySet);
+    const d = await call(`/EntityDefinitions(LogicalName='${ln}')/Attributes`
+      + `?$select=LogicalName,AttributeType,IsValidForCreate,IsValidForUpdate,RequiredLevel`);
+    const out = {};
+    for (const a of d?.value || []) {
+      out[a.LogicalName] = {
+        typ: a.AttributeType,
+        anlegbar: a.IsValidForCreate !== false,
+        aenderbar: a.IsValidForUpdate !== false,
+        pflicht: a.RequiredLevel?.Value || "None"
+      };
+    }
+    _meta[k] = out;
+    metaSichern();
+    return out;
+  }
+
+  const metaLeeren = () => {
+    for (const k of Object.keys(_meta)) delete _meta[k];
+    try { sessionStorage.removeItem(META_KEY); } catch {}
+  };
+
+  /** Passt der im Profil eingetragene Typ zu dem, was Dataverse führt?
+   *  Die Namen unterscheiden sich, deshalb eine Tabelle statt eines
+   *  Vergleichs. `null` heißt „nicht beurteilbar“. */
+  const TYPEN = {
+    String:   ["String", "Memo"],
+    Int:      ["Integer", "BigInt"],
+    Decimal:  ["Decimal", "Double"],
+    Money:    ["Money"],
+    Boolean:  ["Boolean"],
+    DateTime: ["DateTime"],
+    OptionSet:["Picklist", "State", "Status"],
+    Lookup:   ["Lookup", "Customer", "Owner"],
+    Action:   null
+  };
+  function typPasst(profilTyp, dvTyp) {
+    const erlaubt = TYPEN[profilTyp];
+    if (!erlaubt || !dvTyp) return null;
+    return erlaubt.includes(dvTyp);
+  }
+
+  return { call, alle, dubletten, whoAmI, basis, pruefeKonfiguration,
+           felder, logischerName, typPasst, metaLeeren };
 })();

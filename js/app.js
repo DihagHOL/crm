@@ -141,7 +141,7 @@ const APP = (() => {
   const SCHRITTE = [
     { id: "start",     nr: "",  titel: "Start",        aktiv: true },
     { id: "datei",     nr: "3", titel: "Datei wählen", aktiv: true },
-    { id: "zuordnung", nr: "4", titel: "Zuordnung",    aktiv: false },
+    { id: "zuordnung", nr: "4", titel: "Zuordnung",    aktiv: true },
     { id: "pruefung",  nr: "5", titel: "Prüflauf",     aktiv: false },
     { id: "import",    nr: "6", titel: "Import",       aktiv: false },
     { id: "protokoll", nr: "7", titel: "Protokoll",    aktiv: false }
@@ -163,6 +163,142 @@ const APP = (() => {
       b.classList.toggle("active", b.dataset.ziel === id);
     if (id === "start") renderStart();
     if (id === "datei") renderDatei();
+    if (id === "zuordnung") renderZuordnung();
+  }
+
+  /* ── Schritt 4: Zuordnung prüfen ───────────────────────────────────────
+     Die Zuordnung wird hier NICHT bearbeitet – sie liegt in SharePoint und
+     wird dort gepflegt (docs/02). Was hier passiert, ist die Prüfung:
+     Passen die eingetragenen Quellspalten zur geladenen Datei, und passen
+     die Zielfelder zu dem, was Dataverse tatsächlich führt?
+
+     Das ist der Punkt, an dem der Altflow scheitert: Er liest die Spalte
+     „Zeichennummer“, die es nicht gibt, bekommt null und schreibt es
+     klaglos. Hier fällt so etwas auf, bevor irgendwo geschrieben wird.   */
+
+  async function renderZuordnung() {
+    $("main").innerHTML = `
+      <div class="page-head">
+        <h2>Zuordnung</h2>
+        <p>Gepflegt wird sie in SharePoint unter
+           <code>${esc(C.listen.profile)}</code> und
+           <code>${esc(C.listen.mappings)}</code>. Hier wird geprüft, ob sie
+           zur geladenen Datei und zu den Feldern passt, die es in Dataverse
+           wirklich gibt.</p>
+      </div>
+      <div id="zoInhalt"><div class="card"><p class="hint">Profil wird geladen …</p></div></div>`;
+
+    let p;
+    try {
+      p = await SPLISTEN.profil();
+    } catch (e) {
+      $("zoInhalt").innerHTML = `<div class="card"><p class="err">${esc(e.detail || e.message)}</p></div>`;
+      return;
+    }
+
+    const kopf = `
+      <div class="card">
+        <h4>📋 ${esc(p.name || "kein Profil")}</h4>
+        <p class="hint">${p.schritte.length} Schritte
+          ${p.profile.length > 1 ? ` · weitere Profile in der Liste: ${esc(p.profile.filter(x => x !== p.name).join(", "))}` : ""}
+          ${_mappe ? ` · geprüft gegen <b>${esc(_datei.name)}</b>`
+                   : ' · <b>keine Datei geladen</b> – die Quellspalten werden nicht geprüft'}</p>
+        ${!_mappe ? '<p class="warn">Ohne geladene Datei prüft diese Seite nur die '
+          + 'Zielfelder gegen Dataverse. Für die vollständige Prüfung erst unter '
+          + '<b>Datei wählen</b> eine Mappe öffnen.</p>' : ""}
+      </div>`;
+
+    $("zoInhalt").innerHTML = kopf + '<div class="card"><p class="hint">Dataverse-Felder werden gelesen …</p></div>';
+
+    const teile = [];
+    for (const s of p.schritte) {
+      let felder = null, fehlerText = "";
+      try {
+        felder = istOffen(C.dataverseUrl) ? null : await DV.felder(s.entitySet);
+      } catch (e) {
+        fehlerText = e.detail || e.message;
+      }
+      teile.push(schrittKarte(s, p.zuordnungen[s.mappingKey] || [], felder, fehlerText));
+    }
+    $("zoInhalt").innerHTML = kopf + teile.join("");
+  }
+
+  /** Eine Karte je Importschritt, mit der Prüftabelle darin. */
+  function schrittKarte(s, zuordnungen, felder, fehlerText) {
+    const blatt = _mappe && s.sourceSheet ? EXCEL.blatt(_mappe, s.sourceSheet) : null;
+    const kopfzeilen = blatt ? new Set(blatt.kopfzeilen) : null;
+
+    let probleme = 0;
+    const zeilen = zuordnungen.map(z => {
+      const befunde = [];
+
+      // Quellspalte – nur prüfbar, wenn eine Datei geladen ist.
+      let quelle = '<span class="leer">–</span>';
+      if (z.sourceColumn) {
+        const wo = z.sourceSheet || s.sourceSheet;
+        const b = _mappe && wo ? EXCEL.blatt(_mappe, wo) : null;
+        if (!_mappe) quelle = esc(z.sourceColumn);
+        else if (!b) { quelle = `<span class="fehlt">${esc(z.sourceColumn)}</span>`;
+                       befunde.push(`Blatt „${wo}“ fehlt`); }
+        else if (b.kopfzeilen.includes(z.sourceColumn)) quelle = esc(z.sourceColumn);
+        else { quelle = `<span class="fehlt">${esc(z.sourceColumn)}</span>`;
+               befunde.push("Spalte nicht in der Datei"); }
+      }
+
+      // Zielfeld gegen die Metadaten.
+      let ziel = z.targetField ? esc(z.targetField) : '<span class="leer">–</span>';
+      if (z.targetField && z.targetField.startsWith("KLAEREN")) {
+        ziel = '<span class="offen">noch offen</span>';
+      } else if (z.targetField && felder) {
+        const f = felder[z.targetField];
+        if (!f) { ziel = `<span class="fehlt">${esc(z.targetField)}</span>`;
+                  befunde.push("Feld gibt es in Dataverse nicht"); }
+        else {
+          const passt = DV.typPasst(z.targetType, f.typ);
+          if (passt === false) befunde.push(`Typ: Profil ${z.targetType}, Dataverse ${f.typ}`);
+          if (!f.aenderbar && !f.anlegbar) befunde.push("Feld ist schreibgeschützt");
+        }
+      }
+
+      if (befunde.length && z.aktiv) probleme++;
+      const zustand = !z.aktiv ? "inaktiv" : befunde.length ? "problem" : "gut";
+      return `<tr class="${zustand}">
+        <td>${quelle}</td>
+        <td>${ziel}</td>
+        <td>${esc(z.targetType || "")}</td>
+        <td>${z.istSchluessel ? "🔑" : ""}${z.pflicht ? " ✱" : ""}</td>
+        <td>${esc(z.writePolicy)}</td>
+        <td>${befunde.length ? `<span class="hinweis-text">${esc(befunde.join(" · "))}</span>`
+                             : (z.aktiv ? "" : '<span class="leer">nicht aktiv</span>')}</td>
+      </tr>`;
+    }).join("");
+
+    const st = fehlerText ? "schlecht" : probleme ? "schlecht" : "gut";
+    return `
+      <div class="card">
+        <h4>
+          <span class="stufe">${s.step}</span>
+          ${esc(s.entitySet)}
+          <span class="pill ${st === "gut" ? "gruen" : "grau"}">${esc(s.mode)}</span>
+          ${s.aktiv ? "" : '<span class="pill grau">inaktiv</span>'}
+        </h4>
+        <p class="hint">
+          Blatt <b>${esc(s.sourceSheet || "—")}</b>
+          ${s.alternateKey ? ` · Schlüssel <code>${esc(s.alternateKey)}</code>` : ""}
+          ${s.skipIfClosed ? " · geschlossene Chancen werden übersprungen" : ""}
+          ${blatt ? ` · ${blatt.anzahl} Zeilen in der Datei` : ""}
+        </p>
+        ${fehlerText ? `<p class="err">Dataverse-Felder nicht lesbar: ${esc(fehlerText)}</p>` : ""}
+        ${probleme ? `<p class="warn"><b>${probleme}</b> aktive Zuordnung(en) mit Befund –
+                      siehe letzte Spalte.</p>` : ""}
+        <div class="tbl-wrap"><table class="tbl roh">
+          <thead><tr>
+            <th>Quellspalte</th><th>Zielfeld</th><th>Typ</th><th></th>
+            <th>Schreibregel</th><th>Befund</th>
+          </tr></thead>
+          <tbody>${zeilen || '<tr><td colspan="6" class="leer">keine Zuordnungen</td></tr>'}</tbody>
+        </table></div>
+      </div>`;
   }
 
   /* ── Schritt 3: Datei wählen ───────────────────────────────────────── */
