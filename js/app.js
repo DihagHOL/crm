@@ -241,6 +241,7 @@ const APP = (() => {
              ["unverändert", g.unveraendert, "grau"],
              ["übersprungen", g.uebersprungen, "grau"],
              ["ausgeschlossen", g.ausgeschlossen, "grau"],
+             ["werden ersetzt", g.geloescht, "grau"],
              ["mit Fehler", g.fehler, g.fehler ? "rot" : "grau"]]
             .map(([t, n, f]) => `<div class="zahl-kachel ${f}">
                  <b>${n}</b><small>${t}</small></div>`).join("")}
@@ -249,6 +250,11 @@ const APP = (() => {
           <b>unverändert</b> ist ein eigenes Ergebnis: ohne diesen Wert sieht ein
           Lauf, der nichts geändert hat, genauso aus wie einer, der nicht
           gelaufen ist.</p>
+        ${g.geloescht ? `<p class="hint">Positionen werden <b>ersetzt</b>, nicht
+          abgeglichen: <b>${g.geloescht}</b> vorhandene weichen den neuen aus der
+          Datei. Sie zählen deshalb bei jedem Lauf als „neu“ – auch beim zweiten
+          Import derselben Datei. Löschen und Anlegen geschehen in einer
+          Transaktion; schlägt etwas fehl, bleibt der alte Stand.</p>` : ""}
         <div class="row">
           <button class="btn" id="plExcel">⬇ Bericht als Excel</button>
           <button class="btn sec" id="plNeu">Erneut prüfen</button>
@@ -272,7 +278,7 @@ const APP = (() => {
       <div class="card"><div class="tbl-wrap"><table class="tbl">
         <thead><tr><th>Schritt</th><th>Ziel</th><th>Modus</th><th>Zeilen</th>
           <th>neu</th><th>geändert</th><th>unverändert</th><th>übersprungen</th>
-          <th>ausgeschlossen</th><th>Fehler</th></tr></thead>
+          <th>ausgeschlossen</th><th>ersetzt</th><th>Fehler</th></tr></thead>
         <tbody>${b.schritte.map(z => `
           <tr class="${z.inaktiv ? "inaktiv" : z.fehler ? "problem" : ""}">
             <td><b>${z.s.step}</b></td>
@@ -281,9 +287,10 @@ const APP = (() => {
             <td>${z.zeilen || ""}</td>
             <td>${z.neu || ""}</td><td>${z.aktualisiert || ""}</td>
             <td>${z.unveraendert || ""}</td><td>${z.uebersprungen || ""}</td>
-            <td>${z.ausgeschlossen || ""}</td><td>${z.fehler || ""}</td>
+            <td>${z.ausgeschlossen || ""}</td><td>${z.geloescht || ""}</td>
+            <td>${z.fehler || ""}</td>
           </tr>
-          ${z.strukturfehler ? `<tr class="problem"><td></td><td colspan="9">
+          ${z.strukturfehler ? `<tr class="problem"><td></td><td colspan="10">
              <span class="hinweis-text">${esc(z.strukturfehler)}</span></td></tr>` : ""}
         `).join("")}</tbody>
       </table></div></div>
@@ -349,20 +356,35 @@ const APP = (() => {
         zelle.innerHTML = '<span class="hint">wird geladen …</span>';
         b.disabled = true;
         try {
-          const r = await DV.beispielWerte(es, feld);
           const gefragt = _bericht.aufl.abfragen.find(x => x.entitySet === es && x.feld === feld);
-          zelle.innerHTML = r.werte.length
-            ? `<div class="gegenprobe">
-                 <div><b>In ${esc(es)}.${esc(feld)} steht:</b>
-                   ${r.werte.map(v => `<code>${esc(String(v ?? "–"))}</code>`).join(" ")}
-                   ${r.mehr ? " …" : ""}</div>
-                 <div class="hint" style="margin-top:6px"><b>Gesucht wurde:</b>
-                   ${(gefragt?.fehlend || []).slice(0, 12)
-                       .map(v => `<code>${esc(String(v))}</code>`).join(" ")}</div>
-               </div>`
-            : `<span class="fehlt">${esc(es)}.${esc(feld)} ist leer – die Tabelle
-               enthält keinen einzigen Wert in diesem Feld. Entweder ist es das
-               falsche Schlüsselfeld, oder der Bestand fehlt.</span>`;
+          const pname = await DV.primaerName(es).catch(() => null);
+          // Das Namensfeld gleich mitzeigen. Ist das eingetragene
+          // Schlüsselfeld leer, lautet die nächste Frage ohnehin „dann eben
+          // welches?" – und die Antwort steht dann schon da.
+          const [r, rn] = await Promise.all([
+            DV.beispielWerte(es, feld),
+            pname && pname !== feld ? DV.beispielWerte(es, pname).catch(() => null) : null
+          ]);
+          const liste = (x, f) => x && x.werte.length
+            ? `<div><b>${esc(es)}.${esc(f)}:</b>
+                 ${x.werte.map(v => `<code>${esc(String(v ?? "–"))}</code>`).join(" ")}
+                 ${x.mehr ? " …" : ""}</div>`
+            : `<div><b>${esc(es)}.${esc(f)}:</b>
+                 <span class="fehlt">kein einziger Wert</span></div>`;
+          zelle.innerHTML = `<div class="gegenprobe">
+              ${liste(r, feld)}
+              ${rn ? liste(rn, pname) : ""}
+              <div class="hint" style="margin-top:6px"><b>Gesucht wurde:</b>
+                ${(gefragt?.fehlend || []).slice(0, 12)
+                    .map(v => `<code>${esc(String(v))}</code>`).join(" ")}</div>
+              ${!r.werte.length && rn?.werte.length
+                ? `<p class="warn" style="margin-top:8px">Das eingetragene Schlüsselfeld
+                   <code>${esc(feld)}</code> ist leer, das Namensfeld
+                   <code>${esc(pname)}</code> nicht. Vermutlich gehört
+                   <code>${esc(pname)}</code> ins Profil – in
+                   <code>${esc(C.listen.mappings)}</code>, Spalte
+                   <code>LookupKeyField</code>.</p>` : ""}
+            </div>`;
         } catch (e) {
           zelle.innerHTML = `<span class="fehlt">${esc(e.detail || e.message)}</span>`;
         } finally {
@@ -588,6 +610,7 @@ const APP = (() => {
           ${[["angelegt", g.angelegt, "gruen"], ["aktualisiert", g.aktualisiert, "gruen"],
              ["unverändert", g.unveraendert, "grau"],
              ["übersprungen", g.uebersprungen, "grau"],
+             ["ersetzt", g.geloescht || 0, "grau"],
              ["fehlgeschlagen", g.fehlgeschlagen, g.fehlgeschlagen ? "rot" : "grau"]]
             .map(([t, n, f]) => `<div class="zahl-kachel ${f}"><b>${n || 0}</b>
                  <small>${t}</small></div>`).join("")}

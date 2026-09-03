@@ -113,7 +113,7 @@ const PRUEFUNG = (() => {
     const aus = ausschluss(profil);
     const schritte = [], alleFehler = [], alleWarnungen = [], alleAusschluesse = [];
     const gesamt = { neu: 0, aktualisiert: 0, unveraendert: 0, uebersprungen: 0,
-                     ausgeschlossen: 0, fehler: 0 };
+                     ausgeschlossen: 0, geloescht: 0, fehler: 0 };
 
     for (const s of profil.schritte) {
       if (!s.aktiv) { schritte.push({ ...zaehler(), s, inaktiv: true }); continue; }
@@ -156,6 +156,15 @@ const PRUEFUNG = (() => {
         schritte.push(z);
         for (const k of Object.keys(gesamt)) gesamt[k] += z[k];
         continue;
+      }
+
+      /* Ersetzen heisst löschen und neu anlegen. Ohne diese Zahl steht im
+         Bericht „87 neu" und sonst nichts – und wer die Datei ein zweites
+         Mal importiert, wundert sich zu Recht, warum nichts „unverändert"
+         ist. Die alten Kinddatensätze hat Phase 0 bereits abgefragt. */
+      if (s.mode === "ReplaceByParent" && s.parentField) {
+        const alt = aufl.treffer?.get(`${s.entitySet}|_${s.parentField}_value`);
+        if (alt) for (const rs of alt.values()) z.geloescht += rs.length;
       }
 
       const key = zu.find(k => k.aktiv && k.istSchluessel && k.targetField);
@@ -293,14 +302,15 @@ const PRUEFUNG = (() => {
              ausschluesse: alleAusschluesse };
   }
 
-  const zaehler = () => ({ neu: 0, aktualisiert: 0, unveraendert: 0,
-                           uebersprungen: 0, ausgeschlossen: 0, fehler: 0, zeilen: 0 });
+  const zaehler = () => ({ neu: 0, aktualisiert: 0, unveraendert: 0, uebersprungen: 0,
+                           ausgeschlossen: 0, geloescht: 0, fehler: 0, zeilen: 0 });
 
   /** Ein Satz für die Oberfläche. */
   const zusammenfassung = g =>
     `${g.neu} neu · ${g.aktualisiert} geändert · ${g.unveraendert} unverändert`
     + (g.uebersprungen ? ` · ${g.uebersprungen} übersprungen` : "")
     + (g.ausgeschlossen ? ` · ${g.ausgeschlossen} ausgeschlossen` : "")
+    + (g.geloescht ? ` · ${g.geloescht} werden ersetzt` : "")
     + (g.fehler ? ` · ${g.fehler} mit Fehler` : "");
 
   return { lauf, zusammenfassung, ausschluss, ausgelassen };

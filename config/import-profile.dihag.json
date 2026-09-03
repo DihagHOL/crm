@@ -252,20 +252,22 @@
         "TargetField": "cr570_technicalaudit_lookup",
         "TargetType": "Lookup",
         "LookupEntitySet": "cr570_technicalaudit_lookups",
-        "LookupKeyField": "cr570_newcolumn",
+        "LookupKeyField": "cr570_newcolumn|cr570_name",
         "Active": true,
         "SortOrder": 80,
-        "$hinweis": "B7 geklaert: Zielfeld ist cr570_technicalaudit_lookup an der Verkaufschance, Schluessel cr570_newcolumn. Der Altflow fragt die Tabelle ab und verwirft das Ergebnis - hier landet es im CRM."
+        "$hinweis": "B7 geklaert: Zielfeld ist cr570_technicalaudit_lookup an der Verkaufschance, Schluessel cr570_newcolumn. Der Altflow fragt die Tabelle ab und verwirft das Ergebnis - hier landet es im CRM.",
+        "$offen": "Die Quellspalte fuehrt JA/NEIN (Lauf vom 03.09.2026, Zeile 2: \"Ja\"). Ein Ja/Nein-Wert gegen eine Verweistabelle passt nicht zusammen: entweder haelt die Tabelle Datensaetze \"Ja\" und \"Nein\", oder das Zielfeld ist falsch und gemeint ist ein Ja/Nein-Feld an der Verkaufschance. Zu klaeren. Bis dahin wird ueber beide Felder gesucht und das Feld bleibt leer, wenn nichts passt."
       },
       {
         "SourceColumn": "Produktgruppe",
         "TargetField": "cr570_productlinie_lookup",
         "TargetType": "Lookup",
         "LookupEntitySet": "cr570_productline_lookups",
-        "LookupKeyField": "cr570_newcolumn",
+        "LookupKeyField": "cr570_newcolumn|cr570_name",
         "Active": true,
         "SortOrder": 90,
-        "$hinweis": "B7 geklaert. FALLE: Das Feld heisst cr570_productLINIE_lookup, die Zieltabelle aber cr570_productLINE_lookup. Nicht angleichen."
+        "$hinweis": "B7 geklaert. FALLE: Das Feld heisst cr570_productLINIE_lookup, die Zieltabelle aber cr570_productLINE_lookup. Nicht angleichen.",
+        "$offen": "Die Quellspalte fuehrt Klartext (\"Energieerzeugung\"). cr570_newcolumn findet nichts - vermutlich ist es nicht das Namensfeld der Tabelle. Deshalb zusaetzlich cr570_name. Die Gegenprobe im Pruefbericht (\"Was steht dort?\") zeigt, welches Feld die Werte traegt."
       },
       {
         "SourceColumn": "Mitarbeiter",

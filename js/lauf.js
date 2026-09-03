@@ -49,7 +49,7 @@ const LAUF = (() => {
     const basis = DV.basis();
     const eintraege = [];
     const gesamt = { angelegt: 0, aktualisiert: 0, unveraendert: 0,
-                     uebersprungen: 0, fehlgeschlagen: 0 };
+                     uebersprungen: 0, geloescht: 0, fehlgeschlagen: 0 };
     /* Ausgeschlossene Zeilen – derselbe Verfolger wie im Prüflauf.
        Zwei Fassungen desselben Gedankens laufen auseinander, und dann sagt
        der Prüflauf etwas anderes voraus, als hier geschieht. */
@@ -324,7 +324,11 @@ const LAUF = (() => {
         const alt = alteKinder(kontext, s, eltern);
         for (const p of alt) {
           cs.push({ methode: "DELETE", url: `${basis}/${s.entitySet}(${p})` });
-          zuordnung.push({ art: "delete" });
+          // Auch eine Löschung ist ein Vorgang am Datenbestand und gehört
+          // ins Protokoll (Randbedingung 12). Vorher verschwanden die alten
+          // Positionen spurlos: im Ergebnis stand „87 angelegt", und dass
+          // dafür 66 andere weggeräumt wurden, stand nirgends.
+          zuordnung.push({ art: "delete", id: p, eltern: eltern });
         }
         for (const a of gruppe) {
           cs.push({ methode: "POST", url: `${basis}/${s.entitySet}`, koerper: a.nutzlast });
@@ -408,7 +412,18 @@ const LAUF = (() => {
     const eintraege = [];
     for (let n = 0; n < zuordnung.length; n++) {
       const z = zuordnung[n];
-      if (!z.auftrag) continue;                 // DELETE im Changeset
+      if (z.art === "delete") {
+        const a = teilAntworten[n];
+        eintraege.push(BATCH.erfolg(a?.status ?? 0)
+          ? { schritt: s.step, entitySet: s.entitySet, aktion: "geloescht",
+              dataverseId: z.id, httpStatus: a?.status ?? 0,
+              meldung: `ersetzt durch die Positionen aus der Datei (Elterndatensatz ${z.eltern})` }
+          : { schritt: s.step, entitySet: s.entitySet, aktion: "fehlgeschlagen",
+              dataverseId: z.id, httpStatus: a?.status ?? 0,
+              meldung: "Alte Position liess sich nicht löschen: " + BATCH.fehlertext(a) });
+        continue;
+      }
+      if (!z.auftrag) continue;
       const a = teilAntworten[n];
       if (!a) { eintraege.push(protokoll(z, s, 0, "Keine Antwort im Batch")); continue; }
       eintraege.push(BATCH.erfolg(a.status)

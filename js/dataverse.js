@@ -142,6 +142,26 @@ const DV = (() => {
              dubletten: dub, vollstaendig: rows.vollstaendig !== false };
   }
 
+  /** Das Namensfeld einer Tabelle.
+   *
+   *  Steht im Profil das falsche Schlüsselfeld, findet die Auflösung nichts
+   *  – und die Gegenprobe zeigt eine leere Spalte. Erst der Vergleich mit
+   *  dem Namensfeld beantwortet die eigentliche Frage: „dann eben welches?"
+   *
+   *  @returns {Promise<string|null>} */
+  async function primaerName(entitySet) {
+    const k = "pname|" + entitySet;
+    if (_meta[k] !== undefined) return _meta[k];
+    try {
+      const ln = await logischerName(entitySet);
+      const d = await call(`/EntityDefinitions(LogicalName='${ln}')`
+        + `?$select=PrimaryNameAttribute`);
+      _meta[k] = d?.PrimaryNameAttribute || null;
+    } catch { _meta[k] = null; }
+    metaSichern();
+    return _meta[k];
+  }
+
   /** Was steht in einer Verweistabelle wirklich?
    *
    *  Der Prüfbericht sagt „29 nicht gefunden" und nennt die gesuchten
@@ -292,5 +312,6 @@ const DV = (() => {
   }
 
   return { call, alle, dubletten, whoAmI, basis, pruefeKonfiguration, beispielWerte,
-           felder, logischerName, navigation, schluessel, typPasst, metaLeeren };
+           primaerName, felder, logischerName, navigation, schluessel, typPasst,
+           metaLeeren };
 })();

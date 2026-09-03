@@ -358,5 +358,56 @@ console.log("\nSchluesseladresse ist keine Datensatz-ID");
     "die Schluesseladresse steht als solche im Protokoll");
 }
 
+console.log("\nGeloeschte Positionen stehen im Protokoll");
+{
+  /* Ersetzen heisst loeschen und neu anlegen. Im Ergebnis stand "87
+     angelegt" - dass dafuer 66 andere weggeraeumt wurden, stand nirgends.
+     Ein Vorgang am Datenbestand ohne Spur im Protokoll (Randbedingung 12). */
+  const ALT1 = "11111111-0000-0000-0000-000000000001";
+  const ALT2 = "22222222-0000-0000-0000-000000000002";
+  const { LAUF, EXCEL, gesendet } = baueLauf(() =>
+    antwort([{ status: 204 }, { status: 204 }, { status: 204 }]));
+
+  const mappe = { blaetter: [EXCEL.blattAus("Positionen", [
+    ["Opp-ID", "Position"], [6440, "neue Position"]
+  ])] };
+  const profil = {
+    name: "T",
+    zuordnungen: { POS: [
+      { aktiv: true, sourceColumn: "Opp-ID", targetField: "opportunityid",
+        targetType: "Lookup", lookupEntitySet: "opportunities",
+        lookupKeyField: "new_dagextopid", writePolicy: "Always" },
+      { aktiv: true, sourceColumn: "Position", targetField: "name",
+        targetType: "String", writePolicy: "Always" }
+    ] },
+    schritte: [{ step: 40, entitySet: "opportunityproducts", sourceSheet: "Positionen",
+                 mappingKey: "POS", mode: "ReplaceByParent",
+                 parentField: "opportunityid", aktiv: true }]
+  };
+  const aufl = {
+    treffer: new Map([
+      ["opportunities|new_dagextopid", new Map([["6440",
+        [{ new_dagextopid: 6440, opportunityid: GUID_ALT, statecode: 0 }]]])],
+      ["opportunityproducts|_opportunityid_value", new Map([[GUID_ALT,
+        [{ opportunityproductid: ALT1 }, { opportunityproductid: ALT2 }]]])]
+    ]),
+    abfragen: [],
+    idFelder: new Map([["opportunities", "opportunityid"],
+                       ["opportunityproducts", "opportunityproductid"]]),
+    navigation: new Map(), schluesselFehlt: new Map()
+  };
+
+  const e = await LAUF.ausfuehren({ profil, mappe, aufl, werte: {}, entscheidungen: null });
+  gleich(e.gesamt.geloescht, 2, "beide alten Positionen sind protokolliert");
+  gleich(e.gesamt.angelegt, 1, "die neue ebenfalls");
+  const weg = e.eintraege.filter(x => x.aktion === "geloescht").map(x => x.dataverseId).sort();
+  gleich(weg, [ALT1, ALT2].sort(), "und zwar mit ihrer Datensatz-ID");
+  pruefe(/ersetzt durch die Positionen aus der Datei/.test(
+    e.eintraege.find(x => x.aktion === "geloescht").meldung),
+    "die Meldung sagt, warum sie weg sind");
+  pruefe(gesendet[0].koerper.includes("DELETE") && gesendet[0].koerper.includes("POST"),
+    "loeschen und anlegen stehen im selben Changeset");
+}
+
 console.log(fehler ? `\n${fehler} Pruefung(en) fehlgeschlagen.` : "\nAlle Pruefungen bestanden.");
 process.exit(fehler ? 1 : 0);

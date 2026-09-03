@@ -1,5 +1,62 @@
 # Session-Log
 
+## 03.09.2026 — „Ja" und „Energieerzeugung", und warum 87 neu
+
+**Die Gegenprobe hat geantwortet.** Die beiden Quellspalten führen:
+
+| Spalte | Wert |
+|---|---|
+| Technische Prüfung | `Ja` |
+| Produktgruppe | `Energieerzeugung` |
+
+Zwei verschiedene Befunde.
+
+*Produktgruppe* ist Klartext und gehört in eine Verweistabelle — nur nicht
+unter `cr570_newcolumn`. Die Gegenprobe zeigt das Feld leer und das
+Namensfeld gefüllt. Sie sagt es jetzt auch ausdrücklich: „Das eingetragene
+Schlüsselfeld `cr570_newcolumn` ist leer, das Namensfeld `cr570_name` nicht.
+Vermutlich gehört `cr570_name` ins Profil." Dafür holt sie sich den
+`PrimaryNameAttribute` aus den Metadaten. Beide Verweise suchen jetzt über
+`cr570_newcolumn|cr570_name`.
+
+*Technische Prüfung* ist etwas anderes: **`Ja` ist kein Verweis.** Ein
+Ja/Nein-Wert gegen eine Verweistabelle passt nicht zusammen — entweder hält
+die Tabelle Datensätze `Ja` und `Nein`, oder das Zielfeld ist falsch und
+gemeint ist ein Ja/Nein-Feld an der Verkaufschance. Das ist eine fachliche
+Frage, keine technische; sie steht als `$offen` im Profil. Bis zur Klärung
+bleibt das Feld leer, sichtbar im Bericht.
+
+**Und die 87 „neu".** Berechtigte Irritation: Nach einem erfolgreichen Import
+zeigte der zweite Prüflauf `87 neu · 0 geändert`. Die Zahl stimmt — es sind
+die Positionen, und `ReplaceByParent` ersetzt sie grundsätzlich. Nur stand
+nirgends, dass dafür 87 andere gelöscht werden.
+
+Zwei Lücken:
+
+- Die Vorschau nannte die Ersetzung nicht. Jetzt gibt es eine Kachel
+  **„werden ersetzt"**, eine Spalte je Schritt und einen Satz darunter: dass
+  Positionen ersetzt und nicht abgeglichen werden, dass sie deshalb bei jedem
+  Lauf als „neu" zählen, und dass Löschen und Anlegen in einer Transaktion
+  geschehen.
+- Der Import **protokollierte die Löschungen gar nicht**. Sie liefen im
+  Changeset mit, aber die Antwortauswertung übersprang sie (`if (!z.auftrag)
+  continue`). Im Ergebnis stand „87 angelegt", und dass 66 andere weggeräumt
+  wurden, stand nirgends — ein Vorgang am Datenbestand ohne Spur, also genau
+  der Zustand, gegen den dieses Projekt gebaut ist. Jede Löschung steht jetzt
+  mit Datensatz-ID und Grund im Protokoll und in der Bilanz.
+
+**Nachgemessen.** Eine Anfrage mit zwei bestehenden Positionen:
+
+    Vorschau:  2 neu · 1 geändert · 2 unverändert · 1 übersprungen · 2 werden ersetzt · 0 mit Fehler
+    Ergebnis:  2 angelegt · 1 aktualisiert · 2 unverändert · 1 übersprungen · 2 ersetzt · 0 fehlgeschlagen
+
+Im Batch stehen die beiden `DELETE` neben den `POST`, und die Produktgruppe
+bindet über `cr570_ProductLinie_lookup → /cr570_productline_lookups(p-1)` —
+gefunden über das zweite Schlüsselfeld, gebunden über die GUID.
+
+259 automatische Prüfungen in neun Dateien. Das zweite Schlüsselfeld wirkt
+erst nach `setup-crm.ps1 -ProfilLaden`.
+
 ## 03.09.2026 — Nachsehen statt raten: Gegenprobe und zwei Schlüsselfelder
 
 Zwei offene Fragen aus Lauf 4, beide beantwortbar statt vermutbar.

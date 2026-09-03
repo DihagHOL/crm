@@ -304,5 +304,34 @@ console.log("\nNicht scharf geschaltete Modi");
     "und sagt im Bericht, warum");
 }
 
+console.log("\nErsetzen: die Vorschau sagt, was weggeraeumt wird");
+{
+  /* Beim zweiten Import derselben Datei stand im Bericht "87 neu" und
+     nichts "unveraendert" - richtig, aber ohne Erklaerung irritierend. Der
+     Bericht nennt jetzt die Zahl der Positionen, die dafuer weichen. */
+  const m = { blaetter: [EXCEL.blattAus("Positionen", [
+    ["Opp-ID", "Thema", "Umsatz"], [6440, "Position", 1]
+  ])] };
+  const auflMitKindern = {
+    treffer: new Map([
+      ["opportunities|new_dagextopid", aufl.treffer.get("opportunities|new_dagextopid")],
+      ["opportunityproducts|_opportunityid_value", new Map([
+        ["p-1", [{ x: 1 }, { x: 2 }]],
+        ["p-2", [{ x: 3 }]]
+      ])]
+    ]),
+    abfragen: [], idFelder: new Map()
+  };
+  const s = schritt({ step: 40, entitySet: "opportunityproducts",
+    sourceSheet: "Positionen", mode: "ReplaceByParent",
+    parentField: "opportunityid", alternateKey: "" });
+  const r = PRUEFUNG.lauf({ schritte: [s], zuordnungen }, m, auflMitKindern);
+
+  gleich(r.schritte[0].geloescht, 3, "drei vorhandene Positionen weichen");
+  gleich(r.gesamt.geloescht, 3, "und stehen in der Bilanz");
+  pruefe(/werden ersetzt/.test(PRUEFUNG.zusammenfassung(r.gesamt)),
+    "der Satz sagt es auch");
+}
+
 console.log(fehler ? `\n${fehler} Prüfung(en) fehlgeschlagen.\n` : "\nAlle Prüfungen bestanden.\n");
 process.exit(fehler ? 1 : 0);

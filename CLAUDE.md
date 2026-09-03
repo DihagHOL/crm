@@ -484,6 +484,15 @@ zirkuläre Abhängigkeit, weil Konten nicht geschrieben werden.
 
 ### Modus `ReplaceByParent`
 
+**Ersetzte Positionen zählen bei jedem Lauf als „neu".** Das ist keine
+Fehlfunktion, sondern die Bedeutung von *ersetzen*: Auch der zweite Import
+derselben Datei legt sie neu an, weil die alten vorher weichen. Damit das
+niemanden ratlos zurücklässt, nennt der Bericht die Zahl der Datensätze, die
+dafür gelöscht werden — und jede Löschung steht im Protokoll, mit
+Datensatz-ID und Grund. Ein Vorgang am Datenbestand ohne Spur wäre genau der
+Zustand, gegen den dieses Projekt gebaut ist.
+
+
 Positionen werden nicht gemischt, sondern ersetzt: alle bestehenden
 `opportunityproducts` einer Verkaufschance weichen den neuen aus der Datei.
 
