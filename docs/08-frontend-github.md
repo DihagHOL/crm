@@ -518,7 +518,8 @@ Desktopanwendungen" ein, mit `Öffentliche Clientflows: Ja`.
 
 ```powershell
 Install-Module Microsoft.Graph -Scope CurrentUser
-Connect-MgGraph -Scopes "Application.ReadWrite.All","Sites.Manage.All",`
+Connect-MgGraph -UseDeviceCode `
+                -Scopes "Application.ReadWrite.All","Sites.Manage.All",`
                         "Sites.ReadWrite.All","User.Read.All"
 ./setup-crm.ps1
 ```

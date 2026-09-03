@@ -10,8 +10,18 @@
 #
 #  VORAUSSETZUNG
 #      Install-Module Microsoft.Graph.Authentication -Scope CurrentUser
-#      Connect-MgGraph -Scopes "Sites.Manage.All","Sites.ReadWrite.All"
+#      Connect-MgGraph -Scopes "Sites.Manage.All","Sites.ReadWrite.All" -UseDeviceCode
 #      ./setup-crm.ps1
+#
+#  -UseDeviceCode ist kein Beiwerk. Ohne den Schalter meldet sich das Modul
+#  ueber den Windows-Kontenmanager (WAM) an, und dieser Weg bricht auf
+#  PowerShell 7.6 ab mit
+#      InteractiveBrowserCredential authentication failed: Method not found:
+#      Microsoft.Identity.Client.BaseAbstractApplicationBuilder`1.WithLogging(...)
+#  Das ist kein Rechteproblem, sondern ein Versionskonflikt: Graph 2.39 ist
+#  fuer .NET 8 gebaut, PowerShell 7.6 laeuft auf .NET 10. Der Geraetecode
+#  umgeht WAM und funktioniert unveraendert - im Browser anmelden, Code
+#  eintippen, fertig.
 #
 #  Es reicht das TEILMODUL Microsoft.Graph.Authentication (wenige MB) -
 #  das Skript benutzt nur Invoke-MgGraphRequest. Das Gesamtpaket

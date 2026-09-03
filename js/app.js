@@ -968,7 +968,7 @@ const APP = (() => {
         const schritt = p.schritte.find(x => x.step === step);
         const ziele = (p.zuordnungen[schritt.mappingKey] || [])
           .filter(z => z.aktiv && z.targetField && !z.targetField.startsWith("KLAEREN")
-                       && !z.targetField.startsWith("$") && z.targetType !== "Lookup")
+                       && !z.targetField.startsWith("$"))
           .map(z => z.targetField);
         b.disabled = true; b.textContent = "wird geprüft …";
         try {

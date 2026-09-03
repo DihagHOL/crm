@@ -155,15 +155,38 @@ const DV = (() => {
    *  statt einen je Feld.
    *
    *  @returns {Promise<{gesamt:number, jeFeld:Object<string,number>}>} */
-  async function belegung(entitySet, felder, anzahl = 1000) {
-    const liste = [...new Set(felder.filter(Boolean))];
+  async function belegung(entitySet, ziele, anzahl = 1000) {
+    const liste = [...new Set(ziele.filter(Boolean))];
     if (!liste.length) return { gesamt: 0, jeFeld: {} };
-    const d = await call(`/${entitySet}?$select=${encodeURIComponent(liste.join(","))}`
+
+    /* Verweise heissen beim Lesen anders als beim Schreiben. Geschrieben
+       wird `ownerid`, gelesen werden kann nur `_ownerid_value`.
+
+       Dataverse weist den Attributnamen dabei nicht zurueck - es verwirft
+       das ganze $select und liefert den vollen Datensatz, in dem `ownerid`
+       dann gar nicht vorkommt. Gezaehlt wurden also null Treffer, und das
+       liest sich wie „dieses Feld fuehrt niemand". Ein stiller falscher
+       Befund ist schlimmer als ein Fehler: genau diese Zahl soll ja das
+       falsche Ziel entlarven. Deshalb waren Verweise bisher ganz
+       ausgenommen - also die Felder, bei denen ein leeres Ziel am
+       laengsten unbemerkt bleibt. */
+    let meta = {};
+    try { meta = await felder(entitySet); } catch { /* dann eben ohne */ }
+    const VERWEIS = new Set(["Lookup", "Owner", "Customer"]);
+    const gelesen = {};
+    for (const f of liste)
+      gelesen[f] = VERWEIS.has(meta[f]?.typ) && !/^_.+_value$/.test(f)
+        ? `_${f}_value` : f;
+
+    const spalten = [...new Set(Object.values(gelesen))];
+    const d = await call(`/${entitySet}?$select=${encodeURIComponent(spalten.join(","))}`
       + `&$top=${anzahl}`);
     const rows = d?.value || [];
     const jeFeld = {};
-    for (const f of liste)
-      jeFeld[f] = rows.filter(r => r[f] !== null && r[f] !== undefined && r[f] !== "").length;
+    for (const f of liste) {
+      const s = gelesen[f];
+      jeFeld[f] = rows.filter(r => r[s] !== null && r[s] !== undefined && r[s] !== "").length;
+    }
     return { gesamt: rows.length, jeFeld };
   }
 

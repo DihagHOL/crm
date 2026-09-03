@@ -455,6 +455,22 @@ Die Zuordnung zeigt deshalb zwei Zahlen je Feld:
 Unter einem Prozent wird rot. Das ist fast immer das falsche Ziel — ein Feld,
 das praktisch niemand führt, ist selten das, was der Fachbereich ansieht.
 
+**Verweise zählen anders.** Geschrieben wird `ownerid`, gelesen werden kann
+nur `_ownerid_value`. Auf `$select=ownerid` antwortet Dataverse aber nicht mit
+einem Fehler — es verwirft das ganze `$select` und liefert den vollen
+Datensatz, in dem `ownerid` dann nicht vorkommt. Die Zählung ergab null, und
+null liest sich wie „führt wirklich niemand". Deshalb waren Verweise zunächst
+ganz von der Gegenprobe ausgenommen — also genau die Felder, bei denen ein
+leeres Ziel am längsten unbemerkt bleibt.
+
+`DV.belegung()` schlägt den Typ jetzt in den Metadaten nach und liest
+`Lookup`, `Owner` und `Customer` als `_feld_value`. Zurück kommt die Zahl
+unter dem Feldnamen aus dem Profil, nicht unter dem Lesenamen — sonst fände
+die Oberfläche ihre Zelle nicht.
+
+Merksatz: **ein stiller falscher Befund ist schlimmer als ein Fehler.** Eine
+Prüfung, die im Zweifel schweigt, wiegt nur in Sicherheit.
+
 ### Schreibrichtlinie je Feld
 
 Aus der Auflösung folgt die Unterscheidung, die den Import erst zu einem

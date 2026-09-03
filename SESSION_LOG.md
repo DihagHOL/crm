@@ -1,5 +1,55 @@
 # Session-Log
 
+## 03.09.2026 — Die drei „offenen" Felder, und eine Prüfung, die schwieg
+
+**Zwei der drei waren nie offen.** In der Zuordnung standen `Preisliste`,
+`Status` und `Mitarbeiter` gemeinsam unter „Zielfeld fachlich offen". Gegen
+die Metadaten der Umgebung geprüft, sind das drei verschiedene Fälle:
+
+| Spalte | Befund |
+|---|---|
+| **Mitarbeiter** | wird längst importiert — Schritt 30 schreibt sie nach `ownerid` an der Verkaufschance. An der Position ist es *unmöglich*: `opportunityproduct.ownerid` ist `anlegbar=False`, `aenderbar=False`. |
+| **Status** | `opportunityproduct` hat weder `statecode` noch `statuscode`. Es gibt an der Position kein Statusfeld, in das man schreiben könnte. |
+| **Preisliste** | echte Entscheidung — aber an der falschen Stelle geführt. Die Position hat kein `pricelevelid`; das Feld gibt es nur an der Chance, dort beschreibbar, 307 von 1000 Chancen führen eine. |
+
+Nur die Preisliste ist damit eine fachliche Frage. Die anderen beiden waren
+falsch einsortiert, und die Hinweise im Profil sagen das jetzt auch.
+
+**Die Gegenprobe schwieg genau dort, wo sie am nötigsten ist.** Verweise waren
+von der Belegungsprüfung ausgenommen (`z.targetType !== "Lookup"`). Der Grund
+schien technisch: `$select=ownerid` liefert den Wert nicht, gelesen werden
+kann nur `_ownerid_value`.
+
+Nachgesehen ist es schlimmer. Dataverse weist den Attributnamen nicht zurück —
+es **verwirft das ganze `$select`** und gibt den vollen Datensatz zurück, in
+dem `ownerid` schlicht fehlt. Die Zählung hätte also null ergeben, und null
+liest sich wie „führt wirklich niemand". Dieselbe Falle wie bei MTZ, nur
+umgekehrt: dort schrieb der Import fehlerfrei ins falsche Feld, hier hätte die
+Prüfung ein richtiges Feld für tot erklärt.
+
+`DV.belegung()` schlägt den Typ jetzt in den Metadaten nach und liest
+`Lookup`, `Owner` und `Customer` als `_feld_value` — zurück kommt die Zahl
+unter dem Profilnamen, sonst fände die Oberfläche ihre Zelle nicht.
+`tests/test-belegung.mjs` hält das fest, samt Ausfall der Metadaten und
+doppelter Verpackung.
+
+**`Connect-MgGraph` scheiterte, aber nicht an Rechten.** Die Anmeldung läuft
+standardmäßig über den Windows-Kontenmanager, und der bricht auf PowerShell
+7.6 ab:
+
+```
+Method not found: BaseAbstractApplicationBuilder`1.WithLogging(IIdentityLogger, Boolean)
+```
+
+Die Methode ist da — MSAL 4.82.1 im Modulordner hat sie, per Reflection
+geprüft. Es kollidieren zwei Fassungen im WAM-Pfad: `Microsoft.Graph.
+Authentication` 2.39 ist für .NET 8 gebaut, 7.6 läuft auf .NET 10.
+`-UseDeviceCode` umgeht WAM und läuft durch; steht jetzt in `setup-crm.ps1`,
+`README` und `docs/02`.
+
+**Als Nächstes.** `./setup-crm.ps1 -ProfilLaden`, dann ein Lauf mit
+Belegungsprüfung über *alle* Felder — erstmals auch über die Verweise.
+
 ## 03.09.2026 — Felder statt Zeilen, und warum die Zuordnung nicht wirkte
 
 **Die Wertzuordnung griff, die Auflösung nicht.** Die Warnungen zeigten

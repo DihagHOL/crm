@@ -403,7 +403,7 @@
         "TargetType": "String",
         "Active": false,
         "SortOrder": 120,
-        "$hinweis": "ENTSCHIEDEN am 02.09.2026: bleibt aussen vor. Review A7 vermutete, dass Positionen ohne Preisliste am Elterndatensatz scheitern - in dieser Umgebung stimmt das NICHT: von 60 geprueften Positionen haengen 59 an Verkaufschancen ohne pricelevelid. Es sind Freitextpositionen, die keine Preisliste brauchen. Eine Preisliste des Namens aus der Datei existiert ohnehin nicht."
+        "$hinweis": "ENTSCHIEDEN am 02.09.2026: bleibt aussen vor. Am 03.09.2026 gegen die Metadaten geprueft und praezisiert: opportunityproduct hat gar kein pricelevelid. Das Feld gibt es nur an der Verkaufschance (Lookup, anlegbar und aenderbar), 307 von 1000 Chancen fuehren eine, ueber 50 Preislisten existieren. Wer die Spalte importieren will, ordnet sie also OPPORTUNITY_STD zu, nicht hier. Dagegen steht der Befund von damals: von 60 geprueften Positionen haengen 59 an Chancen ohne Preisliste - Freitextpositionen, die keine brauchen. Eine Preisliste an der Chance zu setzen, greift in deren Preisfindung ein. Fachliche Entscheidung, kein technisches Hindernis."
       },
       {
         "SourceColumn": "Status",
@@ -411,7 +411,7 @@
         "TargetType": "String",
         "Active": false,
         "SortOrder": 130,
-        "$hinweis": "ENTSCHIEDEN am 02.09.2026: bleibt inaktiv. Die Spalte mischt zwei Konzepte (Review A5) - drei Vertriebsphasen und zwei Abschlusszustaende. Die Abschluesse werden vorerst nicht importiert (Schritt 60 inaktiv); fuer die Phasen waere Schritt 50 zustaendig. Der Pruefbericht meldet die Konflikte weiterhin."
+        "$hinweis": "ENTSCHIEDEN am 02.09.2026: bleibt inaktiv. Am 03.09.2026 bestaetigt, warum hier ueberhaupt nichts stehen kann: opportunityproduct hat weder statecode noch statuscode - an der Position gibt es schlicht kein Statusfeld. Die Spalte mischt zudem zwei Konzepte (Review A5): drei Vertriebsphasen (dafuer waere Schritt 50 zustaendig) und zwei Abschlusszustaende (Schritt 60, inaktiv). Der Pruefbericht meldet die Konflikte weiterhin."
       },
       {
         "SourceColumn": "Mitarbeiter",
@@ -421,7 +421,7 @@
         "LookupKeyField": "internalemailaddress",
         "Active": false,
         "SortOrder": 140,
-        "$hinweis": "Der Flow sucht den Systembenutzer ueber die E-Mail und setzt ownerid - aber an einer NEU angelegten Verkaufschance in der verschachtelten Schleife (B1). Gemeint war vermutlich: Besitzer der bestehenden Verkaufschance setzen."
+        "$hinweis": "KEINE LUECKE: die Spalte wird importiert, nur an anderer Stelle. OPPORTUNITY_STD schreibt sie nach ownerid an der Verkaufschance. An der Position ist das unmoeglich - opportunityproduct.ownerid ist anlegbar=False und aenderbar=False (Metadaten, 03.09.2026). Der Altflow setzte den Besitzer an einer NEU angelegten Chance in der verschachtelten Schleife (B1); gemeint war der Besitzer der bestehenden Chance, und genau das tut Schritt 30. Die Zeile bleibt als Beleg stehen, damit die Spalte nicht zweimal geprueft wird."
       },
       {
         "SourceColumn": "sonstige Zuschläge",

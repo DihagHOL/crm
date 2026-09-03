@@ -57,5 +57,8 @@ jobs:
       - name: Dublettenprüfung der Schlüsselfelder
         run: node tests/test-dubletten.mjs
 
+      - name: Belegung im Ziel (Verweise als _feld_value)
+        run: node tests/test-belegung.mjs
+
       - name: Konfiguration, Ladereihenfolge und Doku auf Konsistenz prüfen
         run: node tests/test-konsistenz.mjs

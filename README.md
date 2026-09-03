@@ -162,10 +162,15 @@ wiederholbar, Vorhandenes wird nicht angefasst:
 
 ```powershell
 Install-Module Microsoft.Graph.Authentication -Scope CurrentUser
-Connect-MgGraph -Scopes "Sites.Manage.All","Sites.ReadWrite.All"
+Connect-MgGraph -Scopes "Sites.Manage.All","Sites.ReadWrite.All" -UseDeviceCode
 ./setup-crm.ps1 -NurPruefen     # erst ansehen, was fehlt
 ./setup-crm.ps1                 # dann anlegen
 ```
+
+`-UseDeviceCode` ist Pflicht, nicht Geschmack: ohne den Schalter geht die
+Anmeldung ueber den Windows-Kontenmanager, und der bricht auf PowerShell 7.6
+mit `Method not found: ...WithLogging(...)` ab — ein Versionskonflikt im
+Graph-Modul, kein fehlendes Recht. Siehe [docs/02](docs/02-sharepoint-setup.md).
 
 Vier Schritte: Statusspalten in der Quellbibliothek, Konfigurationssite
 prüfen, die fünf `CRM_*`-Listen samt Spalten, Eintrag in `AppPermissions`.
