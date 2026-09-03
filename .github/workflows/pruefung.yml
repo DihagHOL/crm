@@ -36,6 +36,12 @@ jobs:
       - name: Einlesen der Arbeitsmappe (Kopfzeilen, Zeilennummern)
         run: node tests/test-excel.mjs
 
+      - name: Umwandlungen (deutsche Zahlen, Datum, leer/null/Null)
+        run: node tests/test-transforms.mjs
+
+      - name: Aufbau der Nutzlast (Schlüssel, Schreibregeln, Lookups)
+        run: node tests/test-mapping.mjs
+
       - name: Dublettenprüfung der Schlüsselfelder
         run: node tests/test-dubletten.mjs
 
