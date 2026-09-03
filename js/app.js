@@ -700,7 +700,8 @@ const APP = (() => {
 
     let probleme = 0;
     const zeilen = zuordnungen.map(z => {
-      const befunde = [];
+      const befunde = [];   // zählt als Problem
+      const notizen = [];   // erklärt nur
 
       // Quellspalte – nur prüfbar, wenn eine Datei geladen ist.
       let quelle = '<span class="leer">–</span>';
@@ -719,6 +720,13 @@ const APP = (() => {
       let ziel = z.targetField ? esc(z.targetField) : '<span class="leer">–</span>';
       if (z.targetField && z.targetField.startsWith("KLAEREN")) {
         ziel = '<span class="offen">noch offen</span>';
+      } else if (z.targetField && z.targetField.startsWith("$")) {
+        // `$action` ist kein Dataverse-Feld, sondern eine Anweisung an den
+        // Lauf: WinOpportunity oder LoseOpportunity. Gegen die Metadaten
+        // geprüft, meldete sie „Feld gibt es in Dataverse nicht“ – ein
+        // Fehler, den es nicht gibt.
+        ziel = esc(z.targetField);
+        notizen.push("Anweisung an den Lauf, kein Feld");
       } else if (z.targetField && felder) {
         const f = felder[z.targetField];
         if (!f) { ziel = `<span class="fehlt">${esc(z.targetField)}</span>`;
@@ -730,8 +738,12 @@ const APP = (() => {
         }
       }
 
-      if (befunde.length && z.aktiv) probleme++;
-      const zustand = !z.aktiv ? "inaktiv" : befunde.length ? "problem" : "gut";
+      // Ein Befund in einem abgeschalteten Schritt ist kein Problem: dort
+      // läuft nichts. Sichtbar bleibt er trotzdem – wer den Schritt später
+      // einschaltet, soll ihn vorher sehen.
+      if (befunde.length && z.aktiv && s.aktiv) probleme++;
+      const zustand = !z.aktiv || !s.aktiv ? "inaktiv"
+                    : befunde.length ? "problem" : "gut";
       return `<tr class="${zustand}">
         <td>${quelle}</td>
         <td>${ziel}</td>
@@ -739,6 +751,7 @@ const APP = (() => {
         <td>${z.istSchluessel ? "🔑" : ""}${z.pflicht ? " ✱" : ""}</td>
         <td>${esc(z.writePolicy)}</td>
         <td>${befunde.length ? `<span class="hinweis-text">${esc(befunde.join(" · "))}</span>`
+                             : notizen.length ? `<span class="leer">${esc(notizen.join(" · "))}</span>`
                              : (z.aktiv ? "" : '<span class="leer">nicht aktiv</span>')}</td>
       </tr>`;
     }).join("");
@@ -1008,30 +1021,6 @@ const APP = (() => {
             <button class="btn sec sm" id="btnTest">Erneut prüfen</button>
           </div>
         </div>
-      </div>
-
-      <h3 class="section">Ablauf</h3>
-      <div class="card">
-        <p class="hint">Nach jeder Phase steht etwas Lauffähiges. Schritt 6 –
-           der Prüflauf – ist nicht überspringbar: es gibt keinen Weg von der
-           Zuordnung zum Import, der ihn auslässt.</p>
-        <table class="tbl">
-          <thead><tr><th style="width:70px">Phase</th><th>Ergebnis</th><th style="width:130px">Stand</th></tr></thead>
-          <tbody>
-            ${[
-              ["1", "Gerüst, Corporate Design, Auslieferung", "fertig"],
-              ["2", "Anmeldung, Rolle, Selbsttest", "fertig"],
-              ["3", "Dateien aus SharePoint lesen", "offen"],
-              ["4", "Feldzuordnung aus den Konfigurationslisten", "offen"],
-              ["5", "Auflösungsphase und Prüflauf", "offen"],
-              ["6", "Import mit Stapeln und Drosselung", "offen"],
-              ["7", "Protokoll nach SharePoint", "offen"]
-            ].map(([n, t, s]) => `<tr${s === "offen" ? ' class="off"' : ""}>
-                 <td><b>${n}</b></td><td>${esc(t)}</td>
-                 <td><span class="pill ${s === "fertig" ? "gruen" : "grau"}">${esc(s)}</span></td>
-               </tr>`).join("")}
-          </tbody>
-        </table>
       </div>`;
 
     $("btnTest").onclick = selbsttest;
@@ -1164,25 +1153,44 @@ const APP = (() => {
           if (istOffen(C.dataverseUrl))
             return { ok: false, text: "Übersprungen – dataverseUrl nicht gesetzt." };
 
+          // Die beiden Felder haben verschiedene Rollen, und nur eine davon
+          // verträgt keine Dubletten:
+          //
+          //   Schlüssel – darüber läuft der Upsert. Doppelte Werte machen
+          //     den Alternativschlüssel unanlegbar; ohne ihn gibt es keinen
+          //     Upsert. Das ist ein Fehler.
+          //   Verweis   – darüber wird nur gesucht. Doppelte Werte sind
+          //     eine Frage, keine Sackgasse: der Prüflauf legt die
+          //     Kandidaten vor, jemand entscheidet, die Entscheidung steht
+          //     im Protokoll (CLAUDE.md §8). Das ist ein Hinweis.
           const felder = [
-            { es: "opportunities", feld: "new_dagextopid", was: "Verkaufschancen" },
-            { es: "accounts",      feld: "dag_dihag_kdnr", was: "Konten" }
+            { es: "opportunities", feld: "new_dagextopid", was: "Verkaufschancen",
+              rolle: "schluessel" },
+            { es: "accounts",      feld: "dag_dihag_kdnr", was: "Konten",
+              rolle: "verweis" }
           ];
           const teile = [];
-          let sauber = true;
+          let sauber = true, zuEntscheiden = 0;
           for (const f of felder) {
             const r = await DV.dubletten(f.es, f.feld);
             const n = r.dubletten.length;
-            if (n) sauber = false;
+            if (n && f.rolle === "schluessel") sauber = false;
+            if (n && f.rolle === "verweis") zuEntscheiden += n;
             const bsp = r.dubletten.slice(0, 3)
               .map(d => `${d.wert}×${d.anzahl}`).join(", ");
             teile.push(`${f.was}: ${r.gesamt} mit ${f.feld}, `
-              + (n ? `${n} DOPPELT (${bsp}${n > 3 ? " …" : ""})` : "alle eindeutig")
+              + (n ? `${n} doppelt (${bsp}${n > 3 ? " …" : ""})` : "alle eindeutig")
               + (r.vollstaendig ? "" : " – Abfrage abgeschnitten, Zahl unvollständig"));
           }
           return { ok: sauber, text: teile.join(" · ")
-            + (sauber ? "" : "  Ein Alternativschlüssel lässt sich darauf nicht "
-              + "aktivieren, und die Auflösung müsste raten. Siehe docs/03 und docs/05.") };
+            + (sauber && zuEntscheiden
+                ? `  Die ${zuEntscheiden} doppelten Kundennummern sind kein `
+                  + "Hindernis: der Prüflauf fragt bei jeder betroffenen Zeile "
+                  + "nach, welches Konto gemeint ist, und schreibt erst danach."
+                : "")
+            + (sauber ? "" : "  Auf einem doppelten Schlüsselfeld lässt sich kein "
+              + "Alternativschlüssel aktivieren – ohne ihn gibt es keinen Upsert. "
+              + "Siehe docs/03 und docs/05.") };
         }
       }
     ];

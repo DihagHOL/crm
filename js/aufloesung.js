@@ -26,6 +26,39 @@ const AUFLOESUNG = (() => {
   const leer = v => v === null || v === undefined || v === "";
   const schluessel = (entitySet, feld) => `${entitySet}|${feld}`;
 
+  /** Feldname für den Filter.
+   *
+   *  `Microsoft.Dynamics.CRM.In` kennt nur Attributnamen. Die
+   *  OData-Schreibweise eines Verweises – `_opportunityid_value` – ist
+   *  keiner, und Dataverse antwortet darauf mit HTTP 400: „entity doesn't
+   *  contain attribute with Name = '_opportunityid_value'". Gefiltert wird
+   *  deshalb über das Attribut (`opportunityid`), gelesen und gruppiert
+   *  weiterhin über den Aliasnamen – nur unter dem steht die GUID in der
+   *  Antwort. */
+  const filterFeld = feld => /^_(.+)_value$/.exec(feld)?.[1] || feld;
+
+  const zitat = v => `'${String(v).replace(/'/g, "''")}'`;
+  const istGuid = v => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    .test(String(v));
+
+  /** Rückfallweg, falls `In(...)` das Feld nicht annimmt: eine Kette aus
+   *  `feld eq wert or …`. Das ist gewöhnliches OData und geht immer, kostet
+   *  aber Adresslänge – jeder Wert schleppt den Feldnamen mit. Deshalb in
+   *  kleineren Blöcken. */
+  const KETTE = 20;
+
+  async function ketteAbfragen(entitySet, feld, werte, sel) {
+    let out = [];
+    for (let i = 0; i < werte.length; i += KETTE) {
+      const filter = werte.slice(i, i + KETTE)
+        // GUIDs stehen in OData ohne Anführungszeichen, Text mit.
+        .map(v => `${feld} eq ${istGuid(v) ? v : zitat(v)}`).join(" or ");
+      out = out.concat(await DV.alle(`/${entitySet}?$select=${sel}`
+        + `&$filter=${encodeURIComponent(filter)}`));
+    }
+    return out;
+  }
+
   /** Werte in Blöcken abfragen und nach dem Schlüsselfeld gruppieren.
    *  Mehrfachtreffer werden NICHT auf den ersten reduziert – genau das tut
    *  der Altflow mit `$top: 1`, und genau deshalb schreibt er bei doppelten
@@ -34,13 +67,32 @@ const AUFLOESUNG = (() => {
   async function sammle(entitySet, feld, werte, select) {
     const treffer = new Map();
     const liste = [...new Set(werte.filter(v => !leer(v)).map(v => String(v)))];
+    const attribut = filterFeld(feld);
+    const sel = encodeURIComponent(select);
+    let inGehtNicht = false;
+
     for (let i = 0; i < liste.length; i += BLOCK) {
-      const teil = liste.slice(i, i + BLOCK)
-        .map(v => `'${String(v).replace(/'/g, "''")}'`).join(",");
-      const filter = `Microsoft.Dynamics.CRM.In(PropertyName='${feld}',PropertyValues=[${teil}])`;
-      const rows = await DV.alle(
-        `/${entitySet}?$select=${encodeURIComponent(select)}`
-        + `&$filter=${encodeURIComponent(filter)}`);
+      const teil = liste.slice(i, i + BLOCK);
+      let rows = null;
+
+      if (!inGehtNicht) {
+        const filter = `Microsoft.Dynamics.CRM.In(PropertyName='${attribut}',`
+          + `PropertyValues=[${teil.map(zitat).join(",")}])`;
+        try {
+          rows = await DV.alle(`/${entitySet}?$select=${sel}`
+            + `&$filter=${encodeURIComponent(filter)}`);
+        } catch (e) {
+          // 400 heißt: die Abfrage ist falsch gebaut, nicht die Umgebung
+          // überlastet. Wiederholen bringt nichts, aber der andere Weg
+          // schon. Alles andere – 401, 403, 429 – gehört nach oben.
+          if (e.status !== 400) throw e;
+          console.warn(`[Auflösung] In(...) auf ${entitySet}.${attribut} `
+            + `abgelehnt: ${e.message} – weiter mit eq-Ketten.`);
+          inGehtNicht = true;
+        }
+      }
+      if (rows === null) rows = await ketteAbfragen(entitySet, feld, teil, sel);
+
       for (const r of rows) {
         const k = String(r[feld]);
         if (!treffer.has(k)) treffer.set(k, []);
@@ -209,5 +261,6 @@ const AUFLOESUNG = (() => {
     return offen;
   }
 
-  return { fuer, finde, sammle, vergleichsFelder, offeneEntscheidungen, idFeld, BLOCK };
+  return { fuer, finde, sammle, vergleichsFelder, offeneEntscheidungen, idFeld,
+           filterFeld, BLOCK };
 })();

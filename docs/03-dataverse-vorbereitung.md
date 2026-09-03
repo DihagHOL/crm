@@ -35,7 +35,7 @@ vermutet:
 
 | Tabelle | Schlüsselfeld | Quelle in Excel | Status |
 |---|---|---|---|
-| `account` | `dag_dihag_kdnr` (Integer) | `Firma` | Feld existiert. **Nicht eindeutig — 15 doppelte Nummern.** Schlüssel derzeit nicht anlegbar, siehe unten. |
+| `account` | `dag_dihag_kdnr` (Integer) | `Firma` | Feld existiert. **Nicht eindeutig — noch 7 doppelte Nummern.** Ein Schlüssel ist darauf nicht anlegbar und wird auch nicht gebraucht: Schritt 10 löst über `$filter` auf, und Mehrfachtreffer entscheidet die App. Siehe unten. |
 | `opportunity` | **`new_dagextopid` (Integer)** | `Opp-ID` | Feld existiert und passt. **213 Chancen müssen nachgepflegt werden**, siehe unten. |
 | `contact` | — | `Kontaktemail` | Kein Schlüssel, Auflösung per `$filter` (Review A1) |
 
@@ -73,14 +73,14 @@ Import sie nicht und legt sie neu an — Dubletten für jede davon.
 Spalte `Firma` die Kundennummer oder den Namen führt: die **Nummer**. Der
 Filter des Altflows ohne Anführungszeichen war der richtige Hinweis.
 
-Von 2.382 Konten mit Kundennummer sind **15 Nummern doppelt vergeben**. Ein
+Von 2.382 Konten mit Kundennummer waren **15 Nummern doppelt vergeben**. Ein
 Alternativschlüssel indiziert alle Datensätze, auch deaktivierte — er bliebe
 also auf `Fehlgeschlagen` stehen.
 
-Acht der fünfzehn sind harmlose Dublettenreste: ein aktives und ein
+Acht der fünfzehn waren harmlose Dublettenreste: ein aktives und ein
 deaktiviertes Konto, meist mit Tippfehler im Namen (`Müller Präzision` /
-`Müller Präzsion`). Dort genügt es, die Nummer am deaktivierten Datensatz zu
-leeren.
+`Müller Präzsion`). Dort genügte es, die Nummer am deaktivierten Datensatz zu
+leeren — **erledigt am 02.09.2026**, es sind noch sieben.
 
 **Sieben haben zwei aktive Konten**, und das sind teils verschiedene Firmen:
 
@@ -94,9 +94,21 @@ leeren.
 | 99901663 | OMF Srl Industria | Schabmüller Automobiltechnik GmbH |
 | 99901855 | PSG Procurement Services GmbH | Private Aktiengesellschaft |
 
-Das ist keine Importfrage, sondern ein Stammdatenproblem. Solange es besteht,
-läuft Schritt 10 als `LookupOnly` über `$filter` weiter — die Auflösungsphase
-muss Mehrfachtreffer aber **melden** statt den ersten zu nehmen.
+Das ist keine Importfrage, sondern ein Stammdatenproblem. Es aufzuräumen ist
+niemandes Aufgabe im Rahmen dieses Imports — und es muss auch nicht
+aufgeräumt sein, damit importiert werden kann.
+
+**Entschieden wird in der App.** Schritt 10 läuft als `LookupOnly` über
+`$filter`; die Auflösungsphase meldet Mehrfachtreffer, statt den ersten zu
+nehmen (`js/aufloesung.js`, `offeneEntscheidungen`). Der Prüflauf legt zu
+jeder betroffenen Kundennummer die Kandidaten vor, jemand wählt das gemeinte
+Konto, und die Wahl geht mit ins Protokoll. Ohne Wahl schreibt die Zeile
+nicht — geraten wird an keiner Stelle.
+
+Genau das ist der Unterschied zum Altflow: der nimmt mit `$top: 1` den
+ersten Treffer und schreibt bei `47000004` mit gleicher
+Wahrscheinlichkeit auf *Siemens Energy Global* oder *Siemens Energy
+Compressor* — ohne Spur, welches es war.
 
 ### Weitere Befunde aus derselben Prüfung
 

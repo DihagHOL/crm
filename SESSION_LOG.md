@@ -1,5 +1,68 @@
 # Session-Log
 
+## 03.09.2026 — Erster echter Prüflauf: drei Befunde behoben
+
+Der erste Prüflauf gegen die echte Datei brach ab. Das ist der Zweck eines
+Prüflaufs, aber die drei Ursachen waren verschieden schwer.
+
+**1. Der Abbruch (HTTP 400).** Die Auflösungsphase fragte die vorhandenen
+Positionen über
+
+    Microsoft.Dynamics.CRM.In(PropertyName='_opportunityid_value', …)
+
+und bekam:
+
+    'OpportunityProduct' entity doesn't contain attribute with
+    Name = '_opportunityid_value'
+
+`In(...)` kennt nur Attributnamen. `_opportunityid_value` ist die
+OData-Schreibweise eines Verweises und keiner. Gefiltert wird jetzt über
+`opportunityid`, gelesen und gruppiert weiterhin über den Aliasnamen — nur
+unter dem steht die GUID in der Antwort. Dazu ein Rückfallweg: Weist eine
+Umgebung `In(...)` trotzdem ab (HTTP 400), wird auf eine Kette aus
+`feld eq wert or …` umgeschaltet, in kleineren Blöcken wegen der
+Adresslänge. `429` läuft dort ausdrücklich nicht hinein — Drosselung ist
+keine falsch gebaute Abfrage, und der Rückfallweg würde sie verschleiern.
+
+Neu: `tests/test-aufloesung.mjs`, 17 Prüfungen. Eine davon hält fest, dass
+`_opportunityid_value` **nicht** im Filter stehen darf — genau daran brach es
+ab.
+
+**2. „Feld gibt es in Dataverse nicht" bei `$action`.** Schritt 60 zeigte
+einen Befund, den es nicht gibt: `$action` ist kein Feld, sondern eine
+Anweisung an den Lauf (`WinOpportunity` / `LoseOpportunity`). Gegen die
+Metadaten geprüft, musste sie fehlschlagen. Pseudo-Ziele mit `$` werden jetzt
+übersprungen und als *„Anweisung an den Lauf, kein Feld"* ausgewiesen.
+Gleich mit erledigt: Ein Befund in einem **abgeschalteten** Schritt zählt
+nicht mehr als Problem — dort läuft nichts. Sichtbar bleibt er, wer den
+Schritt später einschaltet, soll ihn vorher sehen.
+
+**3. Die doppelten Kundennummern als Fehlermeldung.** Der Selbsttest meldete
+die sieben doppelten `dag_dihag_kdnr` mit einem `!` und dem Satz, ein
+Alternativschlüssel sei nicht anlegbar und die Auflösung müsse raten. Das war
+seit der letzten Sitzung nicht mehr wahr. Die beiden geprüften Felder haben
+verschiedene Rollen:
+
+| Feld | Rolle | Dublette bedeutet |
+|---|---|---|
+| `new_dagextopid` | Schlüssel für den Upsert | Fehler — ohne Alternativschlüssel kein Upsert |
+| `dag_dihag_kdnr` | Verweis, über `$filter` gesucht | Frage — der Prüflauf legt die Kandidaten vor |
+
+Der Selbsttest sagt das jetzt und steht auf ✓. Die Antwort auf die Frage aus
+der Sitzung: **entschieden wird im Prüflauf**, nicht erst beim Import — und
+ohne Wahl schreibt die Zeile nicht. `docs/03` nachgezogen.
+
+**Dazu.** Die Ablauftabelle mit den Phasen 1–7 ist von der Startseite
+verschwunden. Sie war eine Bauzustandsanzeige; alle Phasen stehen.
+
+**Geprüft.** 191 automatische Prüfungen in acht Dateien, alle grün. Die
+Oberfläche gegen eine Vorschau mit gestellten Antworten: Schritt 60 hat kein
+Warnband mehr, `$action` ist nicht mehr durchgestrichen, und der Selbsttest
+meldet die sieben Nummern als entscheidbar statt als Sackgasse.
+
+**Offen.** Ein erster echter Lauf bis zum Ende — bis hierher war es nur der
+Prüflauf. `SetStage` und `CloseOpportunity` bleiben fachlich zurückgestellt.
+
 ## 02.09.2026 — Phase 6 und 7: Import und Protokoll
 
 Damit ist die Pipeline vollständig: anmelden, Datei wählen, Zuordnung

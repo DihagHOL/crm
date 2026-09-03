@@ -42,6 +42,9 @@ jobs:
       - name: Aufbau der Nutzlast (Schlüssel, Schreibregeln, Lookups)
         run: node tests/test-mapping.mjs
 
+      - name: Auflösungsphase (Sammelabfragen, Filterfeld, Rückfallweg)
+        run: node tests/test-aufloesung.mjs
+
       - name: Batch-Format (Aufbau und Auswertung)
         run: node tests/test-batch.mjs
 
