@@ -934,6 +934,7 @@ const APP = (() => {
     $("zoInhalt").innerHTML = kopf + '<div class="card"><p class="hint">Dataverse-Felder werden gelesen …</p></div>';
 
     const teile = [];
+    const felderJeSchritt = new Map();
     for (const s of p.schritte) {
       let felder = null, fehlerText = "";
       try {
@@ -941,9 +942,37 @@ const APP = (() => {
       } catch (e) {
         fehlerText = e.detail || e.message;
       }
+      felderJeSchritt.set(s.step, felder);
       teile.push(schrittKarte(s, p.zuordnungen[s.mappingKey] || [], felder, fehlerText));
     }
     $("zoInhalt").innerHTML = kopf + teile.join("");
+
+    /* Feldsuche je Schritt.
+       Die Frage „gibt es dafür überhaupt ein Feld, und welchen Typ hat es?"
+       kam bisher jedes Mal über den Umweg Dataverse-Oberfläche oder Graph
+       Explorer zurück. Die Metadaten liegen längst hier – gesucht wird also
+       hier, ohne einen einzigen zusätzlichen Aufruf. */
+    for (const feld of document.querySelectorAll("input[data-suche]")) {
+      const step = Number(feld.dataset.suche);
+      const ziel = $("treffer-" + step);
+      const alle = felderJeSchritt.get(step) || {};
+      feld.oninput = () => {
+        const q = feld.value.trim().toLowerCase();
+        if (q.length < 2) { ziel.innerHTML = ""; return; }
+        const gefunden = Object.entries(alle)
+          .filter(([name]) => name.toLowerCase().includes(q))
+          .sort((a, b) => a[0].localeCompare(b[0]))
+          .slice(0, 25);
+        ziel.innerHTML = gefunden.length
+          ? `<table class="tbl roh"><thead><tr><th>Feld</th><th>Typ</th>
+               <th>schreibbar</th></tr></thead><tbody>${gefunden.map(([name, f]) => `
+             <tr><td><code>${esc(name)}</code></td><td>${esc(f.typ)}</td>
+               <td>${f.anlegbar || f.aenderbar ? "ja"
+                    : '<span class="fehlt">nein</span>'}</td></tr>`).join("")}
+             </tbody></table>`
+          : `<p class="hint">Kein Feld enthält „${esc(feld.value)}“.</p>`;
+      };
+    }
   }
 
   /** Eine Karte je Importschritt, mit der Prüftabelle darin. */
@@ -1034,6 +1063,12 @@ const APP = (() => {
           </tr></thead>
           <tbody>${zeilen || '<tr><td colspan="6" class="leer">keine Zuordnungen</td></tr>'}</tbody>
         </table></div>
+        ${felder ? `<div class="feldsuche">
+          <label>Felder von <code>${esc(s.entitySet)}</code> durchsuchen
+            <input type="search" data-suche="${s.step}" placeholder="z. B. audit, owner, weight …">
+          </label>
+          <div id="treffer-${s.step}"></div>
+        </div>` : ""}
       </div>`;
   }
 

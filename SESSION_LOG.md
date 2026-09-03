@@ -1,5 +1,36 @@
 # Session-Log
 
+## 03.09.2026 — Feldsuche in der Zuordnung
+
+Die offene Frage lautet: Gibt es an der Verkaufschance ein Ja/Nein-Feld für
+die technische Prüfung? Sie liess sich bisher nur über die
+Dataverse-Oberfläche oder den Graph Explorer beantworten — dabei liegen die
+Metadaten längst im Browser, `renderZuordnung` lädt sie ohnehin je Schritt.
+
+Jede Schrittkarte hat jetzt eine **Feldsuche**. Zwei Buchstaben genügen, und
+es steht da, was es gibt:
+
+    Feld                         | Typ      | schreibbar
+    cr570_auditdate              | DateTime | ja
+    cr570_technicalaudit         | Boolean  | ja
+    cr570_technicalaudit_lookup  | Lookup   | ja
+
+Kein zusätzlicher Aufruf — gefiltert wird über die Feldliste, die die Karte
+schon hat.
+
+**Wenn es das Boolean-Feld gibt**, sind es drei Änderungen an der Zuordnung
+in `CRM_FieldMappings`, Zeile *Technische Prüfung*:
+
+    TargetField  cr570_technicalaudit   (statt …_lookup)
+    TargetType   Boolean                (statt Lookup)
+    Transform    bool:ja/nein
+
+`bool:ja/nein` gibt es bereits in `js/transforms.js` und es liest auch
+`true/false`, `1/0`, `x`, `yes/no` — Gross- und Kleinschreibung egal.
+`LookupEntitySet` und `LookupKeyField` bleiben leer.
+
+259 automatische Prüfungen, unverändert grün.
+
 ## 03.09.2026 — „Ja" und „Energieerzeugung", und warum 87 neu
 
 **Die Gegenprobe hat geantwortet.** Die beiden Quellspalten führen:
