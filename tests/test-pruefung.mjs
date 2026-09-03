@@ -1,0 +1,144 @@
+/* Der Prüflauf – stuft jede Zeile ein, bevor irgendetwas geschrieben wird.
+   -----------------------------------------------------------------------
+   Geprüft werden die fünf Ausgänge einer Zeile: neu, geändert, unverändert,
+   übersprungen, Fehler. Sie sind die Grundlage für die einzige Aussage, die
+   ein Prüflauf haben muss — „12 neu, 57 geändert, 3 unverändert".         */
+
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
+
+const wurzel = join(dirname(fileURLToPath(import.meta.url)), "..");
+const lies = f => readFileSync(join(wurzel, f), "utf8");
+
+const g = { CRM_CONFIG: { listen: { werte: "CRM_ValueMappings" } }, console, document: undefined };
+const [EXCEL, TRANSFORMS, MAPPING, AUFLOESUNG, PRUEFUNG] = new Function(...Object.keys(g),
+  lies("js/excel.js") + "\n" + lies("js/transforms.js") + "\n" + lies("js/mapping.js")
+  + "\n" + lies("js/aufloesung.js") + "\n" + lies("js/pruefung.js")
+  + "; return [EXCEL, TRANSFORMS, MAPPING, AUFLOESUNG, PRUEFUNG];"
+)(...Object.values(g));
+
+let fehler = 0;
+const pruefe = (b, t) => { console.log(`  ${b ? "ok  " : "FEHL"}  ${t}`); if (!b) fehler++; };
+const gleich = (a, b, t) => pruefe(JSON.stringify(a) === JSON.stringify(b),
+  `${t}${JSON.stringify(a) === JSON.stringify(b) ? "" : `  (erwartet ${JSON.stringify(b)}, war ${JSON.stringify(a)})`}`);
+
+/* ── Kulisse: eine Mappe, ein Profil, eine Auflösung ─────────────────── */
+
+const mappe = { blaetter: [EXCEL.blattAus("Anfragen", [
+  ["Opp-ID", "Thema", "Umsatz"],
+  [6440, "Bestand unverändert", 150000],   // Zeile 2
+  [6441, "Bestand geändert",    999],      // Zeile 3
+  [7000, "gibt es noch nicht",  500],      // Zeile 4
+  [6442, "geschlossen",         100],      // Zeile 5
+  [6443, "mehrdeutig",          100],      // Zeile 6
+  [null, "ohne Schluessel",     100]       // Zeile 7
+])] };
+
+const zuordnungen = {
+  OPP: [
+    { aktiv: true, sourceColumn: "Opp-ID", targetField: "new_dagextopid",
+      targetType: "Int", istSchluessel: true, writePolicy: "Always" },
+    { aktiv: true, sourceColumn: "Thema", targetField: "name",
+      targetType: "String", writePolicy: "Always" },
+    { aktiv: true, sourceColumn: "Umsatz", targetField: "estimatedvalue",
+      targetType: "Decimal", writePolicy: "Always" }
+  ]
+};
+
+const schritt = (o = {}) => ({
+  step: 30, entitySet: "opportunities", sourceSheet: "Anfragen", mappingKey: "OPP",
+  mode: "Upsert", onMissingKey: "Fail", alternateKey: "new_dagextopid",
+  aktiv: true, skipIfClosed: true, ...o
+});
+
+/** Auflösung von Hand bauen – so, wie AUFLOESUNG.fuer sie liefern würde. */
+function aufloesung(eintraege) {
+  const m = new Map();
+  for (const [wert, records] of Object.entries(eintraege)) m.set(wert, records);
+  return { treffer: new Map([["opportunities|new_dagextopid", m]]), abfragen: [] };
+}
+
+const aufl = aufloesung({
+  "6440": [{ new_dagextopid: 6440, statecode: 0, name: "Bestand unverändert", estimatedvalue: 150000 }],
+  "6441": [{ new_dagextopid: 6441, statecode: 0, name: "alter Name", estimatedvalue: 1 }],
+  "6442": [{ new_dagextopid: 6442, statecode: 2, name: "geschlossen", estimatedvalue: 100 }],
+  "6443": [{ new_dagextopid: 6443, statecode: 0 }, { new_dagextopid: 6443, statecode: 0 }]
+});
+
+/* ── Einstufung ──────────────────────────────────────────────────────── */
+
+console.log("\nDie fünf Ausgänge einer Zeile");
+{
+  const r = PRUEFUNG.lauf({ schritte: [schritt()], zuordnungen }, mappe, aufl);
+  const z = r.schritte[0];
+  gleich(z.unveraendert, 1, "gleicher Bestand → unverändert (Zeile 2)");
+  gleich(z.aktualisiert, 1, "abweichender Bestand → geändert (Zeile 3)");
+  gleich(z.neu, 1, "kein Bestand → neu (Zeile 4)");
+  gleich(z.uebersprungen, 1, "geschlossene Chance → übersprungen (Zeile 5)");
+  gleich(z.fehler, 2, "Mehrfachtreffer und fehlender Schlüssel → Fehler (Zeilen 6, 7)");
+  gleich(PRUEFUNG.zusammenfassung(r.gesamt),
+    "1 neu · 1 geändert · 1 unverändert · 1 übersprungen · 2 mit Fehler",
+    "die Zusammenfassung ist der Satz, um den es geht");
+}
+
+console.log("\nGeschlossene Verkaufschancen (Review A3)");
+{
+  const r = PRUEFUNG.lauf({ schritte: [schritt()], zuordnungen }, mappe, aufl);
+  const w = r.warnungen.find(x => /geschlossen/.test(x.meldung));
+  pruefe(!!w, "die Übersprungene wird als Warnung gemeldet, nicht verschwiegen");
+  pruefe(/nicht automatisch wiedereröffnet/.test(w.meldung),
+    "und die Meldung sagt, dass NICHT wiedereröffnet wird – das wäre eine fachliche Entscheidung");
+}
+{
+  const r = PRUEFUNG.lauf({ schritte: [schritt({ skipIfClosed: false })], zuordnungen }, mappe, aufl);
+  gleich(r.schritte[0].uebersprungen, 0, "ohne SkipIfClosed wird nicht übersprungen");
+}
+
+console.log("\nMehrfachtreffer");
+{
+  const r = PRUEFUNG.lauf({ schritte: [schritt()], zuordnungen }, mappe, aufl);
+  const f = r.fehler.find(x => /Mehrfachtreffer/.test(x.meldung));
+  pruefe(!!f && f.zeile === 6,
+    "Mehrfachtreffer wird als Fehler gemeldet und nennt die Excel-Zeile");
+  pruefe(/lässt sich nicht entscheiden/.test(f.meldung),
+    "es wird nicht der erste genommen – genau das tut der Altflow mit $top:1");
+}
+
+console.log("\nFehlender Schlüssel: Fail gegen Skip");
+{
+  const fail = PRUEFUNG.lauf({ schritte: [schritt({ onMissingKey: "Fail" })], zuordnungen }, mappe, aufl);
+  pruefe(fail.schritte[0].fehler === 2, "Fail: die Zeile ohne Schlüssel ist ein Fehler");
+
+  const skip = PRUEFUNG.lauf({ schritte: [schritt({ onMissingKey: "Skip" })], zuordnungen }, mappe, aufl);
+  gleich(skip.schritte[0].fehler, 1, "Skip: nur noch der Mehrfachtreffer ist ein Fehler");
+  gleich(skip.schritte[0].uebersprungen, 2, "die Zeile ohne Schlüssel wird übersprungen");
+  pruefe(skip.warnungen.some(w => /folgenden Schritte laufen weiter/.test(w.meldung)),
+    "und die Warnung sagt, dass die Folgeschritte weiterlaufen");
+}
+
+console.log("\nLookupOnly – Konten werden nie angelegt");
+{
+  const s = schritt({ step: 10, entitySet: "opportunities", mode: "LookupOnly" });
+  const r = PRUEFUNG.lauf({ schritte: [s], zuordnungen }, mappe, aufl);
+  gleich(r.schritte[0].neu, 0, "LookupOnly legt nichts an");
+  const f = r.fehler.find(x => /Nicht gefunden/.test(x.meldung));
+  pruefe(!!f && f.zeile === 4, "der unbekannte Schlüssel wird gemeldet");
+  pruefe(/der Lauf geht weiter/.test(f.meldung),
+    "und zwar zeilenweise – eine unbekannte Nummer bricht nicht den ganzen Import ab (Review B3)");
+}
+
+console.log("\nStrukturfehler");
+{
+  const r = PRUEFUNG.lauf({ schritte: [schritt({ sourceSheet: "Gibtsnicht" })], zuordnungen }, mappe, aufl);
+  pruefe(/gibt es in der Datei nicht/.test(r.schritte[0].strukturfehler || ""),
+    "ein fehlendes Blatt wird als Strukturfehler gemeldet, nicht je Zeile");
+}
+{
+  const r = PRUEFUNG.lauf({ schritte: [schritt({ aktiv: false })], zuordnungen }, mappe, aufl);
+  pruefe(r.schritte[0].inaktiv === true && r.gesamt.neu === 0,
+    "inaktive Schritte werden nicht gerechnet");
+}
+
+console.log(fehler ? `\n${fehler} Prüfung(en) fehlgeschlagen.\n` : "\nAlle Prüfungen bestanden.\n");
+process.exit(fehler ? 1 : 0);

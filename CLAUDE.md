@@ -110,7 +110,7 @@ SheetJS ist die einzige.
 
 ## 4. Verzeichnisstruktur
 
-Flach, wie in jeder anderen DIHAG-App. `✓` = vorhanden (Phase 1 bis 4).
+Flach, wie in jeder anderen DIHAG-App. `✓` = vorhanden (Phase 1 bis 5).
 
 ```
 crm/
@@ -132,9 +132,10 @@ crm/
 │  ├─ spFiles.js            ✓ Bibliothek listen, Datei laden, Status setzen
 │  ├─ spListen.js           ✓ Konfigurationslisten lesen
 │  ├─ excel.js              ✓ SheetJS, Kopfzeilen normalisieren
-│  ├─ mapping.js              Phase 4 – Zeile + Mapping → Nutzlast
-│  ├─ transforms.js           Phase 4 – trim, decimal:de, date, empty2null …
-│  ├─ pruefung.js             Phase 5 – Validierung und Prüfbericht
+│  ├─ mapping.js            ✓ Zeile + Zuordnung → Nutzlast
+│  ├─ transforms.js         ✓ trim, decimal:de, date, empty2null, zero2null
+│  ├─ aufloesung.js         ✓ Phase 0 – Sammelabfragen
+│  ├─ pruefung.js           ✓ Einstufung und Prüfbericht
 │  ├─ planer.js               Phase 6 – Profil → geordnete Schrittliste
 │  └─ lauf.js                 Phase 6 – Ausführung, Fortschritt, Abbruch
 ├─ tests/                   ✓ *.mjs, laufen unter Node ohne Browser

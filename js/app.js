@@ -142,7 +142,7 @@ const APP = (() => {
     { id: "start",     nr: "",  titel: "Start",        aktiv: true },
     { id: "datei",     nr: "3", titel: "Datei wählen", aktiv: true },
     { id: "zuordnung", nr: "4", titel: "Zuordnung",    aktiv: true },
-    { id: "pruefung",  nr: "5", titel: "Prüflauf",     aktiv: false },
+    { id: "pruefung",  nr: "5", titel: "Prüflauf",     aktiv: true },
     { id: "import",    nr: "6", titel: "Import",       aktiv: false },
     { id: "protokoll", nr: "7", titel: "Protokoll",    aktiv: false }
   ];
@@ -164,6 +164,180 @@ const APP = (() => {
     if (id === "start") renderStart();
     if (id === "datei") renderDatei();
     if (id === "zuordnung") renderZuordnung();
+    if (id === "pruefung") renderPruefung();
+  }
+
+  /* ── Schritt 5: Prüflauf ───────────────────────────────────────────────
+     Erst auflösen (Phase 0), dann prüfen. Geschrieben wird nichts. Das
+     Ergebnis ist die Aussage, die ein Prüflauf haben muss: „12 neu, 57
+     geändert, 3 unverändert" – und die ist ohne die vorherige Abfrage
+     nicht möglich (CLAUDE.md §8).                                        */
+
+  let _bericht = null;
+
+  async function renderPruefung() {
+    if (!_mappe) {
+      $("main").innerHTML = `
+        <div class="page-head"><h2>Prüflauf</h2></div>
+        <div class="card"><p class="warn">Erst unter <b>Datei wählen</b> eine Mappe
+          öffnen – der Prüflauf braucht die Daten.</p></div>`;
+      return;
+    }
+
+    $("main").innerHTML = `
+      <div class="page-head">
+        <h2>Prüflauf</h2>
+        <p>Sagt vorher, was ein Import täte. Es wird <b>nichts geschrieben</b>.
+           Geprüft wird <code>${esc(_datei.name)}</code>.</p>
+      </div>
+      <div class="card"><p class="hint" id="plStatus">Konfiguration wird geladen …</p></div>`;
+
+    const status = t => { const e = $("plStatus"); if (e) e.textContent = t; };
+
+    try {
+      const profil = await SPLISTEN.profil();
+      status("Wertzuordnungen …");
+      const werte = await SPLISTEN.werte().catch(() => ({}));
+      status("Auflösung: Bestand in Dataverse abfragen …");
+      const aufl = await AUFLOESUNG.fuer(profil, _mappe, t => status("Auflösung: " + t));
+      status("Zeilen prüfen …");
+      _bericht = { ...PRUEFUNG.lauf(profil, _mappe, aufl, werte), aufl, profil };
+      renderBericht();
+    } catch (e) {
+      $("main").innerHTML += `<div class="card"><p class="err">${esc(e.detail || e.message)}</p></div>`;
+    }
+  }
+
+  function renderBericht() {
+    const b = _bericht, g = b.gesamt;
+    const sauber = !g.fehler;
+
+    $("main").innerHTML = `
+      <div class="page-head">
+        <h2>Prüflauf</h2>
+        <p>Es wurde <b>nichts geschrieben</b>. Geprüft: <code>${esc(_datei.name)}</code></p>
+      </div>
+
+      <div class="card">
+        <h4>${sauber ? "✓" : "!"} Vorschau</h4>
+        <div class="bilanz">
+          ${[["neu", g.neu, "gruen"], ["geändert", g.aktualisiert, "gruen"],
+             ["unverändert", g.unveraendert, "grau"],
+             ["übersprungen", g.uebersprungen, "grau"],
+             ["mit Fehler", g.fehler, g.fehler ? "rot" : "grau"]]
+            .map(([t, n, f]) => `<div class="zahl-kachel ${f}">
+                 <b>${n}</b><small>${t}</small></div>`).join("")}
+        </div>
+        <p class="hint" style="margin-top:14px">
+          <b>unverändert</b> ist ein eigenes Ergebnis: ohne diesen Wert sieht ein
+          Lauf, der nichts geändert hat, genauso aus wie einer, der nicht
+          gelaufen ist.</p>
+        <div class="row">
+          <button class="btn" id="plExcel">⬇ Bericht als Excel</button>
+          <button class="btn sec" id="plNeu">Erneut prüfen</button>
+          <button class="btn" id="plImport" disabled title="Phase 6 – noch nicht gebaut">
+            Import starten</button>
+        </div>
+        ${g.fehler ? `<p class="err" style="margin-top:14px">Solange Fehler offen sind,
+          bleibt der Import gesperrt. Es gibt keinen Weg daran vorbei.</p>` : ""}
+      </div>
+
+      <h3 class="section">Je Schritt</h3>
+      <div class="card"><div class="tbl-wrap"><table class="tbl">
+        <thead><tr><th>Schritt</th><th>Ziel</th><th>Modus</th><th>Zeilen</th>
+          <th>neu</th><th>geändert</th><th>unverändert</th><th>übersprungen</th><th>Fehler</th></tr></thead>
+        <tbody>${b.schritte.map(z => `
+          <tr class="${z.inaktiv ? "inaktiv" : z.fehler ? "problem" : ""}">
+            <td><b>${z.s.step}</b></td>
+            <td>${esc(z.s.entitySet)}${z.inaktiv ? ' <span class="pill grau">inaktiv</span>' : ""}</td>
+            <td>${esc(z.s.mode)}</td>
+            <td>${z.zeilen || ""}</td>
+            <td>${z.neu || ""}</td><td>${z.aktualisiert || ""}</td>
+            <td>${z.unveraendert || ""}</td><td>${z.uebersprungen || ""}</td>
+            <td>${z.fehler || ""}</td>
+          </tr>
+          ${z.strukturfehler ? `<tr class="problem"><td></td><td colspan="8">
+             <span class="hinweis-text">${esc(z.strukturfehler)}</span></td></tr>` : ""}
+        `).join("")}</tbody>
+      </table></div></div>
+
+      <h3 class="section">Auflösung</h3>
+      <div class="card">
+        <p class="hint">${b.aufl.abfragen.length} Sammelabfragen statt eines Aufrufs
+           je Zeile. Der Altflow braucht für 300 Zeilen rund 600 Einzelabfragen.</p>
+        <div class="tbl-wrap"><table class="tbl roh">
+          <thead><tr><th>Tabelle</th><th>Feld</th><th>gesucht</th><th>gefunden</th>
+            <th>nicht gefunden</th><th>mehrdeutig</th></tr></thead>
+          <tbody>${b.aufl.abfragen.map(a => `
+            <tr class="${a.mehrdeutig.length ? "problem" : ""}">
+              <td>${esc(a.entitySet)}</td><td>${esc(a.feld)}</td>
+              <td>${a.gesucht}</td><td>${a.gefunden}</td>
+              <td>${a.fehlend.length ? `<span class="hinweis-text">${a.fehlend.length}: ${esc(a.fehlend.slice(0,4).join(", "))}${a.fehlend.length>4?" …":""}</span>` : ""}</td>
+              <td>${a.mehrdeutig.length ? `<span class="fehlt">${a.mehrdeutig.map(m=>`${m.wert}×${m.anzahl}`).join(", ")}</span>` : ""}</td>
+            </tr>`).join("")}</tbody>
+        </table></div>
+      </div>
+
+      ${liste("Fehler", b.fehler, "err")}
+      ${liste("Warnungen – der Import läuft trotzdem", b.warnungen, "warn")}`;
+
+    $("plNeu").onclick = renderPruefung;
+    $("plExcel").onclick = berichtExportieren;
+  }
+
+  function liste(titel, eintraege, klasse) {
+    if (!eintraege.length) return "";
+    const zeigen = eintraege.slice(0, 100);
+    return `
+      <h3 class="section">${esc(titel)} (${eintraege.length})</h3>
+      <div class="card">
+        <div class="tbl-wrap"><table class="tbl">
+          <thead><tr><th>Schritt</th><th>Zeile</th><th>Spalte</th><th>Feld</th><th>Meldung</th></tr></thead>
+          <tbody>${zeigen.map(f => `<tr>
+            <td>${f.schritt ?? ""}</td>
+            <td class="zeilennr">${f.zeile ?? ""}</td>
+            <td>${esc(f.spalte || "")}</td>
+            <td>${esc(f.feld || "")}</td>
+            <td><span class="${klasse === "err" ? "fehlt" : "hinweis-text"}">${esc(f.meldung)}</span></td>
+          </tr>`).join("")}</tbody>
+        </table></div>
+        ${eintraege.length > zeigen.length
+          ? `<p class="hint" style="margin-top:12px">${eintraege.length - zeigen.length}
+             weitere – vollständig im Excel-Bericht.</p>` : ""}
+      </div>`;
+  }
+
+  /** Bericht als Arbeitsmappe. Die Fachabteilung arbeitet ihn in der
+   *  Quelldatei ab; dafür ist die Zeilennummer die wichtigste Spalte. */
+  async function berichtExportieren() {
+    await EXCEL.ensureSheetJS();
+    const b = _bericht;
+    const wb = XLSX.utils.book_new();
+
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(
+      b.schritte.map(z => ({
+        Schritt: z.s.step, Ziel: z.s.entitySet, Modus: z.s.mode,
+        Aktiv: z.inaktiv ? "nein" : "ja", Zeilen: z.zeilen,
+        Neu: z.neu, Geaendert: z.aktualisiert, Unveraendert: z.unveraendert,
+        Uebersprungen: z.uebersprungen, Fehler: z.fehler
+      }))), "Bilanz");
+
+    const spalten = e => ({ Schritt: e.schritt ?? "", Zeile: e.zeile ?? "",
+      Spalte: e.spalte || "", Feld: e.feld || "", Wert: e.wert ?? "", Meldung: e.meldung });
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(
+      b.fehler.length ? b.fehler.map(spalten) : [{ Meldung: "keine" }]), "Fehler");
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(
+      b.warnungen.length ? b.warnungen.map(spalten) : [{ Meldung: "keine" }]), "Warnungen");
+
+    const name = _datei.name.replace(/\.xlsx?$/i, "") + "_Pruefbericht.xlsx";
+    const buf = XLSX.write(wb, { type: "array", bookType: "xlsx" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([buf],
+      { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
+    a.download = name;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    toast("Bericht heruntergeladen: " + name);
   }
 
   /* ── Schritt 4: Zuordnung prüfen ───────────────────────────────────────
