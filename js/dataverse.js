@@ -142,6 +142,31 @@ const DV = (() => {
              dubletten: dub, vollstaendig: rows.vollstaendig !== false };
   }
 
+  /** Wie viele Datensätze führen diese Felder überhaupt?
+   *
+   *  Ein Zielfeld kann existieren, Werte annehmen — und trotzdem das
+   *  falsche sein. `new_dag_materialteuerungszuschlagmtzabsolut` trug 4
+   *  Werte von 5000, `new_dag_mtzabsolut` 2340: der Import schrieb in ein
+   *  Feld, das niemand ansieht, und niemand merkte es, weil jede Zeile
+   *  fehlerfrei durchlief. Zeilen zu zählen genügt also nicht.
+   *
+   *  Stichprobe statt Gesamtzahl: für die Frage „wird das Feld überhaupt
+   *  benutzt?" reichen tausend Datensätze, und sie kostet einen Aufruf
+   *  statt einen je Feld.
+   *
+   *  @returns {Promise<{gesamt:number, jeFeld:Object<string,number>}>} */
+  async function belegung(entitySet, felder, anzahl = 1000) {
+    const liste = [...new Set(felder.filter(Boolean))];
+    if (!liste.length) return { gesamt: 0, jeFeld: {} };
+    const d = await call(`/${entitySet}?$select=${encodeURIComponent(liste.join(","))}`
+      + `&$top=${anzahl}`);
+    const rows = d?.value || [];
+    const jeFeld = {};
+    for (const f of liste)
+      jeFeld[f] = rows.filter(r => r[f] !== null && r[f] !== undefined && r[f] !== "").length;
+    return { gesamt: rows.length, jeFeld };
+  }
+
   /** Das Namensfeld einer Tabelle.
    *
    *  Steht im Profil das falsche Schlüsselfeld, findet die Auflösung nichts
@@ -312,6 +337,6 @@ const DV = (() => {
   }
 
   return { call, alle, dubletten, whoAmI, basis, pruefeKonfiguration, beispielWerte,
-           primaerName, felder, logischerName, navigation, schluessel, typPasst,
-           metaLeeren };
+           belegung, primaerName, felder, logischerName, navigation, schluessel,
+           typPasst, metaLeeren };
 })();

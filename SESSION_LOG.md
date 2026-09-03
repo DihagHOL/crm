@@ -1,5 +1,63 @@
 # Session-Log
 
+## 03.09.2026 — Felder statt Zeilen, und warum die Zuordnung nicht wirkte
+
+**Die Wertzuordnung griff, die Auflösung nicht.** Die Warnungen zeigten
+`Yes` und `50 Energieerzeugung` — übersetzt war also richtig. Nur suchte
+Phase 0 weiter mit `Ja` und `Energieerzeugung`: die Auflösung fragt Dataverse
+ab, **bevor** MAPPING übersetzt. Sie fand nichts, meldete „nicht vorhanden",
+und der Verweis blieb leer, obwohl alles stimmte.
+
+Jetzt bekommt Phase 0 die Wertzuordnungen und sucht mit dem Wert, der später
+geschrieben wird. Beide Verweise lösen auf, gebunden wird über die GUID.
+
+**MTZ — schlimmer als „nicht übernommen".** Das Feld wurde geschrieben, in
+allen 87 Positionen. Nur ins falsche:
+
+| Feld | im Bestand belegt |
+|---|---|
+| `new_dag_materialteuerungszuschlagmtzabsolut` (bisher) | **4** von 5000 — und die 4 sind unsere |
+| `new_dag_mtzabsolut` | **2340** von 5000 |
+
+Dasselbe beim Einzelpreis: `dag_einzelpreis` 13, `new_priceperunitreplacement`
+4323. `priceperunit` ist bei Chancen ohne Preisliste gesperrt — deshalb das
+Ersatzfeld. Beide Ziele umgestellt.
+
+**Jede Zeile grün, das Ergebnis unbrauchbar.** Ein Feld kann existieren,
+beschreibbar sein, jeden Wert annehmen — und trotzdem das falsche sein.
+Zeilen zu zählen genügt nicht. Die Zuordnung zeigt jetzt zwei Zahlen je Feld:
+
+    Quellspalte    Zielfeld                       Quelle   im CRM
+    Länge (mm)     dag_lengthmm                   0 / 1    500 / 1000
+    Material       dag_material                   1 / 1    900 / 1000
+    Einzelpreis    new_priceperunitreplacement    1 / 1    865 / 1000
+    MTZ absolut    new_dag_mtzabsolut             1 / 1    468 / 1000
+
+Links: wie oft die Quellspalte gefüllt ist — eine Zuordnung mit `0 / 89` ist
+falsch oder überflüssig. Rechts: wie viele Datensätze im CRM das Feld führen,
+Stichprobe 1000. Unter einem Prozent wird rot.
+
+**Mitarbeiter, Preisliste und Status an der Position** — gegen die Metadaten
+geprüft, alle drei gehen dort nicht:
+
+| Wunsch | Befund |
+|---|---|
+| Mitarbeiter | `ownerid` an `opportunityproduct` ist **nicht beschreibbar**. Positionen erben den Besitzer der Chance — dort wird er gesetzt. |
+| Preisliste | `pricelevelid` gibt es nur an der **Verkaufschance**, nicht an der Position. |
+| Status | An der Position nur `propertyconfigurationstatus` (etwas anderes) und das schreibgeschützte `opportunitystatecode`. Der Status gehört zur Chance — Win/Loss, fachlich zurückgestellt. |
+
+**Reiter.** Die Nummern sind weg; sie zählten die Bauphasen mit, nicht die
+Schritte des Anwenders — „3 Datei wählen" als erster Punkt nach „Start"
+erklärt sich niemandem. Auf der Startseite steht jetzt eine Karte
+*Loslegen* mit dem Weg in einem Satz und einem Knopf direkt zur Dateiwahl.
+
+**Neu: `docs/10-prozess.md`** — die vollständige Prozessbeschreibung. Wer was
+tut, was in jedem Schritt passiert, was schiefgehen kann und was dann
+geschieht, was regelmäßig zu tun ist, und was die App ausdrücklich **nicht**
+tut. Für die Fachabteilung, nicht für Entwickler.
+
+267 automatische Prüfungen in neun Dateien.
+
 ## 03.09.2026 — Selbst nachgesehen: beide Verweise geklärt
 
 Über die Azure CLI ging ein Dataverse-Token (`az account get-access-token

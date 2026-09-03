@@ -92,6 +92,26 @@ const MAPPING = (() => {
    * @returns {{nutzlast:object, schluessel:object, felder:string[],
    *            fehler:object[], warnungen:object[], unveraendert:boolean}}
    */
+  /** Einen Quellwert übersetzen: erst genau, dann ohne Rücksicht auf Gross-
+   *  und Kleinschreibung. `undefined` heisst „keine Zuordnung dafür".
+   *
+   *  „ja" und „Ja" doppelt einzutragen ginge nicht: PowerShell liest
+   *  JSON-Schlüssel ohne Unterscheidung und bricht beim zweiten ab. Also
+   *  wird hier verglichen, nicht dort gedoppelt.
+   *
+   *  Öffentlich, weil die Auflösung dieselbe Übersetzung braucht: Sie fragt
+   *  Dataverse nach den Werten, die der Import später schreibt – und das
+   *  sind die übersetzten. Fragte sie nach den Originalen, fände sie
+   *  nichts, und der Verweis bliebe leer, obwohl die Zuordnung stimmt. */
+  function zugeordnet(wert, wz) {
+    if (!wz || leer(wert)) return undefined;
+    const genau = wz.werte[wert];
+    if (genau !== undefined) return genau;
+    const k = String(wert).toLowerCase();
+    const treffer = Object.keys(wz.werte).find(x => x.toLowerCase() === k);
+    return treffer === undefined ? undefined : wz.werte[treffer];
+  }
+
   function baue(zeile, zuordnungen, opt = {}) {
     const modus = opt.modus || "create";
     const bestand = opt.bestand || null;
@@ -126,15 +146,7 @@ const MAPPING = (() => {
       // Wertzuordnung (Auswahlfelder)
       const wz = opt.werte?.[`${z.mappingKey}|${z.targetField}`];
       if (wz && !leer(wert)) {
-        // Erst genau, dann ohne Rücksicht auf Gross- und Kleinschreibung.
-        // „ja" und „Ja" doppelt einzutragen geht nicht: PowerShell liest
-        // JSON-Schlüssel ohne Unterscheidung und bricht beim zweiten ab.
-        let abbild = wz.werte[wert];
-        if (abbild === undefined) {
-          const k = String(wert).toLowerCase();
-          const treffer = Object.keys(wz.werte).find(x => x.toLowerCase() === k);
-          if (treffer !== undefined) abbild = wz.werte[treffer];
-        }
+        const abbild = zugeordnet(wert, wz);
         if (abbild !== undefined) wert = abbild;
         else if (wz.standard !== null && wz.standard !== undefined) wert = wz.standard;
         // Kein Abbild und kein Standard: den Wert lassen, wie er ist, und
@@ -289,5 +301,5 @@ const MAPPING = (() => {
     return teile.length ? `${entitySet}(${teile.join(",")})` : null;
   }
 
-  return { baue, schluesselAdresse, schluesselTeil, KEY_VERBOTEN };
+  return { baue, schluesselAdresse, schluesselTeil, zugeordnet, KEY_VERBOTEN };
 })();

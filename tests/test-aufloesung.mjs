@@ -196,5 +196,43 @@ console.log("\nMehrere Schluesselfelder je Verweis");
     undefined, "ein nie abgefragtes Feld gibt keine Auskunft");
 }
 
+console.log("\nPhase 0 sucht mit dem Wert, der geschrieben wird");
+{
+  /* Die Wertzuordnung uebersetzt "Ja" nach "Yes" und "Energieerzeugung"
+     nach "50 Energieerzeugung". Fragte Phase 0 nach den Originalen, faende
+     sie nichts - und der Verweis bliebe leer, obwohl die Zuordnung stimmt.
+     Genau das passierte im Lauf vom 03.09.2026. */
+  const gefragt = [];
+  const g = {
+    DV: { alle: async pfad => { gefragt.push(decodeURIComponent(pfad)); return []; },
+          logischerName: async es => es, navigation: async () => ({}),
+          schluessel: async () => [] },
+    EXCEL: { blatt: (m, n) => m.blaetter.find(b => b.name === n) },
+    TRANSFORMS: { anwenden: w => ({ wert: w, unbekannt: [] }) },
+    MAPPING: { zugeordnet: (wert, wz) => wz?.werte?.[wert] },
+    console
+  };
+  const src = readFileSync(join(wurzel, "js/aufloesung.js"), "utf8");
+  const A = new Function(...Object.keys(g), src + "; return AUFLOESUNG;")(...Object.values(g));
+
+  const profil = {
+    schritte: [{ step: 30, entitySet: "opportunities", sourceSheet: "Anfragen",
+                 mappingKey: "OPP", mode: "Upsert", aktiv: true }],
+    zuordnungen: { OPP: [
+      { aktiv: true, sourceColumn: "Pruefung", targetField: "cr570_technicalaudit_lookup",
+        targetType: "Lookup", lookupEntitySet: "cr570_technicalaudit_lookups",
+        lookupKeyField: "cr570_newcolumn" }
+    ] }
+  };
+  const mappe = { blaetter: [{ name: "Anfragen", anzahl: 1,
+    zeilen: [{ _zeile: 2, Pruefung: "Ja" }] }] };
+  const werte = { "OPP|cr570_technicalaudit_lookup": { werte: { Ja: "Yes" }, standard: null } };
+
+  await A.fuer(profil, mappe, () => {}, werte);
+  const abfrage = gefragt.find(x => x.includes("cr570_technicalaudit_lookups"));
+  pruefe(/'Yes'/.test(abfrage), "gesucht wird der uebersetzte Wert");
+  pruefe(!/'Ja'/.test(abfrage), "und NICHT der Quellwert - daran scheiterte es");
+}
+
 console.log(fehler ? `\n${fehler} Prüfung(en) fehlgeschlagen.` : "\nAlle Prüfungen bestanden.");
 process.exit(fehler ? 1 : 0);

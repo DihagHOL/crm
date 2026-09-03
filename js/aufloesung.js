@@ -131,7 +131,7 @@ const AUFLOESUNG = (() => {
    * @param {function} [fortschritt] wird je Abfrage mit einem Text gerufen
    * @returns {Promise<{treffer:Map, abfragen:object[]}>}
    */
-  async function fuer(profil, mappe, fortschritt = () => {}) {
+  async function fuer(profil, mappe, fortschritt = () => {}, werte = {}) {
     const treffer = new Map();      // "entitySet|feld" → Map(wert → records)
     const abfragen = [];
     const idFelder = new Map();     // entitySet → Primärschlüsselfeld
@@ -238,11 +238,22 @@ const AUFLOESUNG = (() => {
         if (z.targetField?.startsWith("KLAEREN")) continue;
         const quellBlatt = z.sourceSheet ? EXCEL.blatt(mappe, z.sourceSheet) : blatt;
         if (!quellBlatt) continue;
-        const werte = z.sourceColumn
+        /* Gesucht wird mit dem Wert, den der Import später SCHREIBT –
+           also nach der Wertzuordnung. Vorher fragte Phase 0 nach „Ja" und
+           „Energieerzeugung", geschrieben wurden aber „Yes" und
+           „50 Energieerzeugung": Die Auflösung fand nichts, und der Verweis
+           blieb leer, obwohl die Zuordnung stimmte. */
+        const wz = werte[`${s.mappingKey}|${z.targetField}`];
+        const gesucht = (z.sourceColumn
           ? quellBlatt.zeilen.map(r => TRANSFORMS.anwenden(r[z.sourceColumn], z.transform).wert)
-          : [z.defaultValue];
+          : [z.defaultValue]
+        ).map(v => {
+          const abbild = MAPPING.zugeordnet(v, wz);
+          if (abbild !== undefined) return abbild;
+          return wz?.standard ?? v;
+        });
         for (const feld of schluesselFelder(z))
-          await frage(z.lookupEntitySet, feld, werte, feld,
+          await frage(z.lookupEntitySet, feld, gesucht, feld,
             `Schritt ${s.step}: Verweis ${z.targetField}`);
       }
 

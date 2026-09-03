@@ -141,7 +141,7 @@ crm/
 ├─ tests/                   ✓ *.mjs, laufen unter Node ohne Browser
 ├─ .github/workflows/pruefung.yml  ✓
 ├─ config/import-profile.dihag.json ✓
-└─ docs/                    ✓ 00–08
+└─ docs/                    ✓ 00–10, darunter 10-prozess.md (Prozessbeschreibung)
 ```
 
 ---
@@ -436,6 +436,24 @@ stellt sie neben die gesuchten:
     Gesucht wurde:                                          TP-1  TP-9
 
 Zwei Sekunden, und die Frage ist beantwortet.
+
+### Felder prüfen, nicht nur Zeilen
+
+Ein Zielfeld kann existieren, beschreibbar sein, jeden Wert annehmen — und
+trotzdem das falsche sein. Der Lauf vom 03.09.2026 lief fehlerfrei durch und
+schrieb `new_dag_materialteuerungszuschlagmtzabsolut`: 4 Werte von 5000
+Positionen tragen dieses Feld, gepflegt wird `new_dag_mtzabsolut` mit 2340.
+**Jede Zeile grün, das Ergebnis unbrauchbar.**
+
+Die Zuordnung zeigt deshalb zwei Zahlen je Feld:
+
+| Spalte | Frage |
+|---|---|
+| **Quelle** | In wie vielen Zeilen der Mappe ist die Quellspalte gefüllt? |
+| **im CRM** | Wie viele Datensätze im Ziel führen dieses Feld? (Stichprobe 1000) |
+
+Unter einem Prozent wird rot. Das ist fast immer das falsche Ziel — ein Feld,
+das praktisch niemand führt, ist selten das, was der Fachbereich ansieht.
 
 ### Schreibrichtlinie je Feld
 

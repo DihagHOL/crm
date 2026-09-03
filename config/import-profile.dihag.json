@@ -354,21 +354,21 @@
       },
       {
         "SourceColumn": "Einzelpreis",
-        "TargetField": "dag_einzelpreis",
-        "TargetType": "Decimal",
+        "TargetField": "new_priceperunitreplacement",
+        "TargetType": "Money",
         "Transform": "decimal:de|empty2null",
         "SortOrder": 70,
         "WritePolicy": "Always",
-        "$hinweis": "Typ gegen die Dataverse-Metadaten korrigiert: das Feld ist Decimal, nicht Money. Money-Felder fuehren eine Waehrung und ein _base-Feld mit; eine Verwechslung faellt erst beim Schreiben auf."
+        "$hinweis": "Gleiche Pruefung: dag_einzelpreis 13 von 5000, new_priceperunitreplacement 4323 von 5000. priceperunit selbst ist bei Chancen ohne Preisliste gesperrt - deshalb das Ersatzfeld. Zu bestaetigen, aber die Zahlen sind eindeutig."
       },
       {
         "SourceColumn": "MTZ absolut",
-        "TargetField": "new_dag_materialteuerungszuschlagmtzabsolut",
-        "TargetType": "Decimal",
+        "TargetField": "new_dag_mtzabsolut",
+        "TargetType": "Money",
         "Transform": "decimal:de|empty2null",
         "SortOrder": 80,
         "WritePolicy": "Always",
-        "$hinweis": "Typ gegen die Dataverse-Metadaten korrigiert: das Feld ist Decimal, nicht Money. Money-Felder fuehren eine Waehrung und ein _base-Feld mit; eine Verwechslung faellt erst beim Schreiben auf."
+        "$hinweis": "Geprueft am 03.09.2026 gegen die Umgebung: new_dag_materialteuerungszuschlagmtzabsolut traegt 4 Werte von 5000 Positionen - und die 4 stammen aus unserem eigenen Lauf. Gepflegt wird new_dag_mtzabsolut (Money), 2340 von 5000. Der Import schrieb also in ein Feld, das es gibt, das Werte annimmt und das niemand ansieht. Genau deshalb prueft die Zuordnung jetzt auch die Belegung im Ziel, nicht nur die Zeilen."
       },
       {
         "SourceColumn": "Breite (mm)",

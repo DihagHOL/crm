@@ -138,21 +138,21 @@ const APP = (() => {
 
   /* ── Schritte ──────────────────────────────────────────────────────── */
 
+  /* Ohne Nummern. Sie stammten aus der Bauphase und zählten die
+     Umsetzungsschritte mit, nicht die des Anwenders – „3 Datei wählen" als
+     erster Punkt nach „Start" erklärt sich niemandem. */
   const SCHRITTE = [
-    { id: "start",     nr: "",  titel: "Start",        aktiv: true },
-    { id: "datei",     nr: "3", titel: "Datei wählen", aktiv: true },
-    { id: "zuordnung", nr: "4", titel: "Zuordnung",    aktiv: true },
-    { id: "pruefung",  nr: "5", titel: "Prüflauf",     aktiv: true },
-    { id: "import",    nr: "6", titel: "Import",       aktiv: true },
-    { id: "protokoll", nr: "7", titel: "Protokoll",    aktiv: true }
+    { id: "start",     titel: "Start" },
+    { id: "datei",     titel: "Datei wählen" },
+    { id: "zuordnung", titel: "Zuordnung" },
+    { id: "pruefung",  titel: "Prüflauf" },
+    { id: "import",    titel: "Import" },
+    { id: "protokoll", titel: "Protokoll" }
   ];
 
   function renderSchritte() {
     $("tabBar").innerHTML = SCHRITTE.map(s => `
-      <button data-ziel="${s.id}"${s.aktiv ? "" : " disabled"}
-              title="${s.aktiv ? "" : "Folgt in Phase " + s.nr}">
-        ${s.nr ? `<span class="nr">${s.nr}</span>` : ""}${esc(s.titel)}
-      </button>`).join("");
+      <button data-ziel="${s.id}">${esc(s.titel)}</button>`).join("");
     for (const b of $("tabBar").querySelectorAll("button[data-ziel]")) {
       if (!b.disabled) b.onclick = () => zeigeSchritt(b.dataset.ziel);
     }
@@ -214,7 +214,10 @@ const APP = (() => {
       status("Wertzuordnungen …");
       const werte = await SPLISTEN.werte().catch(() => ({}));
       status("Auflösung: Bestand in Dataverse abfragen …");
-      const aufl = await AUFLOESUNG.fuer(profil, _mappe, t => status("Auflösung: " + t));
+      // Die Wertzuordnungen gehören VOR die Auflösung: gesucht wird mit dem
+      // Wert, der später geschrieben wird.
+      const aufl = await AUFLOESUNG.fuer(profil, _mappe,
+        t => status("Auflösung: " + t), werte);
       status("Zeilen prüfen …");
       _bericht = { ...PRUEFUNG.lauf(profil, _mappe, aufl, werte, _entscheidungen),
                    aufl, profil, werte, datei: _datei };
@@ -952,6 +955,41 @@ const APP = (() => {
        kam bisher jedes Mal über den Umweg Dataverse-Oberfläche oder Graph
        Explorer zurück. Die Metadaten liegen längst hier – gesucht wird also
        hier, ohne einen einzigen zusätzlichen Aufruf. */
+    /* Belegung im Ziel.
+       Der Fall, der es nötig machte: `new_dag_materialteuerungszuschlagmtzabsolut`
+       trug 4 Werte von 5000 Positionen, `new_dag_mtzabsolut` 2340. Der
+       Import schrieb fehlerfrei in ein Feld, das niemand ansieht — jede
+       Zeile grün, das Ergebnis unbrauchbar. Zeilen zu zählen genügt nicht,
+       man muss die Felder ansehen. */
+    for (const b of document.querySelectorAll("button[data-belegung]")) {
+      b.onclick = async () => {
+        const step = Number(b.dataset.belegung);
+        const es = b.dataset.set;
+        const schritt = p.schritte.find(x => x.step === step);
+        const ziele = (p.zuordnungen[schritt.mappingKey] || [])
+          .filter(z => z.aktiv && z.targetField && !z.targetField.startsWith("KLAEREN")
+                       && !z.targetField.startsWith("$") && z.targetType !== "Lookup")
+          .map(z => z.targetField);
+        b.disabled = true; b.textContent = "wird geprüft …";
+        try {
+          const r = await DV.belegung(es, ziele);
+          for (const [f, n] of Object.entries(r.jeFeld)) {
+            const zelle = $(`bel-${step}-${f}`);
+            if (!zelle) continue;
+            const anteil = r.gesamt ? n / r.gesamt : 0;
+            // Unter einem Prozent heisst: dieses Feld führt praktisch
+            // niemand. Fast immer das falsche Ziel.
+            zelle.innerHTML = `<span class="${anteil < 0.01 ? "fehlt" : ""}">${n}</span>`
+              + `<span class="leer"> / ${r.gesamt}</span>`;
+          }
+          b.textContent = `Belegung geprüft (${r.gesamt} Datensätze)`;
+        } catch (e) {
+          b.textContent = "Belegung: " + (e.detail || e.message);
+          b.disabled = false;
+        }
+      };
+    }
+
     for (const feld of document.querySelectorAll("input[data-suche]")) {
       const step = Number(feld.dataset.suche);
       const ziel = $("treffer-" + step);
@@ -1023,6 +1061,25 @@ const APP = (() => {
       // Ein Befund in einem abgeschalteten Schritt ist kein Problem: dort
       // läuft nichts. Sichtbar bleibt er trotzdem – wer den Schritt später
       // einschaltet, soll ihn vorher sehen.
+      /* Wie oft ist die Quellspalte überhaupt gefüllt? Eine Zuordnung, die
+         in 0 von 89 Zeilen etwas zu schreiben hat, ist entweder falsch oder
+         überflüssig – und das sieht man der Zeilenzahl nicht an. */
+      let quellBelegung = "";
+      if (z.sourceColumn) {
+        const wo = z.sourceSheet || s.sourceSheet;
+        const b = _mappe && wo ? EXCEL.blatt(_mappe, wo) : null;
+        if (b) {
+          const n = b.zeilen.filter(r => {
+            const v = r[z.sourceColumn];
+            return v !== null && v !== undefined && v !== "";
+          }).length;
+          quellBelegung = `<span class="${n ? "" : "fehlt"}">${n}</span>`
+            + `<span class="leer"> / ${b.anzahl}</span>`;
+        }
+      } else if (z.defaultValue) {
+        quellBelegung = '<span class="leer">fest</span>';
+      }
+
       if (befunde.length && z.aktiv && s.aktiv) probleme++;
       const zustand = !z.aktiv || !s.aktiv ? "inaktiv"
                     : befunde.length ? "problem" : "gut";
@@ -1031,6 +1088,8 @@ const APP = (() => {
         <td>${ziel}</td>
         <td>${esc(z.targetType || "")}</td>
         <td>${z.istSchluessel ? "🔑" : ""}${z.pflicht ? " ✱" : ""}</td>
+        <td class="zahl-zelle">${quellBelegung}</td>
+        <td class="zahl-zelle" id="bel-${s.step}-${esc(z.targetField || "")}"></td>
         <td>${esc(z.writePolicy)}</td>
         <td>${befunde.length ? `<span class="hinweis-text">${esc(befunde.join(" · "))}</span>`
                              : notizen.length ? `<span class="leer">${esc(notizen.join(" · "))}</span>`
@@ -1059,10 +1118,16 @@ const APP = (() => {
         <div class="tbl-wrap"><table class="tbl roh">
           <thead><tr>
             <th>Quellspalte</th><th>Zielfeld</th><th>Typ</th><th></th>
+            <th title="Wie oft ist die Quellspalte gefüllt?">Quelle</th>
+            <th title="Wie viele Datensätze im CRM führen dieses Feld?">im CRM</th>
             <th>Schreibregel</th><th>Befund</th>
           </tr></thead>
-          <tbody>${zeilen || '<tr><td colspan="6" class="leer">keine Zuordnungen</td></tr>'}</tbody>
+          <tbody>${zeilen || '<tr><td colspan="8" class="leer">keine Zuordnungen</td></tr>'}</tbody>
         </table></div>
+        ${felder ? `<div class="row" style="margin-top:12px">
+          <button class="btn sec sm" data-belegung="${s.step}"
+            data-set="${esc(s.entitySet)}">Belegung im CRM prüfen</button>
+        </div>` : ""}
         ${felder ? `<div class="feldsuche">
           <label>Felder von <code>${esc(s.entitySet)}</code> durchsuchen
             <input type="search" data-suche="${s.step}" placeholder="z. B. audit, owner, weight …">
@@ -1324,6 +1389,17 @@ const APP = (() => {
         </div>
 
         <div class="card">
+          <h4>▶️ Loslegen</h4>
+          <p class="hint">Der Weg ist immer derselbe: Datei wählen, Zuordnung
+             ansehen, Prüflauf, Import. Geschrieben wird erst im vorletzten
+             Schritt — und nur nach einem Prüflauf ohne Fehler.</p>
+          <div class="row" style="margin-top:12px">
+            <button class="btn" id="btnDatei">📂 Datei wählen</button>
+            <button class="btn sec" id="btnProzess">Wie der Import abläuft</button>
+          </div>
+        </div>
+
+        <div class="card">
           <h4>🩺 Selbsttest</h4>
           <p class="hint">Beantwortet die offenen Punkte aus <code>CLAUDE.md</code> §13,
              ohne dass jemand den Graph Explorer öffnen muss.</p>
@@ -1335,6 +1411,10 @@ const APP = (() => {
       </div>`;
 
     $("btnTest").onclick = selbsttest;
+    $("btnDatei").onclick = () => zeigeSchritt("datei");
+    $("btnProzess").onclick = () =>
+      window.open("https://github.com/dfedorov12/crm/blob/main/docs/10-prozess.md",
+                  "_blank", "noopener");
     $("btnCache").onclick = () => { GRAPH.clearCache(); toast("Cache geleert."); selbsttest(); };
     $("btnRolle").onclick = async () => {
       const r = await DATA.reloadRole();
