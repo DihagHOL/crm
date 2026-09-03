@@ -110,7 +110,7 @@ SheetJS ist die einzige.
 
 ## 4. Verzeichnisstruktur
 
-Flach, wie in jeder anderen DIHAG-App. `✓` = vorhanden (Phase 1 bis 5).
+Flach, wie in jeder anderen DIHAG-App. `✓` = **alle Phasen vorhanden**.
 
 ```
 crm/
@@ -136,8 +136,8 @@ crm/
 │  ├─ transforms.js         ✓ trim, decimal:de, date, empty2null, zero2null
 │  ├─ aufloesung.js         ✓ Phase 0 – Sammelabfragen
 │  ├─ pruefung.js           ✓ Einstufung und Prüfbericht
-│  ├─ planer.js               Phase 6 – Profil → geordnete Schrittliste
-│  └─ lauf.js                 Phase 6 – Ausführung, Fortschritt, Abbruch
+│  ├─ batch.js             ✓ Batch-Aufbau und -Auswertung
+│  └─ lauf.js              ✓ Ausführung, Drosselung, Abbruch, Protokoll
 ├─ tests/                   ✓ *.mjs, laufen unter Node ohne Browser
 ├─ .github/workflows/pruefung.yml  ✓
 ├─ config/import-profile.dihag.json ✓

@@ -398,3 +398,14 @@ table.tbl tr.gut td     { }
 .entscheidung .frage { flex: 1 1 260px; min-width: 0; }
 .entscheidung .frage small { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
 .entscheidung select { flex: 1 1 320px; max-width: 460px; }
+
+/* ── Fortschritt (Schritt 6) ─────────────────────────────────────────── */
+
+.balken {
+  height: 10px; border-radius: 999px; background: var(--border-2);
+  overflow: hidden;
+}
+.balken > div {
+  height: 100%; width: 0; background: var(--azur);
+  transition: width .2s linear;
+}

@@ -143,8 +143,8 @@ const APP = (() => {
     { id: "datei",     nr: "3", titel: "Datei wählen", aktiv: true },
     { id: "zuordnung", nr: "4", titel: "Zuordnung",    aktiv: true },
     { id: "pruefung",  nr: "5", titel: "Prüflauf",     aktiv: true },
-    { id: "import",    nr: "6", titel: "Import",       aktiv: false },
-    { id: "protokoll", nr: "7", titel: "Protokoll",    aktiv: false }
+    { id: "import",    nr: "6", titel: "Import",       aktiv: true },
+    { id: "protokoll", nr: "7", titel: "Protokoll",    aktiv: true }
   ];
 
   function renderSchritte() {
@@ -165,6 +165,8 @@ const APP = (() => {
     if (id === "datei") renderDatei();
     if (id === "zuordnung") renderZuordnung();
     if (id === "pruefung") renderPruefung();
+    if (id === "import") renderImport();
+    if (id === "protokoll") renderProtokoll();
   }
 
   /* ── Schritt 5: Prüflauf ───────────────────────────────────────────────
@@ -288,6 +290,12 @@ const APP = (() => {
       ${liste("Fehler", b.fehler, "err")}
       ${liste("Warnungen – der Import läuft trotzdem", b.warnungen, "warn")}`;
 
+    const imp = $("plImport");
+    if (imp) {
+      imp.disabled = !!g.fehler;
+      imp.title = g.fehler ? "Erst die Fehler beheben" : "Zum Import wechseln";
+      if (!g.fehler) imp.onclick = () => zeigeSchritt("import");
+    }
     $("plNeu").onclick = renderPruefung;
     $("plExcel").onclick = berichtExportieren;
 
@@ -377,6 +385,222 @@ const APP = (() => {
           ? `<p class="hint" style="margin-top:12px">${eintraege.length - zeigen.length}
              weitere – vollständig im Excel-Bericht.</p>` : ""}
       </div>`;
+  }
+
+  /* ── Schritt 6: Import ─────────────────────────────────────────────────
+     Erreichbar nur über einen Prüflauf ohne Fehler. Es gibt keinen Weg von
+     der Zuordnung zum Import, der ihn auslässt (Randbedingung 5).        */
+
+  let _laufAbbruch = null;
+  let _letzterLauf = null;
+
+  function renderImport() {
+    if (!_bericht) {
+      $("main").innerHTML = `
+        <div class="page-head"><h2>Import</h2></div>
+        <div class="card"><p class="warn">Erst den <b>Prüflauf</b> ausführen.
+          Ohne ihn ist nicht bekannt, was der Import täte – und ein Import ins
+          CRM ist von Hand kaum rückholbar.</p></div>`;
+      return;
+    }
+    if (_bericht.gesamt.fehler) {
+      $("main").innerHTML = `
+        <div class="page-head"><h2>Import</h2></div>
+        <div class="card"><p class="err">Der Prüflauf meldet
+          <b>${_bericht.gesamt.fehler}</b> Zeile(n) mit Fehler. Solange die offen
+          sind, bleibt der Import gesperrt.</p></div>`;
+      return;
+    }
+
+    const g = _bericht.gesamt;
+    $("main").innerHTML = `
+      <div class="page-head">
+        <h2>Import</h2>
+        <p>Schreibt nach <code>${esc(C.dataverseUrl)}</code> –
+           Umgebung <b>${esc(C.umgebung)}</b>.</p>
+      </div>
+      <div class="card">
+        <h4>Das wird passieren</h4>
+        <p class="hint">${esc(PRUEFUNG.zusammenfassung(g))} ·
+           Quelle <code>${esc(_datei.name)}</code></p>
+        ${String(C.umgebung).toUpperCase() === "PROD"
+          ? '<p class="err"><b>Produktivsystem.</b> Schreibzugriffe wirken sofort '
+            + 'und sind nicht zurücknehmbar.</p>' : ""}
+        <div class="row">
+          <button class="btn" id="imStart">Import jetzt starten</button>
+          <button class="btn sec" id="imAbbruch" hidden>Abbrechen</button>
+        </div>
+        <div id="imFortschritt" hidden style="margin-top:16px">
+          <div class="balken"><div id="imBalken"></div></div>
+          <p class="hint" id="imText" style="margin-top:8px"></p>
+        </div>
+      </div>
+      <div id="imErgebnis"></div>`;
+
+    $("imStart").onclick = importStarten;
+  }
+
+  async function importStarten() {
+    const start = $("imStart"), abbr = $("imAbbruch");
+    start.disabled = true; abbr.hidden = false;
+    $("imFortschritt").hidden = false;
+
+    const ctl = new AbortController();
+    _laufAbbruch = ctl;
+    abbr.onclick = () => { ctl.abort(); abbr.disabled = true; abbr.textContent = "Wird abgebrochen …"; };
+
+    const erwartet = _bericht.gesamt.neu + _bericht.gesamt.aktualisiert;
+    let fertig = 0;
+    const laufId = (crypto.randomUUID?.() || String(Date.now()));
+    const beginn = new Date().toISOString();
+
+    try {
+      const e = await LAUF.ausfuehren({
+        profil: _bericht.profil, mappe: _mappe, aufl: _bericht.aufl,
+        werte: _bericht.werte, entscheidungen: _entscheidungen
+      }, {
+        signal: ctl.signal,
+        onFortschritt: f => { $("imText").textContent = f.text; },
+        onEintrag: n => {
+          if (n.aktion === "angelegt" || n.aktion === "aktualisiert") fertig++;
+          const p = erwartet ? Math.min(100, Math.round(fertig / erwartet * 100)) : 100;
+          $("imBalken").style.width = p + "%";
+        }
+      });
+
+      _letzterLauf = { ...e, laufId, beginn, ende: new Date().toISOString(),
+                       datei: _datei, profil: _bericht.profil };
+      renderImportErgebnis();
+      await protokollSchreiben();
+    } catch (e) {
+      $("imErgebnis").innerHTML = `<div class="card"><p class="err">
+        ${esc(e.detail || e.message)}</p></div>`;
+    } finally {
+      start.disabled = false; abbr.hidden = true;
+      abbr.disabled = false; abbr.textContent = "Abbrechen";
+      _laufAbbruch = null;
+    }
+  }
+
+  function renderImportErgebnis() {
+    const l = _letzterLauf, g = l.gesamt;
+    $("imErgebnis").innerHTML = `
+      <h3 class="section">Ergebnis</h3>
+      <div class="card">
+        ${l.abgebrochen ? '<p class="warn"><b>Abgebrochen.</b> Was bis dahin '
+          + 'geschrieben wurde, steht im Protokoll – und ist dank Upsert über '
+          + 'Alternativschlüssel gefahrlos wiederholbar.</p>' : ""}
+        <div class="bilanz">
+          ${[["angelegt", g.angelegt, "gruen"], ["aktualisiert", g.aktualisiert, "gruen"],
+             ["unverändert", g.unveraendert, "grau"],
+             ["übersprungen", g.uebersprungen, "grau"],
+             ["fehlgeschlagen", g.fehlgeschlagen, g.fehlgeschlagen ? "rot" : "grau"]]
+            .map(([t, n, f]) => `<div class="zahl-kachel ${f}"><b>${n || 0}</b>
+                 <small>${t}</small></div>`).join("")}
+        </div>
+        <p class="hint" style="margin-top:14px">
+          Dauer ${Math.round(l.dauerMs / 1000)} s
+          ${l.gedrosselt ? ` · ${l.gedrosselt}× gedrosselt, Parallelität am Ende ${l.parallelAmEnde}` : ""}
+          · Lauf-ID <code>${esc(l.laufId)}</code></p>
+        <p class="hint" id="imProtokoll">Protokoll wird geschrieben …</p>
+      </div>`;
+  }
+
+  /* ── Schritt 7: Protokoll ─────────────────────────────────────────────
+     Drei Ebenen: Laufeintrag, Fehlerzeilen, Vollprotokoll als Datei. Und
+     die Quelldatei wird als importiert markiert – der Ordner dokumentiert
+     sich damit selbst, und ein Doppelimport fällt VOR dem Start auf.    */
+
+  async function protokollSchreiben() {
+    const l = _letzterLauf;
+    const el = $("imProtokoll");
+    const sagen = t => { if (el) el.innerHTML = t; };
+    try {
+      const jeSchritt = {};
+      for (const e of l.eintraege)
+        (jeSchritt[e.schritt] ||= {})[e.aktion] = (jeSchritt[e.schritt]?.[e.aktion] || 0) + 1;
+
+      const id = await SPLISTEN.laufSchreiben({
+        laufId: l.laufId, profil: l.profil.name, datei: l.datei.name,
+        start: l.beginn, ende: l.ende,
+        status: l.abgebrochen ? "Abgebrochen"
+              : l.gesamt.fehlgeschlagen ? "MitFehlern" : "Erfolgreich",
+        zeilen: l.eintraege.length, ...l.gesamt,
+        dauerMs: l.dauerMs, jeSchritt
+      });
+
+      const fehlerhaft = l.eintraege.filter(e => e.aktion === "fehlgeschlagen");
+      const f = await SPLISTEN.fehlerSchreiben(l.laufId, fehlerhaft);
+      const url = await SPLISTEN.vollprotokoll(l.laufId, {
+        lauf: { ...l, eintraege: undefined }, eintraege: l.eintraege,
+        entscheidungen: [..._entscheidungen.entries()]
+      });
+
+      // Quelldatei markieren. Scheitert das, ist der Lauf trotzdem gültig –
+      // es ist ein Vermerk, kein Ergebnis.
+      let markiert = true;
+      try {
+        await SPFILES.statusSetzen(l.datei, {
+          ImportStatus: l.gesamt.fehlgeschlagen ? "Fehlgeschlagen" : "Importiert",
+          ImportRunId: l.laufId,
+          ImportedAt: l.ende
+        });
+      } catch { markiert = false; }
+
+      sagen(`✓ Protokoll geschrieben: Lauf ${esc(String(id))} in
+        <code>${esc(C.listen.laeufe)}</code>${f.geschrieben
+          ? `, ${f.geschrieben} Fehlerzeile(n)` : ""}${f.ausgelassen
+          ? ` (${f.ausgelassen} weitere nur im Vollprotokoll)` : ""}${url
+          ? `, <a href="${esc(url)}" target="_blank" rel="noopener">Vollprotokoll</a>` : ""}.
+        ${markiert ? "Die Quelldatei ist als bearbeitet markiert."
+                   : "<b>Die Quelldatei konnte nicht markiert werden</b> – der Lauf ist trotzdem gültig."}`);
+    } catch (e) {
+      sagen(`<span class="fehlt">Protokoll konnte nicht geschrieben werden:
+        ${esc(e.detail || e.message)}</span> – der Import selbst ist gelaufen,
+        die Zahlen stehen oben.`);
+    }
+  }
+
+  function renderProtokoll() {
+    $("main").innerHTML = `
+      <div class="page-head">
+        <h2>Protokoll</h2>
+        <p>Jeder Lauf steht in <code>${esc(C.listen.laeufe)}</code> auf
+           <code>${esc(C.konfigSite.split(":").pop())}</code>, jede
+           abgewiesene Zeile in <code>${esc(C.listen.fehler)}</code>.</p>
+      </div>
+      <div class="card"><p class="hint" id="prStatus">Läufe werden geladen …</p>
+        <div id="prListe"></div></div>`;
+
+    GRAPH.listItems(C.konfigSite, C.listen.laeufe,
+      ["Title", "ProfileName", "SourceFile", "StartedAt", "FinishedAt", "Status",
+       "TotalRows", "CreatedCount", "UpdatedCount", "UnchangedCount",
+       "SkippedCount", "FailedCount", "DurationSeconds"])
+      .then(rows => {
+        if (!rows) { $("prStatus").textContent =
+          `Liste ${C.listen.laeufe} nicht gefunden.`; return; }
+        if (!rows.length) { $("prStatus").textContent =
+          "Noch keine Läufe protokolliert."; return; }
+        rows.sort((a, b) => String(b.StartedAt).localeCompare(String(a.StartedAt)));
+        $("prStatus").textContent = `${rows.length} Lauf/Läufe.`;
+        $("prListe").innerHTML = `
+          <div class="tbl-wrap"><table class="tbl">
+            <thead><tr><th>Start</th><th>Datei</th><th>Status</th><th>angelegt</th>
+              <th>aktualisiert</th><th>unverändert</th><th>übersprungen</th>
+              <th>Fehler</th><th>Dauer</th></tr></thead>
+            <tbody>${rows.slice(0, 50).map(r => `<tr class="${
+                r.Status === "MitFehlern" || r.Status === "Fehlgeschlagen" ? "problem" : ""}">
+              <td>${esc(datum(r.StartedAt))}</td>
+              <td>${esc(r.SourceFile || "")}</td>
+              <td><span class="pill ${r.Status === "Erfolgreich" ? "gruen" : "grau"}">${esc(r.Status || "")}</span></td>
+              <td>${r.CreatedCount ?? ""}</td><td>${r.UpdatedCount ?? ""}</td>
+              <td>${r.UnchangedCount ?? ""}</td><td>${r.SkippedCount ?? ""}</td>
+              <td>${r.FailedCount ?? ""}</td>
+              <td>${r.DurationSeconds != null ? r.DurationSeconds + " s" : ""}</td>
+            </tr>`).join("")}</tbody>
+          </table></div>`;
+      })
+      .catch(e => { $("prStatus").textContent = e.detail || e.message; });
   }
 
   /** Bericht als Arbeitsmappe. Die Fachabteilung arbeitet ihn in der

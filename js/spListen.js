@@ -128,5 +128,91 @@ const SPLISTEN = (() => {
     return out;
   }
 
-  return { profil, werte, SPALTEN_PROFIL, SPALTEN_MAPPING };
+  /* ── Protokoll (Phase 7) ─────────────────────────────────────────────
+     Drei Ebenen: ein Eintrag je Lauf, eine Zeile je Fehler, und das
+     Vollprotokoll als Datei. Kein Datensatz wird geschrieben, ohne dass er
+     im Protokoll landet – auch die übersprungenen und gewarnten
+     (Randbedingung 12).                                                   */
+
+  /** Laufeintrag anlegen. @returns {Promise<string>} Listen-Item-ID */
+  async function laufSchreiben(f) {
+    const r = await GRAPH.addItem(C.konfigSite, C.listen.laeufe, {
+      Title: f.laufId,
+      ProfileName: f.profil,
+      SourceFile: f.datei,
+      SourceFileHash: f.hash || "",
+      EnvironmentLabel: C.umgebung,
+      StartedAt: f.start,
+      FinishedAt: f.ende,
+      Status: f.status,
+      IsDryRun: !!f.pruefLauf,
+      TotalRows: f.zeilen | 0,
+      CreatedCount: f.angelegt | 0,
+      UpdatedCount: f.aktualisiert | 0,
+      UnchangedCount: f.unveraendert | 0,
+      SkippedCount: f.uebersprungen | 0,
+      FailedCount: f.fehlgeschlagen | 0,
+      DurationSeconds: Math.round((f.dauerMs || 0) / 1000),
+      StepSummary: JSON.stringify(f.jeSchritt || {})
+    });
+    return r.id;
+  }
+
+  /** Fehlerzeilen. Gedeckelt, damit ein Lauf mit 8.000 kaputten Zeilen
+   *  nicht 8.000 Listeneinträge erzeugt – das Vollprotokoll hat sie alle. */
+  async function fehlerSchreiben(laufId, eintraege, maxAnzahl = 200) {
+    const teil = eintraege.slice(0, maxAnzahl);
+    let n = 0;
+    for (const e of teil) {
+      try {
+        await GRAPH.addItem(C.konfigSite, C.listen.fehler, {
+          Title: laufId,
+          RowNumber: e.zeile | 0,
+          SheetName: e.blatt || "",
+          EntitySet: e.entitySet || "",
+          SourceKey: String(e.schluessel ?? ""),
+          ErrorType: e.art || "API",
+          HttpStatus: e.httpStatus | 0,
+          ErrorCode: e.code || "",
+          ErrorMessage: e.meldung || "",
+          FieldName: e.feld || "",
+          SourceValue: String(e.wert ?? ""),
+          Resolved: false
+        });
+        n++;
+      } catch { /* eine gescheiterte Fehlerzeile darf den Lauf nicht kippen */ }
+    }
+    return { geschrieben: n, ausgelassen: eintraege.length - teil.length };
+  }
+
+  /** Vollprotokoll als Datei.
+   *
+   *  ABWEICHUNG von docs/02: Dort ist es eine Anlage am Listeneintrag.
+   *  Microsoft Graph kann Anlagen an SharePoint-Listeneinträgen aber nicht
+   *  schreiben – das geht nur über die SharePoint-REST-API, und die
+   *  braucht einen anderen Token. Deshalb liegt das Vollprotokoll als
+   *  JSON-Datei in der Dokumentbibliothek der Konfigurationssite, und der
+   *  Laufeintrag verweist darauf.
+   *
+   *  @returns {Promise<string|null>} Adresse der Datei */
+  async function vollprotokoll(laufId, daten) {
+    try {
+      const sid = await GRAPH.siteId(C.konfigSite);
+      const drive = (await GRAPH.call(`/sites/${sid}/drive`))?.id;
+      if (!drive) return null;
+      const pfad = `Protokolle/${laufId}.json`;
+      const r = await GRAPH.call(
+        `/drives/${drive}/root:/${encodeURI(pfad)}:/content`,
+        { method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(daten, null, 2) });
+      return r?.webUrl || null;
+    } catch (e) {
+      console.warn("[Protokoll] Vollprotokoll nicht geschrieben:", e.message);
+      return null;   // ein fehlendes Vollprotokoll darf den Lauf nicht kippen
+    }
+  }
+
+  return { profil, werte, laufSchreiben, fehlerSchreiben, vollprotokoll,
+           SPALTEN_PROFIL, SPALTEN_MAPPING };
 })();

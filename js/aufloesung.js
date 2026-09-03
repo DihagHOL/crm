@@ -135,6 +135,25 @@ const AUFLOESUNG = (() => {
         await frage(z.lookupEntitySet, z.lookupKeyField, werte,
           `${z.lookupKeyField}`, `Schritt ${s.step}: Verweis ${z.targetField}`);
       }
+
+      // 3. Ersetzungsschritt: welche Kinddatensätze hängen heute dran?
+      //    Ohne sie gibt es nichts zu löschen – und ein Ersetzen, das nur
+      //    anlegt, verdoppelt die Positionen still.
+      if (s.mode === "ReplaceByParent" && s.parentField) {
+        const eltern = zu.find(z => z.aktiv && z.targetField === s.parentField
+                                    && z.targetType === "Lookup");
+        if (eltern?.lookupEntitySet && eltern.lookupKeyField) {
+          const elternMap = treffer.get(schluessel(eltern.lookupEntitySet, eltern.lookupKeyField));
+          const elternId = idFelder.get(eltern.lookupEntitySet);
+          if (elternMap && elternId) {
+            const guids = [...elternMap.values()].flat()
+              .map(r => r[elternId]).filter(Boolean);
+            await frage(s.entitySet, `_${s.parentField}_value`, guids,
+              `_${s.parentField}_value`,
+              `Schritt ${s.step}: vorhandene Kinddatensätze zum Ersetzen`);
+          }
+        }
+      }
     }
 
     return { treffer, abfragen, idFelder };

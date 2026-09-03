@@ -42,6 +42,9 @@ jobs:
       - name: Aufbau der Nutzlast (Schlüssel, Schreibregeln, Lookups)
         run: node tests/test-mapping.mjs
 
+      - name: Batch-Format (Aufbau und Auswertung)
+        run: node tests/test-batch.mjs
+
       - name: Prüflauf (Einstufung neu/geändert/unverändert/übersprungen)
         run: node tests/test-pruefung.mjs
 
