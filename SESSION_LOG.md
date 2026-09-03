@@ -1,5 +1,59 @@
 # Session-Log
 
+## 03.09.2026 — Erster echter Import: 79 Fehler, eine Ursache
+
+Der Lauf gegen `Anfragen 2026-09-03.xlsx` kündigte **156 neu · 18 geändert**
+an und lieferte **66 angelegt · 0 aktualisiert · 79 fehlgeschlagen**. Die
+Zahlen im Ergebnis waren richtig, die Vorhersage war es nicht — und warum,
+stand nirgends auf dem Schirm.
+
+**Die Ursache: Phase 0 fragt vor dem Lauf ab.** Was Schritt 30 anlegt, steht
+dort nicht — und Schritt 40 sucht den Elterndatensatz genau dort. Die
+Positionen jeder **neuen** Verkaufschance scheiterten mit „Elterndatensatz
+nicht aufgelöst"; Positionen zu Bestandschancen gingen durch. Ein Fehler, der
+mit der Zahl der Neuanlagen wächst, und den der Prüflauf nicht sehen kann,
+weil er die Auflösung nicht fortschreibt.
+
+Behoben an zwei Stellen. Was der Lauf anlegt, wird in die Auflösung
+nachgetragen — die GUID steht in `OData-EntityId` und lag bereits am
+Protokolleintrag. Und falls eine Antwort sie nicht mitliefert, geht es
+trotzdem weiter, solange der Elterndatensatz *in diesem Lauf* entstanden ist:
+Dann gibt es keine alten Positionen zu löschen, und gebunden wird ohnehin
+über den Alternativschlüssel. Ein Elterndatensatz, den es wirklich nicht
+gibt, bleibt ein Fehler.
+
+Neu: `tests/test-lauf.mjs`. Ohne die zweite Hälfte der Korrektur fällt es um.
+
+**Warum es fehlschlug — jetzt auf dem Schirm.** Das Ergebnis nannte „79
+fehlgeschlagen" und sonst nichts; wer den Grund wollte, musste das
+Vollprotokoll herunterladen. Es steht jetzt darunter, **nach Ursache
+gruppiert** — 79 Fehler sind fast immer zwei Gründe und nicht 79. Dafür
+werden Datensatz-Kennungen und eingebettete Werte aus der Meldung
+herausgenormt, sonst steht dieselbe Ursache 79-mal einzeln da. Darunter die
+Einzelfälle mit Schritt, Zeile, Schlüssel und HTTP-Status.
+
+**Der Reiterwechsel wirft nichts mehr weg.** Er war teuer und ärgerlich
+zugleich: Die Dateiliste wurde jedes Mal neu von SharePoint geholt, die
+geöffnete Mappe verschwand, der Prüflauf rechnete sechs Dataverse-Abfragen
+neu, das Häkchen für die ausgeschlossenen Zeilen war wieder leer, und das
+Ergebnis des gerade gelaufenen Imports war weg. Alles bleibt jetzt stehen;
+neu gerechnet wird auf Knopfdruck. Wird eine **andere** Datei geöffnet,
+werden Bericht, Ergebnis und Entscheidungen verworfen — ein Bericht gilt für
+genau eine Mappe.
+
+Dazu ein 🔄 an der Dateiliste, weil sie jetzt behalten wird.
+
+**Offen aus diesem Lauf:** `Die Quelldatei konnte nicht markiert werden` —
+die Statusspalten der Bibliothek fehlen oder heißen anders (`docs/02`). Der
+Lauf ist trotzdem gültig, aber der Ordner dokumentiert sich nicht selbst, und
+ein Doppelimport fällt nicht vor dem Start auf.
+
+**Geprüft.** 212 automatische Prüfungen in neun Dateien. In der Vorschau mit
+gestellten Antworten: die Position zur neu angelegten Chance entsteht,
+gleichartige Fehler werden zu einer Zeile zusammengefasst, und nach einem
+Reiterwechsel stehen Mappe, Bericht, Häkchen und Ergebnis unverändert da —
+bei einem einzigen Abruf der Dateiliste.
+
 ## 03.09.2026 — Eine unbekannte Kundennummer sperrt den Import nicht mehr
 
 Der erste Prüflauf gegen echte Daten meldete `1 Fehler` bei 30 Zeilen — und

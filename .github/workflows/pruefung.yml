@@ -51,6 +51,9 @@ jobs:
       - name: Prüflauf (Einstufung neu/geändert/unverändert/übersprungen)
         run: node tests/test-pruefung.mjs
 
+      - name: Importlauf (neu angelegte Elterndatensätze, Ausschluss)
+        run: node tests/test-lauf.mjs
+
       - name: Dublettenprüfung der Schlüsselfelder
         run: node tests/test-dubletten.mjs
 

@@ -176,12 +176,21 @@ const APP = (() => {
      nicht möglich (CLAUDE.md §8).                                        */
 
   let _bericht = null;
+  /** Kenntnisnahme der ausgeschlossenen Zeilen. Modulweit, damit ein
+   *  Reiterwechsel sie nicht zurücksetzt – das Häkchen zweimal setzen zu
+   *  müssen, weil man zwischendurch nachgesehen hat, ist Schikane. */
+  let _bestaetigt = false;
   /** Antworten auf Mehrfachtreffer: "entitySet|feld|wert" → Datensatz-ID.
      Sie überleben ein erneutes Prüfen und gehen später ins Protokoll –
      wer welchen Datensatz gewählt hat, muss nachvollziehbar bleiben. */
   const _entscheidungen = new Map();
 
-  async function renderPruefung() {
+  /** @param {boolean} [neu] Auflösung und Prüfung wirklich neu rechnen.
+   *    Ohne das wird ein vorhandener Bericht nur wieder angezeigt: Ein
+   *    Reiterwechsel darf keine sechs Dataverse-Abfragen auslösen, und die
+   *    getroffenen Entscheidungen sollen stehen bleiben. */
+  async function renderPruefung(neu = false) {
+    if (!neu && _bericht && _bericht.datei === _datei) { renderBericht(); return; }
     if (!_mappe) {
       $("main").innerHTML = `
         <div class="page-head"><h2>Prüflauf</h2></div>
@@ -208,7 +217,7 @@ const APP = (() => {
       const aufl = await AUFLOESUNG.fuer(profil, _mappe, t => status("Auflösung: " + t));
       status("Zeilen prüfen …");
       _bericht = { ...PRUEFUNG.lauf(profil, _mappe, aufl, werte, _entscheidungen),
-                   aufl, profil, werte };
+                   aufl, profil, werte, datei: _datei };
       renderBericht();
     } catch (e) {
       $("main").innerHTML += `<div class="card"><p class="err">${esc(e.detail || e.message)}</p></div>`;
@@ -307,6 +316,7 @@ const APP = (() => {
       // Fehler sperren. Ausschlüsse sperren nicht, sie verlangen aber eine
       // bewusste Kenntnisnahme – sonst wäre „N Zeilen fehlen" eine Zahl,
       // die man wegklickt.
+      if (ok) ok.checked = _bestaetigt;
       const frei = () => !g.fehler && (!g.ausgeschlossen || ok?.checked);
       const stand = () => {
         imp.disabled = !frei();
@@ -315,10 +325,10 @@ const APP = (() => {
           : "Zum Import wechseln";
       };
       stand();
-      if (ok) ok.onchange = stand;
+      if (ok) ok.onchange = () => { _bestaetigt = ok.checked; stand(); };
       imp.onclick = () => { if (frei()) zeigeSchritt("import"); };
     }
-    $("plNeu").onclick = renderPruefung;
+    $("plNeu").onclick = () => renderPruefung(true);
     $("plExcel").onclick = berichtExportieren;
 
     for (const sel of document.querySelectorAll("select[data-entscheidung]")) {
@@ -473,6 +483,14 @@ const APP = (() => {
       <div id="imErgebnis"></div>`;
 
     $("imStart").onclick = importStarten;
+    // Wer nach dem Import auf einen anderen Reiter geht und zurückkommt,
+    // soll sein Ergebnis wiederfinden – samt Fehlerliste.
+    if (_letzterLauf && _letzterLauf.datei === _datei) {
+      renderImportErgebnis();
+      const el = $("imProtokoll");
+      if (el) el.innerHTML = _letzterLauf.protokollText
+        || "Protokoll wurde im ersten Durchlauf geschrieben.";
+    }
   }
 
   async function importStarten() {
@@ -538,6 +556,82 @@ const APP = (() => {
           ${l.gedrosselt ? ` · ${l.gedrosselt}× gedrosselt, Parallelität am Ende ${l.parallelAmEnde}` : ""}
           · Lauf-ID <code>${esc(l.laufId)}</code></p>
         <p class="hint" id="imProtokoll">Protokoll wird geschrieben …</p>
+      </div>
+      ${fehlerBlock(l)}`;
+  }
+
+  /** Meldungen so weit vereinheitlichen, dass gleiche Ursachen zusammen
+   *  fallen. Dataverse setzt Datensatz-IDs und Werte in den Text; ohne das
+   *  hier stünden 79 Fehler mit derselben Ursache 79-mal einzeln da. */
+  const meldungsKern = m => String(m || "ohne Meldung")
+    .replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, "…")
+    .replace(/'[^']*'/g, "'…'")
+    // Auch abgeschnittene Datensatz-Kennungen: Dataverse hängt sie gern
+    // ohne Bindestriche an. Ohne das steht dieselbe Ursache 79-mal da.
+    .replace(/\b[0-9a-f]{8,}\b/gi, "…")
+    .replace(/\b\d{3,}\b/g, "…");
+
+  /** Warum es fehlschlug.
+   *
+   *  Ohne diesen Block sagt das Ergebnis „79 fehlgeschlagen" und sonst
+   *  nichts – man müsste das Vollprotokoll herunterladen, um zu erfahren,
+   *  woran. Gruppiert nach Ursache, weil 79 Fehler fast immer zwei Gründe
+   *  sind und nicht 79. */
+  function fehlerBlock(l) {
+    const schlecht = l.eintraege.filter(e => e.aktion === "fehlgeschlagen");
+    if (!schlecht.length) return "";
+
+    const gruppen = new Map();
+    for (const e of schlecht) {
+      const k = `${e.schritt}|${e.httpStatus || 0}|${meldungsKern(e.meldung)}`;
+      if (!gruppen.has(k))
+        gruppen.set(k, { schritt: e.schritt, entitySet: e.entitySet,
+                         status: e.httpStatus || 0, meldung: meldungsKern(e.meldung),
+                         anzahl: 0, zeilen: [] });
+      const g = gruppen.get(k);
+      g.anzahl++;
+      if (g.zeilen.length < 8) g.zeilen.push(e.zeile);
+    }
+    const sortiert = [...gruppen.values()].sort((a, b) => b.anzahl - a.anzahl);
+    const zeigen = schlecht.slice(0, 100);
+
+    return `
+      <h3 class="section">Warum es fehlschlug</h3>
+      <div class="card">
+        <p class="hint">${schlecht.length} fehlgeschlagene Zeile(n),
+           ${sortiert.length} verschiedene Ursache(n). Die häufigste zuerst –
+           mehrere Dutzend Fehler haben fast immer denselben Grund.</p>
+        <div class="tbl-wrap"><table class="tbl">
+          <thead><tr><th>Anzahl</th><th>Schritt</th><th>Ziel</th><th>HTTP</th>
+            <th>Meldung</th><th>Zeilen</th></tr></thead>
+          <tbody>${sortiert.map(g => `<tr>
+            <td><b>${g.anzahl}</b></td>
+            <td>${g.schritt}</td>
+            <td>${esc(g.entitySet || "")}</td>
+            <td>${g.status || ""}</td>
+            <td><span class="fehlt">${esc(g.meldung)}</span></td>
+            <td class="zeilennr">${g.zeilen.join(", ")}${g.anzahl > g.zeilen.length ? " …" : ""}</td>
+          </tr>`).join("")}</tbody>
+        </table></div>
+      </div>
+
+      <div class="card">
+        <h4>Einzeln</h4>
+        <div class="tbl-wrap"><table class="tbl">
+          <thead><tr><th>Schritt</th><th>Ziel</th><th>Zeile</th><th>Schlüssel</th>
+            <th>HTTP</th><th>Meldung</th></tr></thead>
+          <tbody>${zeigen.map(e => `<tr>
+            <td>${e.schritt}</td>
+            <td>${esc(e.entitySet || "")}</td>
+            <td class="zeilennr">${e.zeile ?? ""}</td>
+            <td>${esc(String(e.schluessel ?? ""))}</td>
+            <td>${e.httpStatus || ""}</td>
+            <td><span class="fehlt">${esc(e.meldung || "")}</span></td>
+          </tr>`).join("")}</tbody>
+        </table></div>
+        ${schlecht.length > zeigen.length
+          ? `<p class="hint" style="margin-top:12px">${schlecht.length - zeigen.length}
+             weitere – vollständig im Vollprotokoll.</p>` : ""}
       </div>`;
   }
 
@@ -549,7 +643,7 @@ const APP = (() => {
   async function protokollSchreiben() {
     const l = _letzterLauf;
     const el = $("imProtokoll");
-    const sagen = t => { if (el) el.innerHTML = t; };
+    const sagen = t => { l.protokollText = t; if (el) el.innerHTML = t; };
     try {
       const jeSchritt = {};
       for (const e of l.eintraege)
@@ -854,16 +948,33 @@ const APP = (() => {
            dort, wo Timeline sie ablegt. Sie werden gelesen, nicht verschoben
            und nicht verändert.</p>
       </div>
-      <div class="card"><h4>📂 Verfügbare Mappen</h4><div id="dateiListe">Wird geladen …</div></div>
+      <div class="card">
+        <h4>📂 Verfügbare Mappen
+          <button class="btn ghost sm" id="dtNeu" title="Liste neu von SharePoint holen">🔄</button>
+        </h4>
+        <div id="dateiListe">Wird geladen …</div>
+      </div>
       <div id="vorschau"></div>`;
 
     try {
-      _dateien = await SPFILES.liste();
-      _seite = 0;
+      // Die Liste wird einmal geholt und dann behalten. Ein Reiterwechsel
+      // ist kein Grund für einen neuen Graph-Aufruf – und die geöffnete
+      // Mappe soll dabei sichtbar bleiben, statt dass man sie ein zweites
+      // Mal öffnen muss.
+      $("dtNeu").onclick = dateienNeu;
+      if (!_dateien.length) _dateien = await SPFILES.liste();
       renderDateiListe();
+      if (_mappe && _datei) renderVorschau();
     } catch (e) {
       $("dateiListe").innerHTML = `<p class="err">${esc(e.detail || e.message)}</p>`;
     }
+  }
+
+  /** Liste wirklich neu holen – nach einem Import, oder auf Wunsch. */
+  async function dateienNeu() {
+    _dateien = [];
+    _seite = 0;
+    await renderDatei();
   }
 
   /** Tabelle für die aktuelle Seite. Die Liste wird EINMAL geladen und dann
@@ -935,6 +1046,12 @@ const APP = (() => {
     ziel.innerHTML = '<div class="card"><p class="hint">Datei wird geladen und gelesen …</p></div>';
     try {
       const buf = await SPFILES.laden(d);
+      // Ein Bericht gilt für genau eine Mappe. Bleibt er stehen, zeigt der
+      // Prüflauf Zahlen zur vorigen Datei – schlimmer als gar keine.
+      if (_datei && _datei.id !== d.id) {
+        _bericht = null; _letzterLauf = null; _bestaetigt = false;
+        _entscheidungen.clear();
+      }
       _datei = d;
       _mappe = await EXCEL.lesen(buf);
       renderDateiListe();   // markiert die gewählte Zeile

@@ -57,6 +57,39 @@ const LAUF = (() => {
 
     const notiere = e => { eintraege.push(e); eintrag(e); gesamt[e.aktion] = (gesamt[e.aktion] || 0) + 1; };
 
+    /** Neu angelegte Datensätze in die Auflösung nachtragen.
+     *
+     *  Phase 0 fragt VOR dem Lauf ab. Was Schritt 30 gerade anlegt, steht
+     *  dort also nicht – und Schritt 40 sucht den Elterndatensatz genau
+     *  dort. Ohne diesen Nachtrag scheitern die Positionen jeder NEUEN
+     *  Verkaufschance mit „Elterndatensatz nicht aufgelöst", also
+     *  ausgerechnet da, wo der Import gebraucht wird. Bestandschancen gehen
+     *  durch, neue nicht: ein Fehler, der mit der Zahl der Neuanlagen
+     *  wächst und im Prüflauf nicht sichtbar ist.
+     *
+     *  Die GUID steht in der Batch-Antwort (`OData-EntityId`) und liegt am
+     *  Protokolleintrag als `dataverseId`. */
+    const neuAngelegt = new Set();     // "entitySet|feld|wert"
+    const istNeu = (es, feld, wert) => neuAngelegt.has(`${es}|${feld}|${wert}`);
+
+    function merkeNeu(s, key, n) {
+      if (n.aktion !== "angelegt" || !key?.targetField || leer(n.schluessel)) return;
+      const wert = String(n.schluessel);
+      neuAngelegt.add(`${s.entitySet}|${key.targetField}|${wert}`);
+
+      // Die GUID steht in `OData-EntityId`. Fehlt sie, bleibt der Datensatz
+      // trotzdem als „in diesem Lauf angelegt" vermerkt – für einen eben
+      // angelegten Elterndatensatz braucht es keine GUID: es gibt nichts zu
+      // löschen, und gebunden wird über den Alternativschlüssel.
+      if (!n.dataverseId) return;
+      const idF = AUFLOESUNG.idFeld(k.aufl, s.entitySet);
+      const sl = `${s.entitySet}|${key.targetField}`;
+      if (!k.aufl.treffer.has(sl)) k.aufl.treffer.set(sl, new Map());
+      const m = k.aufl.treffer.get(sl);
+      if (m.has(wert)) return;
+      m.set(wert, [{ [key.targetField]: n.schluessel, [idF]: n.dataverseId, statecode: 0 }]);
+    }
+
     const zusatzZeile = zusatzZeileFn(k.mappe);
 
     for (const s of k.profil.schritte) {
@@ -160,8 +193,13 @@ const LAUF = (() => {
             const et = AUFLOESUNG.finde(k.aufl, ez.lookupEntitySet, ez.lookupKeyField,
                                         ew, k.entscheidungen);
             const eid = k.aufl.idFelder?.get(ez.lookupEntitySet);
+            auftrag.elternSchluessel = ew;
             auftrag.elternId = et.records[0] && eid ? et.records[0][eid] : null;
-            if (!auftrag.elternId) {
+            // Ohne GUID geht es weiter, WENN der Elterndatensatz in diesem
+            // Lauf entstanden ist: dann gibt es keine alten Kinder zu
+            // löschen, und die Bindung läuft ohnehin über den
+            // Alternativschlüssel. Sonst ist es ein echter Fehler.
+            if (!auftrag.elternId && !istNeu(ez.lookupEntitySet, ez.lookupKeyField, String(ew))) {
               notiere({ schritt: s.step, entitySet: s.entitySet, zeile: zeile._zeile,
                 schluessel: sw, aktion: "fehlgeschlagen",
                 meldung: `Elterndatensatz ${ez.lookupEntitySet} zu „${ew}“ nicht aufgeloest` });
@@ -183,7 +221,12 @@ const LAUF = (() => {
         // denselben Batch, aber ein Changeset darf nie geteilt werden.
         const proEltern = new Map();
         for (const a of auftraege) {
-          const p = String(a.elternId ?? a.sw);
+          // Je Elterndatensatz ein Changeset – auch wenn nur sein
+          // Schlüssel bekannt ist. Alle GUID-losen in einen Topf zu werfen
+          // hiesse: eine kaputte Position rollt fremde mit zurück.
+          const p = a.elternId ? String(a.elternId)
+                  : a.elternSchluessel != null ? "schluessel:" + a.elternSchluessel
+                  : String(a.sw);
           if (!proEltern.has(p)) proEltern.set(p, []);
           proEltern.get(p).push(a);
         }
@@ -212,7 +255,7 @@ const LAUF = (() => {
         for (const e of ergebnisse) {
           if (e.gedrosselt) { gedrosselt += e.gedrosselt; folge429 += e.gedrosselt; }
           else folge429 = 0;
-          for (const n of e.eintraege) notiere(n);
+          for (const n of e.eintraege) { notiere(n); merkeNeu(s, key, n); }
         }
 
         if (folge429 >= 3 && parallel > 1) {
@@ -321,6 +364,9 @@ const LAUF = (() => {
   /** Die heute vorhandenen Kinddatensätze eines Elterndatensatzes – aus
    *  Phase 0, nicht aus einer zusätzlichen Abfrage. */
   function alteKinder(k, s, elternId) {
+    // Kein GUID, sondern ein Gruppenname: der Elterndatensatz ist in diesem
+    // Lauf entstanden, es kann nichts daran hängen.
+    if (String(elternId).startsWith("schluessel:")) return [];
     const t = AUFLOESUNG.finde(k.aufl, s.entitySet, `_${s.parentField}_value`, elternId);
     const idF = k.aufl.idFelder?.get(s.entitySet);
     return idF ? t.records.map(r => r[idF]).filter(Boolean) : [];
