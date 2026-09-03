@@ -274,12 +274,13 @@
         "TargetField": "ownerid",
         "TargetType": "Lookup",
         "LookupEntitySet": "systemusers",
-        "LookupKeyField": "internalemailaddress",
+        "LookupKeyField": "internalemailaddress|domainname",
         "OnLookupFail": "WarnAndSkipField",
         "Transform": "trim|lower",
         "SortOrder": 75,
         "$hinweis": "Steht im Blatt Positionen, ist aber je Opp-ID eindeutig (0 Konflikte bei 72 Chancen) - die App uebernimmt ihn aus der ersten zugehoerigen Position. Der Altflow setzt stattdessen den Verbindungsbenutzer (Datenanalyse 5). <person>@<fremde-domaene>.de ist eine fremde Domaene und vermutlich kein Systembenutzer: OnLookupFail=WarnAndSkipField, Import laeuft weiter. WritePolicy=OnCreateOnly: Hat ein Vertriebler die Chance im CRM uebernommen, darf der naechste Import sie nicht zurueckholen (Review B2).",
-        "WritePolicy": "OnCreateOnly"
+        "WritePolicy": "OnCreateOnly",
+        "$lookupKeyField": "Zwei Felder, in dieser Reihenfolge: Systembenutzer tragen ihre Adresse als Primaeradresse (internalemailaddress) UND als Anmeldenamen (domainname). Welche davon in der Quelldatei steht, ist von aussen nicht zu sehen - im Lauf vom 03.09.2026 fand internalemailaddress allein keinen einzigen."
       }
     ],
     "OPPPRODUCT_STD": [

@@ -180,8 +180,12 @@ const MAPPING = (() => {
         // Doppeldeutigkeit wieder), und nur mit ihr laesst sich
         // "unveraendert" feststellen: im Bestand steht eine GUID, keine
         // Kundennummer.
+        // Mehrere Schlüsselfelder sind erlaubt (`a|b`); der Rückfallweg
+        // über die Adresse nimmt das erste.
+        const schlFelder = String(z.lookupKeyField || "")
+          .split("|").map(t => t.trim()).filter(Boolean);
         const gesucht = GUID.test(String(wert)) ? String(wert)
-          : opt.aufloesen?.(z.lookupEntitySet, z.lookupKeyField, wert);
+          : opt.aufloesen?.(z.lookupEntitySet, schlFelder, wert);
         const aufgeloest = gesucht || null;
 
         /* Abgefragt und nicht vorhanden (`null`, nicht `undefined`)? Dann
@@ -228,7 +232,7 @@ const MAPPING = (() => {
 
         const ziel = aufgeloest
           ? `/${z.lookupEntitySet}(${aufgeloest})`
-          : `/${z.lookupEntitySet}(${schluesselTeil(z.lookupKeyField || "id", wert)})`;
+          : `/${z.lookupEntitySet}(${schluesselTeil(schlFelder[0] || "id", wert)})`;
 
         // `@odata.bind` verlangt den Namen der NAVIGATIONSEIGENSCHAFT, nicht
         // den des Attributs. Bei Standardfeldern sind beide gleich, bei

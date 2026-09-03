@@ -315,8 +315,12 @@ console.log("\nWarnungen landen im Protokoll");
   gleich(eintrag.aktion, "angelegt", "die Zeile wird geschrieben");
   pruefe(!!eintrag.warnungen && eintrag.warnungen.length === 1,
     "und traegt ihre Warnung im Protokoll");
-  pruefe(/cr570_technicalaudit_lookups nicht/.test(eintrag.warnungen[0]),
+  const w0 = eintrag.warnungen[0];
+  pruefe(/cr570_technicalaudit_lookups nicht/.test(w0.meldung),
     "die sagt, welcher Verweis nicht aufgeloest wurde");
+  gleich(w0.feld, "cr570_technicalaudit_lookup", "Feld getrennt vom Text");
+  gleich(w0.wert, "gibt es nicht",
+    "und der Wert auch - sonst laesst sich hinterher nichts zusammenfassen");
   pruefe(!(eintrag.felder || []).includes("cr570_technicalaudit_lookup"),
     "das Feld steht nicht unter den geschriebenen");
 }

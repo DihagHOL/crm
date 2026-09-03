@@ -1,5 +1,49 @@
 # Session-Log
 
+## 03.09.2026 — Nachsehen statt raten: Gegenprobe und zwei Schlüsselfelder
+
+Zwei offene Fragen aus Lauf 4, beide beantwortbar statt vermutbar.
+
+**Was steht in `cr570_newcolumn`?** Das konnte die App bisher nicht sagen.
+Sie meldete „29 nicht gefunden" und nannte die gesuchten Werte — aber nicht,
+was stattdessen dort steht. Ein falsches Schlüsselfeld, eine andere
+Schreibweise und ein leerer Bestand sehen aus der Ferne gleich aus.
+
+Neben jedem „nicht gefunden" in der Auflösungstabelle steht jetzt ein Knopf
+**Was steht dort?**. Er holt echte Werte aus der Zieltabelle und stellt sie
+neben die gesuchten:
+
+    In cr570_technicalaudit_lookups.cr570_newcolumn steht:  001  002
+    Gesucht wurde:                                          TP-1  TP-9
+
+Damit ist in zwei Sekunden entschieden, ob das Schlüsselfeld falsch ist oder
+die Werte.
+
+**Der Mitarbeiter ist kein Fremder.** `internalemailaddress` allein fand
+keinen einzigen — dabei steht die Adresse am Systembenutzer an *zwei*
+Stellen: als Primäradresse und als Anmeldename (`domainname`). Welche davon
+Timeline liefert, ist von aussen nicht zu sehen.
+
+`LookupKeyField` führt jetzt mehrere Felder, durch `|` getrennt und in der
+Reihenfolge, in der gesucht wird. Phase 0 fragt jedes ab, die Auflösung nimmt
+den ersten Treffer. Im Profil steht für `ownerid` nun
+`internalemailaddress|domainname`. Findet ihn keines der Felder, bleibt es
+bei der Meldung wie bei den anderen Verweisen — sichtbar, nicht still.
+
+**Dazu.** Warnungen tragen Feld und Wert jetzt getrennt vom Text. Vorher
+hätten 29 verschiedene Werte 29 Zeilen ergeben, jede mit demselben Satz; nun
+ist es eine Zeile mit einer Wertespalte:
+
+    2 | 30 | cr570_technicalaudit_lookup | „…" gibt es nicht … | TP-1 TP-9 | 2, 3
+
+251 automatische Prüfungen in neun Dateien. Nachgemessen in der Vorschau:
+Der Mitarbeiter wird über `domainname` gefunden und als
+`ownerid@odata.bind: /systemusers(u-2)` gebunden; die Gegenprobe zeigt
+`001 002` gegen `TP-1 TP-9`.
+
+**Wirksam erst nach `setup-crm.ps1 -ProfilLaden`** — das zweite Schlüsselfeld
+steht im Repo-Profil, gelesen wird aus der SharePoint-Liste.
+
 ## 03.09.2026 — Lauf 4 sauber durch, und was das Protokoll verschwieg
 
     angelegt 98 · aktualisiert 17 · unverändert 57 · übersprungen 37 · fehlgeschlagen 0

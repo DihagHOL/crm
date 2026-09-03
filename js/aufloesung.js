@@ -26,6 +26,16 @@ const AUFLOESUNG = (() => {
   const leer = v => v === null || v === undefined || v === "";
   const schluessel = (entitySet, feld) => `${entitySet}|${feld}`;
 
+  /** Schlüsselfelder eines Verweises. Mehrere durch `|` getrennt, in der
+   *  Reihenfolge, in der gesucht wird: `internalemailaddress|domainname`.
+   *
+   *  Ein Systembenutzer trägt seine Adresse an zwei Stellen – als
+   *  Primäradresse und als Anmeldename –, und welche davon in der
+   *  Quelldatei steht, ist von aussen nicht zu sehen. Ein einziges
+   *  Schlüsselfeld heisst hier: entweder oder nichts. */
+  const schluesselFelder = z => String(z.lookupKeyField || "")
+    .split("|").map(t => t.trim()).filter(Boolean);
+
   /** Feldname für den Filter.
    *
    *  `Microsoft.Dynamics.CRM.In` kennt nur Attributnamen. Die
@@ -231,8 +241,9 @@ const AUFLOESUNG = (() => {
         const werte = z.sourceColumn
           ? quellBlatt.zeilen.map(r => TRANSFORMS.anwenden(r[z.sourceColumn], z.transform).wert)
           : [z.defaultValue];
-        await frage(z.lookupEntitySet, z.lookupKeyField, werte,
-          `${z.lookupKeyField}`, `Schritt ${s.step}: Verweis ${z.targetField}`);
+        for (const feld of schluesselFelder(z))
+          await frage(z.lookupEntitySet, feld, werte, feld,
+            `Schritt ${s.step}: Verweis ${z.targetField}`);
       }
 
       // 3. Ersetzungsschritt: welche Kinddatensätze hängen heute dran?
@@ -327,20 +338,28 @@ const AUFLOESUNG = (() => {
    *
    *  `null` heisst: nicht aufgelöst – dann bleibt der bisherige Weg. */
   function aufloeser(aufl, entscheidungen) {
-    return (entitySet, feld, wert) => {
-      if (!entitySet || !feld || leer(wert)) return undefined;
-      // `undefined` heisst „keine Auskunft" – dazu wurde nichts abgefragt,
-      // also bleibt der bisherige Weg über den Alternativschlüssel.
-      // `null` heisst „abgefragt und nicht vorhanden" – das ist eine
-      // Aussage, und darauf darf `OnLookupFail` reagieren.
-      if (!aufl.treffer?.get(schluessel(entitySet, feld))) return undefined;
-      const t = finde(aufl, entitySet, feld, wert, entscheidungen);
-      if (t.mehrdeutig) return undefined;      // offene Entscheidung: nicht raten
-      if (!t.records.length) return null;
-      return t.records[0][idFeld(aufl, entitySet)] || null;
+    return (entitySet, felder, wert) => {
+      if (!entitySet || !felder || leer(wert)) return undefined;
+      const liste = Array.isArray(felder) ? felder : [felder];
+      let auskunft = false;
+
+      // Der Reihe nach: das erste Feld, das den Wert kennt, gewinnt.
+      for (const feld of liste) {
+        // `undefined` heisst „keine Auskunft" – dazu wurde nichts
+        // abgefragt, also bleibt der bisherige Weg über den
+        // Alternativschlüssel. `null` heisst „abgefragt und nicht
+        // vorhanden" – das ist eine Aussage, und darauf darf
+        // `OnLookupFail` reagieren.
+        if (!aufl.treffer?.get(schluessel(entitySet, feld))) continue;
+        auskunft = true;
+        const t = finde(aufl, entitySet, feld, wert, entscheidungen);
+        if (t.mehrdeutig) return undefined;    // offene Entscheidung: nicht raten
+        if (t.records.length) return t.records[0][idFeld(aufl, entitySet)] || null;
+      }
+      return auskunft ? null : undefined;
     };
   }
 
   return { fuer, finde, sammle, vergleichsFelder, offeneEntscheidungen, idFeld,
-           filterFeld, aufloeser, BLOCK };
+           filterFeld, aufloeser, schluesselFelder, BLOCK };
 })();

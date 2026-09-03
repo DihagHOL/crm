@@ -27,6 +27,11 @@ const LAUF = (() => {
 
   const leer = v => v === null || v === undefined || v === "";
   const GUID_ROH = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+  /** Warnung fürs Protokoll: Feld und Wert getrennt vom Text. Nur so lässt
+   *  sich hinterher zusammenfassen („29 Zeilen, Feld X, diese Werte") statt
+   *  29-mal denselben Satz mit anderem Wert darin zu zeigen. */
+  const kurzWarnung = w => ({ feld: w.feld || "", wert: w.wert ?? null, meldung: w.meldung });
   const warte = ms => new Promise(r => setTimeout(r, ms));
 
   /**
@@ -207,7 +212,7 @@ const LAUF = (() => {
         if (r.unveraendert) {
           notiere({ schritt: s.step, entitySet: s.entitySet, zeile: zeile._zeile,
             schluessel: sw, aktion: "unveraendert",
-            ...(r.warnungen.length ? { warnungen: r.warnungen.map(w => w.meldung) } : {}) });
+            ...(r.warnungen.length ? { warnungen: r.warnungen.map(kurzWarnung) } : {}) });
           continue;
         }
 
@@ -443,7 +448,7 @@ const LAUF = (() => {
        vier Felder ungeschrieben (`ownerid`, beide cr570-Verweise), und im
        Protokoll stand davon nichts. Genau so verliert der Altflow die
        Zeichnungsnummer. */
-    if (a.warnungen?.length) e.warnungen = a.warnungen.map(w => w.meldung);
+    if (a.warnungen?.length) e.warnungen = a.warnungen.map(kurzWarnung);
     /* Bei einer Anlage über den Alternativschlüssel gibt Dataverse die
        SCHLÜSSELADRESSE zurück (`opportunities(new_dagextopid=7414)`), nicht
        die GUID. Beides als `dataverseId` zu führen, behauptet eine

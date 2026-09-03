@@ -142,6 +142,21 @@ const DV = (() => {
              dubletten: dub, vollstaendig: rows.vollstaendig !== false };
   }
 
+  /** Was steht in einer Verweistabelle wirklich?
+   *
+   *  Der Prüfbericht sagt „29 nicht gefunden" und nennt die gesuchten
+   *  Werte. Er sagt aber nicht, was stattdessen dort steht – und genau
+   *  daran hängt die Antwort: falsches Schlüsselfeld, andere Schreibweise
+   *  oder schlicht ein leerer Bestand sehen aus der Ferne gleich aus.
+   *
+   *  @returns {Promise<{werte:any[], mehr:boolean}>} */
+  async function beispielWerte(entitySet, feld, anzahl = 25) {
+    const d = await call(`/${entitySet}?$select=${encodeURIComponent(feld)}`
+      + `&$top=${anzahl + 1}`);
+    const roh = (d?.value || []).map(r => r[feld]);
+    return { werte: roh.slice(0, anzahl), mehr: roh.length > anzahl };
+  }
+
   /* ── Metadaten ────────────────────────────────────────────────────────
      Die Feldliste kommt aus Dataverse, nicht aus einer gepflegten Konstante
      im Code. Eine Konstante wäre am Tag ihrer Entstehung korrekt und danach
@@ -276,6 +291,6 @@ const DV = (() => {
     return erlaubt.includes(dvTyp);
   }
 
-  return { call, alle, dubletten, whoAmI, basis, pruefeKonfiguration,
+  return { call, alle, dubletten, whoAmI, basis, pruefeKonfiguration, beispielWerte,
            felder, logischerName, navigation, schluessel, typPasst, metaLeeren };
 })();

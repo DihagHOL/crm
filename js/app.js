@@ -299,8 +299,14 @@ const APP = (() => {
             <tr class="${a.mehrdeutig.length ? "problem" : ""}">
               <td>${esc(a.entitySet)}</td><td>${esc(a.feld)}</td>
               <td>${a.gesucht}</td><td>${a.gefunden}</td>
-              <td>${a.fehlend.length ? `<span class="hinweis-text">${a.fehlend.length}: ${esc(a.fehlend.slice(0,4).join(", "))}${a.fehlend.length>4?" …":""}</span>` : ""}</td>
+              <td>${a.fehlend.length ? `<span class="hinweis-text">${a.fehlend.length}: ${esc(a.fehlend.slice(0,4).join(", "))}${a.fehlend.length>4?" …":""}</span>
+                     <button class="btn ghost sm" data-bsp="${esc(a.entitySet)}|${esc(a.feld)}"
+                       title="Zeigt, welche Werte in dieser Tabelle wirklich stehen"
+                       >Was steht dort?</button>` : ""}</td>
               <td>${a.mehrdeutig.length ? `<span class="fehlt">${a.mehrdeutig.map(m=>`${m.wert}×${m.anzahl}`).join(", ")}</span>` : ""}</td>
+            </tr>
+            <tr class="bsp" id="bsp-${esc(a.entitySet)}-${esc(a.feld)}" hidden>
+              <td colspan="6"></td>
             </tr>`).join("")}</tbody>
         </table></div>
       </div>
@@ -329,6 +335,41 @@ const APP = (() => {
       imp.onclick = () => { if (frei()) zeigeSchritt("import"); };
     }
     $("plNeu").onclick = () => renderPruefung(true);
+
+    /* „Was steht dort?" – die Gegenprobe zu „nicht gefunden".
+       Ohne sie sieht ein falsches Schlüsselfeld genauso aus wie eine andere
+       Schreibweise und wie ein leerer Bestand. Mit ihr steht beides
+       nebeneinander und die Antwort ist in zwei Sekunden da. */
+    for (const b of document.querySelectorAll("button[data-bsp]")) {
+      b.onclick = async () => {
+        const [es, feld] = b.dataset.bsp.split("|");
+        const zeile = $(`bsp-${es}-${feld}`);
+        const zelle = zeile.firstElementChild;
+        zeile.hidden = false;
+        zelle.innerHTML = '<span class="hint">wird geladen …</span>';
+        b.disabled = true;
+        try {
+          const r = await DV.beispielWerte(es, feld);
+          const gefragt = _bericht.aufl.abfragen.find(x => x.entitySet === es && x.feld === feld);
+          zelle.innerHTML = r.werte.length
+            ? `<div class="gegenprobe">
+                 <div><b>In ${esc(es)}.${esc(feld)} steht:</b>
+                   ${r.werte.map(v => `<code>${esc(String(v ?? "–"))}</code>`).join(" ")}
+                   ${r.mehr ? " …" : ""}</div>
+                 <div class="hint" style="margin-top:6px"><b>Gesucht wurde:</b>
+                   ${(gefragt?.fehlend || []).slice(0, 12)
+                       .map(v => `<code>${esc(String(v))}</code>`).join(" ")}</div>
+               </div>`
+            : `<span class="fehlt">${esc(es)}.${esc(feld)} ist leer – die Tabelle
+               enthält keinen einzigen Wert in diesem Feld. Entweder ist es das
+               falsche Schlüsselfeld, oder der Bestand fehlt.</span>`;
+        } catch (e) {
+          zelle.innerHTML = `<span class="fehlt">${esc(e.detail || e.message)}</span>`;
+        } finally {
+          b.disabled = false;
+        }
+      };
+    }
     $("plExcel").onclick = berichtExportieren;
 
     for (const sel of document.querySelectorAll("select[data-entscheidung]")) {
@@ -572,13 +613,19 @@ const APP = (() => {
     const gruppen = new Map();
     for (const e of l.eintraege)
       for (const w of e.warnungen || []) {
-        const k = `${e.schritt}|${meldungsKern(w)}`;
+        // Ältere Protokolle führen die Warnung als reinen Text.
+        const feld = typeof w === "object" ? (w.feld || "") : "";
+        const text = typeof w === "object" ? w.meldung : String(w);
+        const wert = typeof w === "object" ? w.wert : null;
+        const k = `${e.schritt}|${feld}|${meldungsKern(text)}`;
         if (!gruppen.has(k))
-          gruppen.set(k, { schritt: e.schritt, entitySet: e.entitySet,
-                           meldung: meldungsKern(w), anzahl: 0, zeilen: [] });
+          gruppen.set(k, { schritt: e.schritt, entitySet: e.entitySet, feld,
+                           meldung: meldungsKern(text), anzahl: 0,
+                           zeilen: [], werte: new Set() });
         const g = gruppen.get(k);
         g.anzahl++;
         if (g.zeilen.length < 8) g.zeilen.push(e.zeile);
+        if (wert !== null && wert !== undefined) g.werte.add(String(wert));
       }
     if (!gruppen.size) return "";
     const sortiert = [...gruppen.values()].sort((a, b) => b.anzahl - a.anzahl);
@@ -590,15 +637,19 @@ const APP = (() => {
            aber nicht. Kein Fehler, trotzdem eine Aussage: ein Feld, das in
            jeder Zeile fehlt, ist eine offene Frage und kein Zufall.</p>
         <div class="tbl-wrap"><table class="tbl">
-          <thead><tr><th>Anzahl</th><th>Schritt</th><th>Ziel</th>
-            <th>Meldung</th><th>Zeilen</th></tr></thead>
-          <tbody>${sortiert.map(g => `<tr>
+          <thead><tr><th>Anzahl</th><th>Schritt</th><th>Feld</th>
+            <th>Meldung</th><th>Werte</th><th>Zeilen</th></tr></thead>
+          <tbody>${sortiert.map(g => {
+            const w = [...g.werte];
+            return `<tr>
             <td><b>${g.anzahl}</b></td>
             <td>${g.schritt}</td>
-            <td>${esc(g.entitySet || "")}</td>
+            <td>${esc(g.feld || g.entitySet || "")}</td>
             <td><span class="hinweis-text">${esc(g.meldung)}</span></td>
+            <td>${w.slice(0, 10).map(v => `<code>${esc(v)}</code>`).join(" ")}${
+                 w.length > 10 ? ` … (${w.length} verschiedene)` : ""}</td>
             <td class="zeilennr">${g.zeilen.join(", ")}${g.anzahl > g.zeilen.length ? " …" : ""}</td>
-          </tr>`).join("")}</tbody>
+          </tr>`; }).join("")}</tbody>
         </table></div>
       </div>`;
   }
@@ -609,6 +660,9 @@ const APP = (() => {
   const meldungsKern = m => String(m || "ohne Meldung")
     .replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, "…")
     .replace(/'[^']*'/g, "'…'")
+    // Auch deutsche Anfuehrungszeichen: der Wert steht in der Spalte
+    // daneben, im Text stoert er die Gruppierung.
+    .replace(/„[^“"]*[“"]/g, "„…“")
     // Auch abgeschnittene Datensatz-Kennungen: Dataverse hängt sie gern
     // ohne Bindestriche an. Ohne das steht dieselbe Ursache 79-mal da.
     .replace(/\b[0-9a-f]{8,}\b/gi, "…")

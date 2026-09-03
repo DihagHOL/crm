@@ -404,6 +404,39 @@ Positionen und Prozessinstanzen. Die genaue Liste samt `$select` steht in
 - alle Felder, die der Import schreiben will — sonst ist kein Vergleich und
   damit kein `unveraendert` möglich
 
+### Mehrere Schlüsselfelder je Verweis
+
+`LookupKeyField` darf mehrere Felder führen, durch `|` getrennt und in der
+Reihenfolge, in der gesucht wird:
+
+```
+internalemailaddress|domainname
+```
+
+Ein Systembenutzer trägt seine Adresse an zwei Stellen — als Primäradresse
+und als Anmeldenamen. Welche davon in der Quelldatei steht, ist von aussen
+nicht zu sehen; mit einem einzigen Schlüsselfeld heisst das *entweder oder
+nichts*. Im Lauf vom 03.09.2026 fand `internalemailaddress` allein **keinen
+einzigen** Mitarbeiter, und `ownerid` blieb in jeder Zeile leer.
+
+Phase 0 fragt jedes Feld ab, die Auflösung nimmt den ersten Treffer.
+
+### Gegenprobe: was steht in der Zieltabelle?
+
+Der Prüfbericht sagt „29 nicht gefunden" und nennt die gesuchten Werte. Er
+sagt damit noch nicht, was **stattdessen** dort steht — und genau daran hängt
+die Antwort: ein falsches Schlüsselfeld, eine andere Schreibweise und ein
+leerer Bestand sehen aus der Ferne gleich aus.
+
+In der Auflösungstabelle steht deshalb neben jedem „nicht gefunden" ein Knopf
+*Was steht dort?*. Er holt eine Handvoll echter Werte aus der Zieltabelle und
+stellt sie neben die gesuchten:
+
+    In cr570_technicalaudit_lookups.cr570_newcolumn steht:  001  002
+    Gesucht wurde:                                          TP-1  TP-9
+
+Zwei Sekunden, und die Frage ist beantwortet.
+
 ### Schreibrichtlinie je Feld
 
 Aus der Auflösung folgt die Unterscheidung, die den Import erst zu einem

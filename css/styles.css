@@ -417,3 +417,12 @@ table.tbl tr.gut td     { }
   margin: 10px 0 4px; font-size: 14px; color: var(--navy); cursor: pointer;
 }
 .bestaetigung input { width: 16px; height: 16px; accent-color: var(--azur); cursor: pointer; }
+
+/* Gegenprobe zu „nicht gefunden": was steht in der Zieltabelle wirklich?
+   Gesucht und vorhanden nebeneinander - der Vergleich ist die Antwort. */
+table.tbl tr.bsp td { background: var(--border-2); }
+.gegenprobe code {
+  display: inline-block; margin: 2px 3px 2px 0; padding: 1px 6px;
+  background: #fff; border: 1px solid var(--border); border-radius: 4px;
+  font-size: 12.5px;
+}

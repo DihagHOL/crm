@@ -165,5 +165,36 @@ console.log("\nMehrere Kinddatensaetze sind keine Doppeldeutigkeit");
     "und zwar die doppelte Kundennummer - die Positionen nicht");
 }
 
+console.log("\nMehrere Schluesselfelder je Verweis");
+{
+  const { A } = baueAufloesung(() => []);
+  gleich(A.schluesselFelder({ lookupKeyField: "internalemailaddress|domainname" }),
+    ["internalemailaddress", "domainname"], "durch | getrennt, in Reihenfolge");
+  gleich(A.schluesselFelder({ lookupKeyField: " a | b " }), ["a", "b"], "Leerraum faellt weg");
+  gleich(A.schluesselFelder({ lookupKeyField: "" }), [], "ohne Angabe kein Feld");
+}
+{
+  /* Der Systembenutzer traegt seine Adresse an zwei Stellen. Findet das
+     erste Feld nichts, entscheidet das zweite - sonst bleibt ownerid leer,
+     obwohl der Benutzer existiert. */
+  const { A } = baueAufloesung(() => []);
+  const aufl = {
+    treffer: new Map([
+      ["systemusers|internalemailaddress", new Map()],
+      ["systemusers|domainname", new Map([["a.meier@dihag.com",
+        [{ systemuserid: "u-1", domainname: "a.meier@dihag.com" }]]])]
+    ]),
+    idFelder: new Map([["systemusers", "systemuserid"]]),
+    abfragen: []
+  };
+  const loesen = A.aufloeser(aufl, null);
+  gleich(loesen("systemusers", ["internalemailaddress", "domainname"], "a.meier@dihag.com"),
+    "u-1", "das zweite Feld findet ihn");
+  gleich(loesen("systemusers", ["internalemailaddress", "domainname"], "fremd@extern.de"),
+    null, "kennt ihn keines, ist das eine Aussage - nicht Schweigen");
+  gleich(loesen("systemusers", ["gibtsnicht"], "a.meier@dihag.com"),
+    undefined, "ein nie abgefragtes Feld gibt keine Auskunft");
+}
+
 console.log(fehler ? `\n${fehler} Prüfung(en) fehlgeschlagen.` : "\nAlle Prüfungen bestanden.");
 process.exit(fehler ? 1 : 0);
