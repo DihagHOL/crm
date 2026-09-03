@@ -1,5 +1,36 @@
 # Session-Log
 
+## 03.09.2026 — Eine Regel, die zehnmal stimmt, ist trotzdem eine Falle
+
+Der erste Prüflauf mit dem gebauten Schritt 50 endete sofort:
+
+```
+GET /opportunitysalesprocesses?$select=…,opportunitysalesprocessid
+→ HTTP 400 0x80060888: Could not find a property named
+  'opportunitysalesprocessid'
+```
+
+Phase 0 leitet das Primärschlüsselfeld seit jeher aus dem logischen Namen
+ab, `+ "id"`. Von den elf Tabellen dieses Profils stimmt das bei zehn —
+`opportunity` → `opportunityid`, `pricelevel` → `pricelevelid`, auch die
+beiden `cr570_*`-Verweistabellen. Die elfte heißt
+**`businessprocessflowinstanceid`**, und keine Ableitung der Welt kommt
+darauf.
+
+Jetzt liest `DV.primaerId()` das `PrimaryIdAttribute` aus den Metadaten,
+einmal je Tabelle. Die Ableitung bleibt als Rückfallweg, falls die
+Metadaten nicht lesbar sind.
+
+Beim Absichern fiel auf, dass der neue Aufruf in den Testkulissen still in
+den `catch` lief — die Stubs kannten `primaerId` nicht, jedes Feld wurde
+`null`, und alle Tests blieben grün. Also genau der Fehlertyp, gegen den
+diese Änderung gebaut ist. Die Kulissen kennen die Funktion jetzt, und ein
+Test hält den Sonderfall fest.
+
+Dritter Fall desselben Musters nach `@odata.bind` und dem `$select` auf
+Verweise: **der Name, unter dem Dataverse etwas führt, ist nicht der Name,
+den man sich ausrechnen kann.**
+
 ## 03.09.2026 — Status ist eine Prozessstufe, und Schritt 50 tut jetzt etwas
 
 **Korrektur.** Ich hatte geschrieben, für `Status` gebe es kein Zielfeld,

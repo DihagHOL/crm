@@ -26,12 +26,17 @@ const gleich = (a, b, t) => pruefe(JSON.stringify(a) === JSON.stringify(b),
 
 /** AUFLOESUNG mit gestelltem DV. `antwort(pfad)` liefert die Zeilen oder
  *  wirft — so lässt sich auch ein 400 nachstellen. */
-function baueAufloesung(antwort) {
+function baueAufloesung(antwort, primaerIds = {}) {
   const gerufen = [];
   const g = {
     DV: {
       alle: async pfad => { gerufen.push(decodeURIComponent(pfad)); return antwort(pfad); },
-      logischerName: async es => es.replace(/ies$/, "y").replace(/s$/, "")
+      logischerName: async es => es.replace(/ies$/, "y").replace(/s$/, ""),
+      // Der Primaerschluessel kommt aus den Metadaten. Der Stub gibt
+      // standardmaessig nichts zurueck - dann greift der Rueckfallweg
+      // ueber den logischen Namen, so wie in einer Umgebung ohne
+      // lesbare Metadaten.
+      primaerId: async es => primaerIds[es] ?? null
     },
     EXCEL: { blatt: () => null },
     TRANSFORMS: { anwenden: w => ({ wert: w, unbekannt: [] }) },
@@ -232,6 +237,61 @@ console.log("\nPhase 0 sucht mit dem Wert, der geschrieben wird");
   const abfrage = gefragt.find(x => x.includes("cr570_technicalaudit_lookups"));
   pruefe(/'Yes'/.test(abfrage), "gesucht wird der uebersetzte Wert");
   pruefe(!/'Ja'/.test(abfrage), "und NICHT der Quellwert - daran scheiterte es");
+}
+
+console.log("\nDer Primaerschluessel kommt aus den Metadaten");
+{
+  /* `logischerName + "id"` stimmt bei fast jeder Tabelle - und deshalb
+     fiel der Sonderfall erst im echten Lauf auf:
+
+       opportunitysalesprocess -> businessprocessflowinstanceid
+
+     Phase 0 selektierte `opportunitysalesprocessid` und bekam
+     HTTP 400 0x80060888 "Could not find a property named". Eine Regel, die
+     in fuenf von sechs Faellen stimmt, ist keine Regel, sondern eine
+     Falle. */
+  const gefragt = [];
+  const g = {
+    DV: { alle: async pfad => {
+            gefragt.push(decodeURIComponent(pfad));
+            // Ohne Treffer bei den Chancen gibt es keine GUID, mit der die
+            // Prozessinstanzen gesucht werden koennten - und die zweite
+            // Abfrage entfiele, um die es hier geht.
+            return /^\/opportunities\?/.test(pfad)
+              ? [{ new_dagextopid: 6440, opportunityid: G1 }] : [];
+          },
+          logischerName: async es => es.replace(/ies$/, "y").replace(/s$/, ""),
+          primaerId: async es => es === "opportunitysalesprocesses"
+            ? "businessprocessflowinstanceid" : null,
+          navigation: async () => ({}), schluessel: async () => [] },
+    EXCEL: { blatt: (m, n) => m.blaetter.find(b => b.name === n) },
+    TRANSFORMS: { anwenden: w => ({ wert: w, unbekannt: [] }) },
+    MAPPING: { zugeordnet: () => undefined },
+    console
+  };
+  const src = readFileSync(join(wurzel, "js/aufloesung.js"), "utf8");
+  const A = new Function(...Object.keys(g), src + "; return AUFLOESUNG;")(...Object.values(g));
+
+  const profil = {
+    schritte: [{ step: 50, entitySet: "opportunitysalesprocesses",
+                 sourceSheet: "Anfragen", mappingKey: "STAGE", mode: "SetStage",
+                 parentField: "opportunityid", aktiv: true }],
+    zuordnungen: { STAGE: [
+      { aktiv: true, sourceColumn: "Opp-ID", targetField: "opportunityid",
+        targetType: "Lookup", lookupEntitySet: "opportunities",
+        lookupKeyField: "new_dagextopid" }
+    ] }
+  };
+  const mappe = { blaetter: [{ name: "Anfragen", anzahl: 1,
+    zeilen: [{ _zeile: 2, "Opp-ID": 6440 }] }] };
+
+  const r = await A.fuer(profil, mappe, () => {});
+  gleich(r.idFelder.get("opportunitysalesprocesses"), "businessprocessflowinstanceid",
+    "der Name aus den Metadaten gilt, nicht die Ableitung");
+  pruefe(!gefragt.some(x => x.includes("opportunitysalesprocessid")),
+    "der abgeleitete Name taucht in keiner Abfrage auf");
+  gleich(r.idFelder.get("opportunities"), "opportunityid",
+    "ohne Metadaten-Antwort bleibt der Rueckfallweg ueber den logischen Namen");
 }
 
 console.log(fehler ? `\n${fehler} Prüfung(en) fehlgeschlagen.` : "\nAlle Prüfungen bestanden.");

@@ -190,6 +190,37 @@ const DV = (() => {
     return { gesamt: rows.length, jeFeld };
   }
 
+  /** Das Primärschlüsselfeld einer Tabelle.
+   *
+   *  NICHT aus dem logischen Namen zurückgerechnet. Bei den meisten
+   *  Tabellen ginge das — `opportunity` → `opportunityid` —, und genau
+   *  deshalb fällt der Sonderfall erst spät auf:
+   *
+   *    opportunitysalesprocess → businessprocessflowinstanceid
+   *
+   *  Die Ableitung ergab `opportunitysalesprocessid`, und Phase 0 lief in
+   *
+   *    0x80060888: Could not find a property named
+   *    'opportunitysalesprocessid' on type '…opportunitysalesprocess'
+   *
+   *  Eine Regel, die in fünf von sechs Fällen stimmt, ist keine Regel,
+   *  sondern eine Falle. Die Metadaten wissen es; gefragt wird einmal je
+   *  Tabelle und dann aus dem Zwischenspeicher.
+   *
+   *  @returns {Promise<string|null>} */
+  async function primaerId(entitySet) {
+    const k = "pid|" + entitySet;
+    if (_meta[k] !== undefined) return _meta[k];
+    try {
+      const ln = await logischerName(entitySet);
+      const d = await call(`/EntityDefinitions(LogicalName='${ln}')`
+        + `?$select=PrimaryIdAttribute`);
+      _meta[k] = d?.PrimaryIdAttribute || null;
+    } catch { _meta[k] = null; }
+    metaSichern();
+    return _meta[k];
+  }
+
   /** Das Namensfeld einer Tabelle.
    *
    *  Steht im Profil das falsche Schlüsselfeld, findet die Auflösung nichts
@@ -360,6 +391,6 @@ const DV = (() => {
   }
 
   return { call, alle, dubletten, whoAmI, basis, pruefeKonfiguration, beispielWerte,
-           belegung, primaerName, felder, logischerName, navigation, schluessel,
+           belegung, primaerName, primaerId, felder, logischerName, navigation, schluessel,
            typPasst, metaLeeren };
 })();

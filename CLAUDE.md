@@ -421,6 +421,32 @@ einzigen** Mitarbeiter, und `ownerid` blieb in jeder Zeile leer.
 
 Phase 0 fragt jedes Feld ab, die Auflösung nimmt den ersten Treffer.
 
+### Primärschlüssel: nachsehen, nicht ableiten
+
+`logischerName + "id"` sieht aus wie eine Regel. Von den elf Tabellen dieses
+Profils stimmt sie bei zehn — und genau deshalb ist sie eine Falle:
+
+| Tabelle | Primärschlüssel |
+|---|---|
+| `opportunity`, `account`, `contact`, `pricelevel`, `processstage`, … | wie abgeleitet |
+| **`opportunitysalesprocess`** | **`businessprocessflowinstanceid`** |
+
+Phase 0 selektierte `opportunitysalesprocessid` und bekam
+
+```
+0x80060888: Could not find a property named 'opportunitysalesprocessid'
+on type 'Microsoft.Dynamics.CRM.opportunitysalesprocess'
+```
+
+Deshalb kommt der Name jetzt aus `PrimaryIdAttribute` (`DV.primaerId`),
+einmal je Tabelle und dann aus dem Zwischenspeicher. Die Ableitung bleibt
+als Rückfallweg für den Fall, dass die Metadaten nicht lesbar sind.
+
+Dasselbe Muster wie bei `@odata.bind` und beim `$select` auf Verweise: Der
+Name, unter dem Dataverse etwas führt, ist nicht der Name, den man sich
+ausrechnen kann. **Nachsehen ist billiger als raten** — die Metadaten liegen
+ohnehin schon im Zwischenspeicher.
+
 ### Gegenprobe: was steht in der Zieltabelle?
 
 Der Prüfbericht sagt „29 nicht gefunden" und nennt die gesuchten Werte. Er

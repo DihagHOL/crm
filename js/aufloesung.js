@@ -149,11 +149,20 @@ const AUFLOESUNG = (() => {
       if (treffer.has(k)) return;   // dieselbe Abfrage nicht zweimal
       fortschritt(`${entitySet} über ${feld} (${gesucht.size} Werte) …`);
 
-      // Primärschlüsselfeld mitselektieren – ohne ihn lässt sich ein
-      // Datensatz bei Mehrfachtreffern nicht benennen, und genau das
-      // braucht die Entscheidung.
+      /* Primärschlüsselfeld mitselektieren – ohne ihn lässt sich ein
+         Datensatz bei Mehrfachtreffern nicht benennen, und genau das
+         braucht die Entscheidung.
+
+         Aus den METADATEN, nicht aus dem Namen abgeleitet. `logischerName
+         + "id"` stimmt bei fast allen Tabellen und deshalb lange
+         unbemerkt – `opportunitysalesprocess` heisst im Schlüssel aber
+         `businessprocessflowinstanceid`, und Phase 0 endete in
+         „Could not find a property named 'opportunitysalesprocessid'". */
       if (!idFelder.has(entitySet)) {
-        try { idFelder.set(entitySet, (await DV.logischerName(entitySet)) + "id"); }
+        try {
+          idFelder.set(entitySet, (await DV.primaerId(entitySet))
+            || (await DV.logischerName(entitySet)) + "id");
+        }
         catch { idFelder.set(entitySet, null); }
       }
       const idF = idFelder.get(entitySet);
@@ -304,8 +313,12 @@ const AUFLOESUNG = (() => {
    *
    *  NICHT aus dem Mengennamen zurückgerechnet: `opportunities` ergäbe zwar
    *  `opportunityid`, aber `opportunitysalesprocesses` ergäbe
-   *  `opportunitysalesprocesseid` – falsch. Der logische Name kommt aus den
-   *  Metadaten und wird beim Auflösen einmal mitgeholt. */
+   *  `opportunitysalesprocesseid` – falsch. Phase 0 holt den Namen aus den
+   *  Metadaten (`PrimaryIdAttribute`); der Rückfallweg hier greift nur,
+   *  wenn gar keine Auflösung vorliegt, und rät bewusst schlecht sichtbar
+   *  statt still: `opportunitysalesprocess` heisst im Schlüssel
+   *  `businessprocessflowinstanceid`, und keine Ableitung der Welt kommt
+   *  darauf. */
   const idFeld = (aufl, entitySet) =>
     aufl.idFelder?.get(entitySet) || (entitySet.replace(/ies$/, "y").replace(/s$/, "") + "id");
 
