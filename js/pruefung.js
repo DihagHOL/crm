@@ -39,9 +39,10 @@ const PRUEFUNG = (() => {
    * @param {object} mappe  aus EXCEL.lesen()
    * @param {object} aufl   aus AUFLOESUNG.fuer()
    * @param {object} [werte] Wertzuordnungen
+   * @param {Map} [entscheidungen] Antworten auf Mehrfachtreffer
    * @returns {{schritte:object[], gesamt:object, fehler:object[], warnungen:object[]}}
    */
-  function lauf(profil, mappe, aufl, werte = {}) {
+  function lauf(profil, mappe, aufl, werte = {}, entscheidungen = null) {
     const zusatzZeile = zusatzZeileFn(mappe);
     const schritte = [], alleFehler = [], alleWarnungen = [];
     const gesamt = { neu: 0, aktualisiert: 0, unveraendert: 0, uebersprungen: 0, fehler: 0 };
@@ -85,19 +86,27 @@ const PRUEFUNG = (() => {
         }
 
         // Bestand nachschlagen
-        let bestand = null, mehrdeutig = false;
+        let bestand = null, mehrdeutig = false, entschieden = false;
         if (key && s.alternateKey) {
-          const t = AUFLOESUNG.finde(aufl, s.entitySet, key.targetField, schluesselWert);
+          const t = AUFLOESUNG.finde(aufl, s.entitySet, key.targetField,
+                                     schluesselWert, entscheidungen);
           mehrdeutig = t.mehrdeutig;
+          entschieden = t.entschieden;
           bestand = t.records[0] || null;
         }
+        if (entschieden)
+          alleWarnungen.push({ schritt: s.step, zeile: zeile._zeile,
+            spalte: key.sourceColumn, wert: schluesselWert,
+            meldung: "Mehrfachtreffer – es gilt der von Hand gewählte Datensatz. "
+              + "Die Entscheidung steht im Protokoll." });
 
         if (mehrdeutig) {
           z.fehler++;
           alleFehler.push({ schritt: s.step, zeile: zeile._zeile, spalte: key.sourceColumn,
             wert: schluesselWert,
             meldung: `Mehrfachtreffer: ${schluesselWert} findet mehrere Datensätze. `
-              + "Welcher gemeint ist, lässt sich nicht entscheiden." });
+              + "Bitte oben unter „Offene Entscheidungen“ auswählen, welcher "
+              + "gemeint ist – geraten wird nicht." });
           continue;
         }
 

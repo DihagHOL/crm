@@ -123,6 +123,12 @@ je betroffener Anfrage zwei zusätzliche Verkaufschancen.
 Reihenfolge daher: erst die 76 entfernen, dann die verbleibenden ~137
 nachpflegen, dann den Schlüssel anlegen.
 
+**Alles drei erledigt am 02.09.2026** mit `aufraeumen-b1.ps1`: 76 gelöscht,
+137 nachgepflegt, Alternativschlüssel `dag_TimelineOppId` auf
+`new_dagextopid` angelegt und aktiv. **Der Altflow ist seither
+abgeschaltet** – ohne das wären die Geisterdatensätze beim nächsten Lauf
+erneut entstanden.
+
 ### B2 — Verkaufschancen werden über einen Namenspräfix gesucht
 
 ```

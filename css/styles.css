@@ -387,3 +387,14 @@ table.tbl tr.gut td     { }
 .zahl-kachel.gruen b { color: var(--green); }
 .zahl-kachel.rot   { background: var(--red-bg); border-color: #f0c8cc; }
 .zahl-kachel.rot b { color: var(--red); }
+
+/* ── Offene Entscheidungen ───────────────────────────────────────────── */
+
+.entscheidung {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  padding: 12px 0; border-bottom: 1px solid var(--border-2);
+}
+.entscheidung:last-of-type { border-bottom: 0; }
+.entscheidung .frage { flex: 1 1 260px; min-width: 0; }
+.entscheidung .frage small { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
+.entscheidung select { flex: 1 1 320px; max-width: 460px; }

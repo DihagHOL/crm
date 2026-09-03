@@ -101,7 +101,7 @@ console.log("\nMehrfachtreffer");
   const f = r.fehler.find(x => /Mehrfachtreffer/.test(x.meldung));
   pruefe(!!f && f.zeile === 6,
     "Mehrfachtreffer wird als Fehler gemeldet und nennt die Excel-Zeile");
-  pruefe(/lässt sich nicht entscheiden/.test(f.meldung),
+  pruefe(/geraten wird nicht/.test(f.meldung),
     "es wird nicht der erste genommen – genau das tut der Altflow mit $top:1");
 }
 
@@ -126,6 +126,48 @@ console.log("\nLookupOnly – Konten werden nie angelegt");
   pruefe(!!f && f.zeile === 4, "der unbekannte Schlüssel wird gemeldet");
   pruefe(/der Lauf geht weiter/.test(f.meldung),
     "und zwar zeilenweise – eine unbekannte Nummer bricht nicht den ganzen Import ab (Review B3)");
+}
+
+console.log("\nMehrfachtreffer entscheiden statt raten");
+{
+  // Die Auflösung muss das Id-Feld kennen, sonst ist ein Kandidat nicht
+  // benennbar. Genau dafür wird es beim Auflösen mitgeholt.
+  const auflMitId = {
+    idFelder: new Map([["opportunities", "opportunityid"]]),
+    abfragen: [{ entitySet: "opportunities", feld: "new_dagextopid",
+                 mehrdeutig: [{ wert: "6443", anzahl: 2 }] }],
+    treffer: new Map([["opportunities|new_dagextopid", new Map([
+      ["6440", [{ new_dagextopid: 6440, statecode: 0, name: "Bestand unverändert", estimatedvalue: 150000 }]],
+      ["6441", [{ new_dagextopid: 6441, statecode: 0, name: "alter Name", estimatedvalue: 1 }]],
+      ["6442", [{ new_dagextopid: 6442, statecode: 2 }]],
+      ["6443", [{ opportunityid: "aaa", new_dagextopid: 6443, statecode: 0, name: "Variante A" },
+                { opportunityid: "bbb", new_dagextopid: 6443, statecode: 0, name: "Variante B" }]]
+    ])]])
+  };
+
+  const offen = AUFLOESUNG.offeneEntscheidungen(auflMitId, new Map());
+  gleich(offen.length, 1, "eine offene Entscheidung");
+  gleich(offen[0].kandidaten.length, 2, "mit beiden Kandidaten zur Auswahl");
+  gleich(offen[0].idFeld, "opportunityid",
+    "das Id-Feld kommt aus der Auflösung, nicht aus dem Mengennamen");
+
+  const ohne = PRUEFUNG.lauf({ schritte: [schritt()], zuordnungen }, mappe, auflMitId);
+  pruefe(ohne.fehler.some(f => /Mehrfachtreffer/.test(f.meldung)),
+    "ohne Entscheidung bleibt es ein Fehler");
+
+  const mit = new Map([["opportunities|new_dagextopid|6443", "bbb"]]);
+  const r = PRUEFUNG.lauf({ schritte: [schritt()], zuordnungen }, mappe, auflMitId, {}, mit);
+  pruefe(!r.fehler.some(f => /Mehrfachtreffer/.test(f.meldung)),
+    "mit Entscheidung ist der Fehler weg");
+  pruefe(r.warnungen.some(w => /von Hand gewählte/.test(w.meldung)),
+    "aber die Entscheidung wird protokolliert – sie verschwindet nicht spurlos");
+  gleich(AUFLOESUNG.offeneEntscheidungen(auflMitId, mit).length, 0,
+    "und gilt danach als beantwortet");
+
+  const falsch = new Map([["opportunities|new_dagextopid|6443", "gibtsnicht"]]);
+  const rf = PRUEFUNG.lauf({ schritte: [schritt()], zuordnungen }, mappe, auflMitId, {}, falsch);
+  pruefe(rf.fehler.some(f => /Mehrfachtreffer/.test(f.meldung)),
+    "eine Entscheidung auf einen unbekannten Datensatz zählt nicht – lieber Fehler als falsch");
 }
 
 console.log("\nStrukturfehler");

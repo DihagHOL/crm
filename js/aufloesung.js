@@ -72,6 +72,7 @@ const AUFLOESUNG = (() => {
   async function fuer(profil, mappe, fortschritt = () => {}) {
     const treffer = new Map();      // "entitySet|feld" → Map(wert → records)
     const abfragen = [];
+    const idFelder = new Map();     // entitySet → Primärschlüsselfeld
 
     /** Eine Abfrage vorbereiten, ausführen und protokollieren. */
     async function frage(entitySet, feld, werte, select, zweck) {
@@ -80,7 +81,18 @@ const AUFLOESUNG = (() => {
       const k = schluessel(entitySet, feld);
       if (treffer.has(k)) return;   // dieselbe Abfrage nicht zweimal
       fortschritt(`${entitySet} über ${feld} (${gesucht.size} Werte) …`);
-      const m = await sammle(entitySet, feld, [...gesucht], select);
+
+      // Primärschlüsselfeld mitselektieren – ohne ihn lässt sich ein
+      // Datensatz bei Mehrfachtreffern nicht benennen, und genau das
+      // braucht die Entscheidung.
+      if (!idFelder.has(entitySet)) {
+        try { idFelder.set(entitySet, (await DV.logischerName(entitySet)) + "id"); }
+        catch { idFelder.set(entitySet, null); }
+      }
+      const idF = idFelder.get(entitySet);
+      const sel = idF && !select.split(",").includes(idF) ? select + "," + idF : select;
+
+      const m = await sammle(entitySet, feld, [...gesucht], sel);
       treffer.set(k, m);
       const mehrdeutig = [...m.entries()].filter(([, v]) => v.length > 1);
       abfragen.push({
@@ -125,17 +137,58 @@ const AUFLOESUNG = (() => {
       }
     }
 
-    return { treffer, abfragen };
+    return { treffer, abfragen, idFelder };
   }
+
+  /** Primärschlüsselfeld einer Tabelle, aus der Auflösung.
+   *
+   *  NICHT aus dem Mengennamen zurückgerechnet: `opportunities` ergäbe zwar
+   *  `opportunityid`, aber `opportunitysalesprocesses` ergäbe
+   *  `opportunitysalesprocesseid` – falsch. Der logische Name kommt aus den
+   *  Metadaten und wird beim Auflösen einmal mitgeholt. */
+  const idFeld = (aufl, entitySet) =>
+    aufl.idFelder?.get(entitySet) || (entitySet.replace(/ies$/, "y").replace(/s$/, "") + "id");
 
   /** Treffer nachschlagen.
-   *  @returns {{records:object[], mehrdeutig:boolean, fehlt:boolean}} */
-  function finde(aufl, entitySet, feld, wert) {
+   *
+   *  @param {Map} [entscheidungen] Getroffene Entscheidungen bei
+   *    Mehrfachtreffern, Schlüssel `entitySet|feld|wert` → Datensatz-ID.
+   *    Damit ist ein doppelter Wert kein Abbruch mehr, sondern eine Frage,
+   *    die jemand beantwortet – und die Antwort steht im Protokoll.
+   *  @returns {{records:object[], mehrdeutig:boolean, fehlt:boolean,
+   *             entschieden:boolean}} */
+  function finde(aufl, entitySet, feld, wert, entscheidungen) {
     const m = aufl.treffer.get(schluessel(entitySet, feld));
-    if (!m) return { records: [], mehrdeutig: false, fehlt: true };
+    if (!m) return { records: [], mehrdeutig: false, fehlt: true, entschieden: false };
     const r = m.get(String(wert)) || [];
-    return { records: r, mehrdeutig: r.length > 1, fehlt: r.length === 0 };
+    if (r.length > 1 && entscheidungen) {
+      const gewaehlt = entscheidungen.get(`${entitySet}|${feld}|${wert}`);
+      if (gewaehlt) {
+        const id = idFeld(aufl, entitySet);
+        const treffer = r.filter(x => x[id] === gewaehlt);
+        if (treffer.length === 1)
+          return { records: treffer, mehrdeutig: false, fehlt: false, entschieden: true };
+      }
+    }
+    return { records: r, mehrdeutig: r.length > 1, fehlt: r.length === 0, entschieden: false };
   }
 
-  return { fuer, finde, sammle, vergleichsFelder, BLOCK };
+  /** Alle offenen Mehrdeutigkeiten – das sind die Fragen, die jemand
+   *  beantworten muss, bevor der Import laufen darf. */
+  function offeneEntscheidungen(aufl, entscheidungen) {
+    const offen = [];
+    for (const a of aufl.abfragen) {
+      for (const m of a.mehrdeutig) {
+        const k = `${a.entitySet}|${a.feld}|${m.wert}`;
+        if (entscheidungen?.get(k)) continue;
+        const kandidaten = aufl.treffer.get(schluessel(a.entitySet, a.feld))
+          ?.get(String(m.wert)) || [];
+        offen.push({ schluessel: k, entitySet: a.entitySet, feld: a.feld,
+                     wert: m.wert, idFeld: idFeld(aufl, a.entitySet), kandidaten });
+      }
+    }
+    return offen;
+  }
+
+  return { fuer, finde, sammle, vergleichsFelder, offeneEntscheidungen, idFeld, BLOCK };
 })();

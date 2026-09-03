@@ -174,6 +174,10 @@ const APP = (() => {
      nicht möglich (CLAUDE.md §8).                                        */
 
   let _bericht = null;
+  /** Antworten auf Mehrfachtreffer: "entitySet|feld|wert" → Datensatz-ID.
+     Sie überleben ein erneutes Prüfen und gehen später ins Protokoll –
+     wer welchen Datensatz gewählt hat, muss nachvollziehbar bleiben. */
+  const _entscheidungen = new Map();
 
   async function renderPruefung() {
     if (!_mappe) {
@@ -201,7 +205,8 @@ const APP = (() => {
       status("Auflösung: Bestand in Dataverse abfragen …");
       const aufl = await AUFLOESUNG.fuer(profil, _mappe, t => status("Auflösung: " + t));
       status("Zeilen prüfen …");
-      _bericht = { ...PRUEFUNG.lauf(profil, _mappe, aufl, werte), aufl, profil };
+      _bericht = { ...PRUEFUNG.lauf(profil, _mappe, aufl, werte, _entscheidungen),
+                   aufl, profil, werte };
       renderBericht();
     } catch (e) {
       $("main").innerHTML += `<div class="card"><p class="err">${esc(e.detail || e.message)}</p></div>`;
@@ -241,6 +246,8 @@ const APP = (() => {
         ${g.fehler ? `<p class="err" style="margin-top:14px">Solange Fehler offen sind,
           bleibt der Import gesperrt. Es gibt keinen Weg daran vorbei.</p>` : ""}
       </div>
+
+      ${entscheidungsBlock()}
 
       <h3 class="section">Je Schritt</h3>
       <div class="card"><div class="tbl-wrap"><table class="tbl">
@@ -283,6 +290,71 @@ const APP = (() => {
 
     $("plNeu").onclick = renderPruefung;
     $("plExcel").onclick = berichtExportieren;
+
+    for (const sel of document.querySelectorAll("select[data-entscheidung]")) {
+      sel.onchange = () => {
+        if (sel.value) _entscheidungen.set(sel.dataset.entscheidung, sel.value);
+        else _entscheidungen.delete(sel.dataset.entscheidung);
+      };
+    }
+    const uebernehmen = $("plUebernehmen");
+    if (uebernehmen) uebernehmen.onclick = () => {
+      // Nur neu einstufen, nicht neu abfragen – der Bestand hat sich nicht
+      // geändert, und ein zweiter Durchlauf durch Dataverse kostet nur Zeit.
+      _bericht = { ..._bericht,
+        ...PRUEFUNG.lauf(_bericht.profil, _mappe, _bericht.aufl,
+                         _bericht.werte, _entscheidungen) };
+      renderBericht();
+      toast("Entscheidungen übernommen.");
+    };
+  }
+
+  /** Offene Mehrfachtreffer zur Auswahl. Der Altflow nimmt hier mit
+   *  `$top: 1` einfach den ersten – und schreibt bei doppelten
+   *  Kundennummern auf das falsche Konto. Hier entscheidet ein Mensch,
+   *  und die Entscheidung wird protokolliert. */
+  function entscheidungsBlock() {
+    const offen = AUFLOESUNG.offeneEntscheidungen(_bericht.aufl, _entscheidungen);
+    const getroffen = _entscheidungen.size;
+    if (!offen.length && !getroffen) return "";
+
+    return `
+      <h3 class="section">Offene Entscheidungen${offen.length ? ` (${offen.length})` : ""}</h3>
+      <div class="card">
+        <p class="hint">Ein Wert findet mehrere Datensätze. Welcher gemeint ist,
+           kann die App nicht wissen – geraten wird nicht. Die Auswahl gilt für
+           diesen Lauf und steht im Protokoll.</p>
+        ${offen.length ? offen.map(o => `
+          <div class="entscheidung">
+            <div class="frage">
+              <code>${esc(o.entitySet)}.${esc(o.feld)} = ${esc(String(o.wert))}</code>
+              <small>${o.kandidaten.length} Treffer</small>
+            </div>
+            <select data-entscheidung="${esc(o.schluessel)}">
+              <option value="">— bitte wählen —</option>
+              ${o.kandidaten.map(k => `<option value="${esc(k[o.idFeld] || "")}">
+                ${esc(kandidatText(k, o))}</option>`).join("")}
+            </select>
+          </div>`).join("") : '<p class="ok">Alle Mehrfachtreffer sind entschieden.</p>'}
+        ${getroffen ? `<p class="hint" style="margin-top:12px">${getroffen}
+           Entscheidung(en) getroffen.</p>` : ""}
+        <div class="row" style="margin-top:12px">
+          <button class="btn" id="plUebernehmen">Entscheidungen übernehmen</button>
+        </div>
+      </div>`;
+  }
+
+  /** Ein Kandidat muss unterscheidbar sein, sonst hilft die Auswahl nicht.
+   *  Deshalb Name plus alles, was ihn von seinem Zwilling trennt. */
+  function kandidatText(k, o) {
+    const teile = [];
+    for (const f of ["name", "fullname", "emailaddress1", "statecode"]) {
+      if (k[f] === undefined || k[f] === null) continue;
+      teile.push(f === "statecode" ? (Number(k[f]) === 0 ? "aktiv" : "inaktiv") : String(k[f]));
+    }
+    const id = k[o.idFeld];
+    if (id) teile.push("…" + String(id).slice(-6));
+    return teile.join(" · ") || String(id || "?");
   }
 
   function liste(titel, eintraege, klasse) {

@@ -609,12 +609,11 @@ scharf geschaltet werden.
       **213 Chancen nachpflegen**, die einen `#`-Namen tragen und das Feld
       noch nicht gesetzt haben (seit 29.05.2026 wird es nicht mehr gefüllt).
       Sonst legt der Import sie neu an. Details in `docs/03`.
-- [ ] **`dag_dihag_kdnr`: noch 7 doppelte Nummern.** Von ursprünglich 15
-      sind 8 bereinigt (Nummer am deaktivierten Zwilling geleert, 02.09.2026).
-      Die verbleibenden 7 haben **zwei aktive Konten**, teils verschiedene
-      Firmen — welche die Nummer behält, ist eine fachliche Entscheidung.
-      Bis dahin kein Alternativschlüssel auf `accounts`; Schritt 10 läuft über
-      `$filter` und muss Mehrfachtreffer melden. Liste in `docs/03`.
+- [x] ~~`dag_dihag_kdnr`: 15 doppelte Nummern~~ — 8 bereinigt, **die
+      restlichen 7 werden in der App entschieden**: Der Prüflauf listet jeden
+      Mehrfachtreffer mit seinen Kandidaten auf, jemand wählt, und die Wahl
+      geht ins Protokoll. Geraten wird nicht. Ein Alternativschlüssel auf
+      `accounts` bleibt damit entbehrlich; Schritt 10 löst über `$filter` auf.
 - [x] ~~Führt die Spalte `Firma` die Kundennummer oder den Namen?~~
       Die **Nummer** — `dag_dihag_kdnr` ist ein Integer.
 - [x] ~~Heißt die Bibliothek unter `/sites/IT` tatsächlich **Austausch**?~~
@@ -680,10 +679,9 @@ scharf geschaltet werden.
       als `dag_TimelineOppId`, Index **Aktiv**. Probe:
       `GET /opportunities(new_dagextopid=6440)` liefert die Chance.
       **Befund B2 ist damit erledigt**, der `startswith`-Vergleich entfällt.
-- [ ] Läuft der Altflow während der Entwicklung weiter? Wenn ja, importieren
-      zwei Systeme in dieselbe Umgebung. Für den Vergleichslauf muss der Flow
-      kurzzeitig abgeschaltet werden, sonst ist nicht zuzuordnen, welche
-      Datensätze woher stammen.
+- [x] ~~Läuft der Altflow während der Entwicklung weiter?~~ **Nein, er ist
+      abgeschaltet** (02.09.2026). Damit entstehen die Geisterdatensätze aus
+      B1 nicht erneut, und ein Vergleichslauf ist eindeutig zuzuordnen.
 
 ---
 
