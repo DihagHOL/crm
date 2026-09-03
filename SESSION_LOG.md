@@ -1,5 +1,54 @@
 # Session-Log
 
+## 03.09.2026 — Lauf 4 sauber durch, und was das Protokoll verschwieg
+
+    angelegt 98 · aktualisiert 17 · unverändert 57 · übersprungen 37 · fehlgeschlagen 0
+
+    10 accounts             29 unverändert ·  1 übersprungen (99912936 unbekannt)
+    20 contacts             27 unverändert ·  3 übersprungen
+    30 opportunities        11 angelegt · 17 aktualisiert · 1 unverändert · 1 übersprungen
+    40 opportunityproducts  87 angelegt ·  2 übersprungen
+    50 salesprocesses       30 übersprungen (nicht scharf geschaltet)
+
+58 Sekunden, keine Drosselung. Die eine unbekannte Kundennummer nimmt ihre
+Anfrage und deren zwei Positionen mit heraus — genau wie vorgesehen.
+
+**Nur: vier Felder wurden in keiner einzigen Zeile geschrieben**, und im
+Protokoll stand davon nichts.
+
+| Feld | geschrieben |
+|---|---|
+| `cr570_technicalaudit_lookup` | 0 × |
+| `cr570_productlinie_lookup` | 0 × |
+| `ownerid` | 0 × |
+| `parentcontactid` | 11 × (nur bei Neuanlagen — `OnCreateOnly`, korrekt) |
+
+Die neue Regel „ein unauflösbarer Verweis kostet ein Feld, nicht die Zeile"
+hat getan, was sie soll. Aber sie tat es **stumm**: `MAPPING` erzeugt
+Warnungen, der Prüflauf zeigt sie — der Importlauf hat sie weggeworfen. Das
+verletzt Randbedingung 12 („kein Datensatz wird geschrieben, ohne dass er im
+Protokoll landet — auch gewarnte") und ist derselbe Mechanismus, mit dem der
+Altflow die Zeichnungsnummer verliert: geschrieben wird, was geht, und was
+nicht geht, erfährt niemand.
+
+Warnungen stehen jetzt am Protokolleintrag, und das Ergebnis hat einen
+eigenen Abschnitt **„Geschrieben, aber nicht vollständig"** — nach Ursache
+gruppiert, wie die Fehler. Ein Feld, das in *jeder* Zeile fehlt, ist eine
+offene Frage und kein Zufall.
+
+**Dazu.** Bei einer Anlage über den Alternativschlüssel gibt Dataverse die
+Schlüsseladresse zurück (`opportunities(new_dagextopid=7414)`), nicht die
+GUID. Das Protokoll führte sie als `dataverseId` — eine Datensatz-ID, die
+keine ist. Sie steht jetzt als `schluesselAdresse` daneben, und in die
+Auflösung wandert nur eine echte GUID.
+
+**Offen, fachlich:** `cr570_newcolumn` findet in beiden Verweistabellen
+nichts, und `Mitarbeiter` sind fremde Adressen. Solange das so ist, bleiben
+Technische Prüfung, Produktgruppe und Besitzer leer — sichtbar im Bericht,
+nicht mehr stillschweigend.
+
+243 automatische Prüfungen in neun Dateien.
+
 ## 03.09.2026 — Lauf 3: Kontakte laufen, ein Verweis kostet noch die Zeile
 
 Aus dem Vollprotokoll von Lauf `afda0508`:

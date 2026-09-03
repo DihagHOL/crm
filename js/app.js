@@ -557,7 +557,50 @@ const APP = (() => {
           · Lauf-ID <code>${esc(l.laufId)}</code></p>
         <p class="hint" id="imProtokoll">Protokoll wird geschrieben …</p>
       </div>
-      ${fehlerBlock(l)}`;
+      ${fehlerBlock(l)}
+      ${warnungsBlock(l)}`;
+  }
+
+  /** Was geschrieben wurde, aber nicht vollständig.
+   *
+   *  Ein Lauf ohne Fehler kann trotzdem Felder ausgelassen haben – im
+   *  ersten sauberen Lauf blieben `ownerid` und beide cr570-Verweise in
+   *  ALLEN Zeilen leer, weil ihre Ziele nicht auflösbar waren. Ohne diesen
+   *  Block steht da „0 fehlgeschlagen" und sonst nichts, und genau so
+   *  verliert der Altflow die Zeichnungsnummer (Randbedingung 12). */
+  function warnungsBlock(l) {
+    const gruppen = new Map();
+    for (const e of l.eintraege)
+      for (const w of e.warnungen || []) {
+        const k = `${e.schritt}|${meldungsKern(w)}`;
+        if (!gruppen.has(k))
+          gruppen.set(k, { schritt: e.schritt, entitySet: e.entitySet,
+                           meldung: meldungsKern(w), anzahl: 0, zeilen: [] });
+        const g = gruppen.get(k);
+        g.anzahl++;
+        if (g.zeilen.length < 8) g.zeilen.push(e.zeile);
+      }
+    if (!gruppen.size) return "";
+    const sortiert = [...gruppen.values()].sort((a, b) => b.anzahl - a.anzahl);
+
+    return `
+      <h3 class="section">Geschrieben, aber nicht vollständig</h3>
+      <div class="card">
+        <p class="hint">Diese Zeilen sind im CRM gelandet – einzelne Felder
+           aber nicht. Kein Fehler, trotzdem eine Aussage: ein Feld, das in
+           jeder Zeile fehlt, ist eine offene Frage und kein Zufall.</p>
+        <div class="tbl-wrap"><table class="tbl">
+          <thead><tr><th>Anzahl</th><th>Schritt</th><th>Ziel</th>
+            <th>Meldung</th><th>Zeilen</th></tr></thead>
+          <tbody>${sortiert.map(g => `<tr>
+            <td><b>${g.anzahl}</b></td>
+            <td>${g.schritt}</td>
+            <td>${esc(g.entitySet || "")}</td>
+            <td><span class="hinweis-text">${esc(g.meldung)}</span></td>
+            <td class="zeilennr">${g.zeilen.join(", ")}${g.anzahl > g.zeilen.length ? " …" : ""}</td>
+          </tr>`).join("")}</tbody>
+        </table></div>
+      </div>`;
   }
 
   /** Meldungen so weit vereinheitlichen, dass gleiche Ursachen zusammen

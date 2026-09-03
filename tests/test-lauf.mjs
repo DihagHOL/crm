@@ -279,5 +279,80 @@ console.log("\nNavigationsname beim Binden");
     "und nicht ueber den Attributnamen - genau daran scheiterten 29 Zeilen");
 }
 
+console.log("\nWarnungen landen im Protokoll");
+{
+  /* Randbedingung 12: kein Datensatz wird geschrieben, ohne dass er im
+     Protokoll landet - auch gewarnte. Im ersten sauberen Lauf blieben vier
+     Felder in ALLEN Zeilen leer, und im Protokoll stand davon nichts. */
+  const { LAUF, EXCEL } = baueLauf(() => antwort([{ status: 204 }]));
+  const mappe = { blaetter: [EXCEL.blattAus("Anfragen", [
+    ["Opp-ID", "Pruefung"],
+    [6440, "gibt es nicht"]
+  ])] };
+  const profil = {
+    name: "T",
+    zuordnungen: { O: [
+      { aktiv: true, sourceColumn: "Opp-ID", targetField: "new_dagextopid",
+        targetType: "Int", istSchluessel: true, writePolicy: "Always" },
+      { aktiv: true, sourceColumn: "Pruefung", targetField: "cr570_technicalaudit_lookup",
+        targetType: "Lookup", lookupEntitySet: "cr570_technicalaudit_lookups",
+        lookupKeyField: "cr570_newcolumn", writePolicy: "Always" }
+    ] },
+    schritte: [{ step: 30, entitySet: "opportunities", sourceSheet: "Anfragen",
+                 mappingKey: "O", mode: "Upsert", alternateKey: "new_dagextopid",
+                 aktiv: true }]
+  };
+  // Die Verweistabelle ist abgefragt und leer - "nicht vorhanden", nicht
+  // "keine Auskunft".
+  const aufl = {
+    treffer: new Map([["cr570_technicalaudit_lookups|cr570_newcolumn", new Map()]]),
+    abfragen: [], idFelder: new Map([["opportunities", "opportunityid"]]),
+    navigation: new Map(), schluesselFehlt: new Map()
+  };
+
+  const e = await LAUF.ausfuehren({ profil, mappe, aufl, werte: {}, entscheidungen: null });
+  const eintrag = e.eintraege[0];
+  gleich(eintrag.aktion, "angelegt", "die Zeile wird geschrieben");
+  pruefe(!!eintrag.warnungen && eintrag.warnungen.length === 1,
+    "und traegt ihre Warnung im Protokoll");
+  pruefe(/cr570_technicalaudit_lookups nicht/.test(eintrag.warnungen[0]),
+    "die sagt, welcher Verweis nicht aufgeloest wurde");
+  pruefe(!(eintrag.felder || []).includes("cr570_technicalaudit_lookup"),
+    "das Feld steht nicht unter den geschriebenen");
+}
+
+console.log("\nSchluesseladresse ist keine Datensatz-ID");
+{
+  /* Bei einer Anlage ueber den Alternativschluessel gibt Dataverse die
+     Schluesseladresse zurueck, nicht die GUID. Sie als dataverseId zu
+     fuehren, behauptet eine ID, die keine ist. */
+  const { LAUF, EXCEL } = baueLauf(() =>
+    antwort([{ status: 204, ort: "https://x/opportunities(new_dagextopid=6441)" }]));
+  const mappe = { blaetter: [EXCEL.blattAus("Anfragen", [
+    ["Opp-ID", "Thema"], [6441, "neu"]
+  ])] };
+  const profil = {
+    name: "T",
+    zuordnungen: { O: [
+      { aktiv: true, sourceColumn: "Opp-ID", targetField: "new_dagextopid",
+        targetType: "Int", istSchluessel: true, writePolicy: "Always" },
+      { aktiv: true, sourceColumn: "Thema", targetField: "name",
+        targetType: "String", writePolicy: "Always" }
+    ] },
+    schritte: [{ step: 30, entitySet: "opportunities", sourceSheet: "Anfragen",
+                 mappingKey: "O", mode: "Upsert", alternateKey: "new_dagextopid",
+                 aktiv: true }]
+  };
+  const aufl = { treffer: new Map(), abfragen: [],
+    idFelder: new Map([["opportunities", "opportunityid"]]),
+    navigation: new Map(), schluesselFehlt: new Map() };
+
+  const e = await LAUF.ausfuehren({ profil, mappe, aufl, werte: {}, entscheidungen: null });
+  const x = e.eintraege[0];
+  pruefe(!x.dataverseId, "keine dataverseId, wenn keine GUID zurueckkam");
+  gleich(x.schluesselAdresse, "new_dagextopid=6441",
+    "die Schluesseladresse steht als solche im Protokoll");
+}
+
 console.log(fehler ? `\n${fehler} Pruefung(en) fehlgeschlagen.` : "\nAlle Pruefungen bestanden.");
 process.exit(fehler ? 1 : 0);

@@ -26,6 +26,7 @@
 const LAUF = (() => {
 
   const leer = v => v === null || v === undefined || v === "";
+  const GUID_ROH = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   const warte = ms => new Promise(r => setTimeout(r, ms));
 
   /**
@@ -93,6 +94,8 @@ const LAUF = (() => {
       // trotzdem als „in diesem Lauf angelegt" vermerkt – für einen eben
       // angelegten Elterndatensatz braucht es keine GUID: es gibt nichts zu
       // löschen, und gebunden wird über den Alternativschlüssel.
+      // Ohne echte GUID kein Eintrag in die Auflösung: `neuAngelegt` oben
+      // reicht, damit Folgeschritte über den Alternativschlüssel binden.
       if (!n.dataverseId) return;
       const idF = AUFLOESUNG.idFeld(k.aufl, s.entitySet);
       const sl = `${s.entitySet}|${key.targetField}`;
@@ -203,11 +206,13 @@ const LAUF = (() => {
         }
         if (r.unveraendert) {
           notiere({ schritt: s.step, entitySet: s.entitySet, zeile: zeile._zeile,
-            schluessel: sw, aktion: "unveraendert" });
+            schluessel: sw, aktion: "unveraendert",
+            ...(r.warnungen.length ? { warnungen: r.warnungen.map(w => w.meldung) } : {}) });
           continue;
         }
 
         const auftrag = { zeile, sw, bestand, nutzlast: r.nutzlast, felder: r.felder,
+                          warnungen: r.warnungen,
                           schritt: s, zuordnungen: zu,
                           eigeneId: bestand ? bestand[AUFLOESUNG.idFeld(k.aufl, s.entitySet)] : null };
 
@@ -431,7 +436,23 @@ const LAUF = (() => {
             : z.art === "update" ? "aktualisiert" : "angelegt"
     };
     if (fehler) e.meldung = fehler;
-    if (ort) e.dataverseId = (String(ort).match(/\(([^)]+)\)\s*$/) || [])[1] || ort;
+
+    /* Warnungen gehören ins Protokoll, nicht nur in den Prüfbericht.
+       Randbedingung 12: kein Datensatz wird geschrieben, ohne dass er im
+       Protokoll landet – auch gewarnte. Im ersten sauberen Lauf blieben
+       vier Felder ungeschrieben (`ownerid`, beide cr570-Verweise), und im
+       Protokoll stand davon nichts. Genau so verliert der Altflow die
+       Zeichnungsnummer. */
+    if (a.warnungen?.length) e.warnungen = a.warnungen.map(w => w.meldung);
+    /* Bei einer Anlage über den Alternativschlüssel gibt Dataverse die
+       SCHLÜSSELADRESSE zurück (`opportunities(new_dagextopid=7414)`), nicht
+       die GUID. Beides als `dataverseId` zu führen, behauptet eine
+       Datensatz-ID, die keine ist. Getrennt halten. */
+    if (ort) {
+      const teil = (String(ort).match(/\(([^)]+)\)\s*$/) || [])[1] || String(ort);
+      if (GUID_ROH.test(teil)) e.dataverseId = teil;
+      else e.schluesselAdresse = teil;
+    }
     // Nur die Felder, die sich tatsächlich ändern – das ist die einzige
     // Möglichkeit, eine Änderung im Nachhinein zu beurteilen.
     if (z.art === "update" && a.bestand) {
