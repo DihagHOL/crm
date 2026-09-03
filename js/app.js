@@ -365,6 +365,13 @@ const APP = (() => {
     return teile.join(" · ") || String(id || "?");
   }
 
+  /** Fehler- und Warnungsliste.
+   *
+   *  Die Spalte `Wert` stand bisher nur im Excel-Bericht. Bei „nicht
+   *  gefunden" IST sie die Information: ohne sie nennt die Zeile das
+   *  Problem, aber nicht den Fall. Daneben der Klartext aus den Spalten
+   *  ohne Zielfeld – die Kundennummer allein sagt niemandem, welche Firma
+   *  gemeint ist (CLAUDE.md §14). */
   function liste(titel, eintraege, klasse) {
     if (!eintraege.length) return "";
     const zeigen = eintraege.slice(0, 100);
@@ -372,12 +379,15 @@ const APP = (() => {
       <h3 class="section">${esc(titel)} (${eintraege.length})</h3>
       <div class="card">
         <div class="tbl-wrap"><table class="tbl">
-          <thead><tr><th>Schritt</th><th>Zeile</th><th>Spalte</th><th>Feld</th><th>Meldung</th></tr></thead>
+          <thead><tr><th>Schritt</th><th>Zeile</th><th>Spalte</th><th>Feld</th>
+            <th>Wert</th><th>Meldung</th></tr></thead>
           <tbody>${zeigen.map(f => `<tr>
             <td>${f.schritt ?? ""}</td>
             <td class="zeilennr">${f.zeile ?? ""}</td>
             <td>${esc(f.spalte || "")}</td>
             <td>${esc(f.feld || "")}</td>
+            <td>${esc(f.wert ?? "")}${f.klartext
+                 ? ` <span class="leer">${esc(f.klartext)}</span>` : ""}</td>
             <td><span class="${klasse === "err" ? "fehlt" : "hinweis-text"}">${esc(f.meldung)}</span></td>
           </tr>`).join("")}</tbody>
         </table></div>
@@ -619,7 +629,8 @@ const APP = (() => {
       }))), "Bilanz");
 
     const spalten = e => ({ Schritt: e.schritt ?? "", Zeile: e.zeile ?? "",
-      Spalte: e.spalte || "", Feld: e.feld || "", Wert: e.wert ?? "", Meldung: e.meldung });
+      Spalte: e.spalte || "", Feld: e.feld || "", Wert: e.wert ?? "",
+      Klartext: e.klartext || "", Meldung: e.meldung });
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(
       b.fehler.length ? b.fehler.map(spalten) : [{ Meldung: "keine" }]), "Fehler");
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(

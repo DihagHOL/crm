@@ -126,6 +126,18 @@ console.log("\nLookupOnly – Konten werden nie angelegt");
   pruefe(!!f && f.zeile === 4, "der unbekannte Schlüssel wird gemeldet");
   pruefe(/der Lauf geht weiter/.test(f.meldung),
     "und zwar zeilenweise – eine unbekannte Nummer bricht nicht den ganzen Import ab (Review B3)");
+  gleich(f.wert, 7000, "der gesuchte Wert steht am Fehler – bei „nicht gefunden\" IST er die Information");
+}
+{
+  // Eine Spalte mit Quelle, aber ohne Zielfeld, ist Klartext für Meldungen.
+  // Ohne sie steht im Bericht nur eine Nummer, und wer ihn liest, muss
+  // zurück in die Datei, um zu sehen, welcher Fall gemeint ist.
+  const zuMitKlartext = { OPP: [...zuordnungen.OPP,
+    { aktiv: true, sourceColumn: "Thema", targetField: null, targetType: "String" }] };
+  const s = schritt({ step: 10, mode: "LookupOnly" });
+  const r = PRUEFUNG.lauf({ schritte: [s], zuordnungen: zuMitKlartext }, mappe, aufl);
+  const f = r.fehler.find(x => /Nicht gefunden/.test(x.meldung));
+  gleich(f.klartext, "gibt es noch nicht", "der Klartext der Zeile steht dabei");
 }
 
 console.log("\nMehrfachtreffer entscheiden statt raten");

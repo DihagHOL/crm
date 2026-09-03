@@ -64,6 +64,17 @@ const PRUEFUNG = (() => {
 
       const key = zu.find(k => k.aktiv && k.istSchluessel && k.targetField);
 
+      /* Spalten mit Quelle, aber ohne Zielfeld, sind Klartext für Meldungen
+         und Vorschau – im Profil steht das bei `Firmaname` ausdrücklich so.
+         Ohne sie steht im Fehlerbericht nur eine Kundennummer, und wer ihn
+         liest, muss zurück in die Datei, um zu sehen, welche Firma gemeint
+         ist (CLAUDE.md §14). */
+      const klartextSpalten = zu
+        .filter(k => k.aktiv && k.sourceColumn && !k.targetField)
+        .map(k => k.sourceColumn);
+      const klartext = zeile => klartextSpalten
+        .map(sp => zeile[sp]).filter(v => !leer(v)).map(String).join(" · ");
+
       for (const zeile of blatt.zeilen) {
         // Schlüsselwert
         let schluesselWert = null;
@@ -96,14 +107,14 @@ const PRUEFUNG = (() => {
         }
         if (entschieden)
           alleWarnungen.push({ schritt: s.step, zeile: zeile._zeile,
-            spalte: key.sourceColumn, wert: schluesselWert,
+            spalte: key.sourceColumn, wert: schluesselWert, klartext: klartext(zeile),
             meldung: "Mehrfachtreffer – es gilt der von Hand gewählte Datensatz. "
               + "Die Entscheidung steht im Protokoll." });
 
         if (mehrdeutig) {
           z.fehler++;
           alleFehler.push({ schritt: s.step, zeile: zeile._zeile, spalte: key.sourceColumn,
-            wert: schluesselWert,
+            wert: schluesselWert, klartext: klartext(zeile),
             meldung: `Mehrfachtreffer: ${schluesselWert} findet mehrere Datensätze. `
               + "Bitte oben unter „Offene Entscheidungen“ auswählen, welcher "
               + "gemeint ist – geraten wird nicht." });
@@ -115,7 +126,7 @@ const PRUEFUNG = (() => {
           if (!bestand) {
             z.fehler++;
             alleFehler.push({ schritt: s.step, zeile: zeile._zeile, spalte: key?.sourceColumn,
-              wert: schluesselWert,
+              wert: schluesselWert, klartext: klartext(zeile),
               meldung: `Nicht gefunden – diese Zeile wird in allen Folgeschritten `
                 + "übersprungen, der Lauf geht weiter (Review B3)." });
           } else z.unveraendert++;
@@ -126,7 +137,7 @@ const PRUEFUNG = (() => {
         if (s.skipIfClosed && bestand && Number(bestand.statecode) !== 0) {
           z.uebersprungen++;
           alleWarnungen.push({ schritt: s.step, zeile: zeile._zeile,
-            wert: schluesselWert,
+            wert: schluesselWert, klartext: klartext(zeile),
             meldung: "Verkaufschance ist geschlossen und damit schreibgeschützt – "
               + "wird übersprungen, nicht automatisch wiedereröffnet" });
           continue;
