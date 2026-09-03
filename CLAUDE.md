@@ -421,6 +421,33 @@ einzigen** Mitarbeiter, und `ownerid` blieb in jeder Zeile leer.
 
 Phase 0 fragt jedes Feld ab, die Auflösung nimmt den ersten Treffer.
 
+### Vergleichen wie die eigene Abfrage
+
+Dataverse vergleicht Zeichenketten **ohne Rücksicht auf Gross- und
+Kleinschreibung.** Diese Abfrage liefert einen Treffer:
+
+```
+systemusers?$filter=internalemailaddress eq 'holger.kappelt@schmie-guss.de'
+→ Holger.Kappelt@Schmie-guss.de
+```
+
+Gesucht klein, zurück gross. Phase 0 legte den Treffer unter der
+**Antwort** ab und schlug ihn danach unter dem **Suchwert** nach — die
+Spalte `Mitarbeiter` läuft durch `trim|lower`. Ergebnis: „abgefragt und
+nicht vorhanden" über einen Datensatz, den die App sich gerade selbst
+geholt hatte. Der Besitzer blieb leer, ohne dass irgendetwas fehlschlug,
+und der Bericht zählte den Benutzer zugleich als gefunden und als fehlend.
+
+`AUFLOESUNG.vergleichbar()` ist die Vergleichsform (kleingeschrieben).
+Unter ihr liegen die Schlüssel der Trefferkarte, mit ihr wird
+nachgeschlagen — in `finde`, in `aufloeser`, in `merkeNeu` und bei den
+Elternverweisen. Der Datensatz selbst behält seine Schreibweise.
+
+**Eine App, die anders vergleicht als die Abfrage, die sie stellt,
+widerspricht ihrem eigenen Ergebnis.** Zwei Datensätze, die sich nur in der
+Schreibweise unterscheiden, gelten damit als mehrdeutig — richtig so, denn
+Dataverse kann sie über `eq` auch nicht auseinanderhalten.
+
 ### Primärschlüssel: nachsehen, nicht ableiten
 
 `logischerName + "id"` sieht aus wie eine Regel. Von den elf Tabellen dieses

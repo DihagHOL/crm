@@ -106,8 +106,12 @@ const LAUF = (() => {
       const sl = `${s.entitySet}|${key.targetField}`;
       if (!k.aufl.treffer.has(sl)) k.aufl.treffer.set(sl, new Map());
       const m = k.aufl.treffer.get(sl);
-      if (m.has(wert)) return;
-      m.set(wert, [{ [key.targetField]: n.schluessel, [idF]: n.dataverseId, statecode: 0 }]);
+      // Unter derselben Vergleichsform wie Phase 0 ablegen, sonst findet
+      // der naechste Schritt den Datensatz nicht, den dieser gerade
+      // angelegt hat - nur weil die Datei anders schreibt als Dataverse.
+      const vk = AUFLOESUNG.vergleichbar(wert);
+      if (m.has(vk)) return;
+      m.set(vk, [{ [key.targetField]: n.schluessel, [idF]: n.dataverseId, statecode: 0 }]);
     }
 
     const zusatzZeile = zusatzZeileFn(k.mappe);
@@ -159,7 +163,7 @@ const LAUF = (() => {
         return ueber(`${eltern.lookupEntitySet} zu „${ew}“ nicht aufgelöst`, ew);
 
       const instanzen = k.aufl.treffer?.get(`${s.entitySet}|_${s.parentField}_value`);
-      const bestand = instanzen?.get(String(elternId))?.[0] || null;
+      const bestand = instanzen?.get(AUFLOESUNG.vergleichbar(elternId))?.[0] || null;
       if (!bestand)
         return ueber("Keine Prozessinstanz vorhanden – Dataverse legt sie selbst an", ew);
 

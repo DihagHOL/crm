@@ -465,8 +465,12 @@ function stufenKulisse(EXCEL) {
         [opp(6441).opportunityid, [{ opportunitysalesprocessid: "cccccccc-0000-0000-0000-00000000000b",
           _opportunityid_value: opp(6441).opportunityid, _activestageid_value: STUFE_C }]]
       ])],
+      /* Phase 0 legt Treffer unter der VERGLEICHSFORM ab - Dataverse
+         vergleicht ohne Ruecksicht auf Gross- und Kleinschreibung, also
+         muss die App es auch. Der Datensatz traegt weiterhin seine
+         eigene Schreibweise. */
       ["processstages|stagename", new Map([
-        ["Check Feasibility", [{ stagename: "Check Feasibility", processstageid: STUFE_C }]]
+        ["check feasibility", [{ stagename: "Check Feasibility", processstageid: STUFE_C }]]
       ])]
     ]),
     abfragen: [],
@@ -506,6 +510,31 @@ console.log("\nVertriebsphase setzen");
     "gebunden wird die aufgeloeste Stufe - die Wertzuordnung hat gegriffen");
   pruefe(!b.includes("opportunityid@odata.bind"),
     "der Elternverweis wird nicht noch einmal geschrieben (OnCreateOnly)");
+}
+
+console.log("\nDie Datei schreibt anders als Dataverse");
+{
+  /* Der Fall, der den Besitzer kostete: die Spalte Mitarbeiter laeuft
+     durch `trim|lower`, Dataverse fuehrt die Adresse aber als
+     `Holger.Kappelt@Schmie-guss.de`. Die Abfrage FAND den Benutzer -
+     Dataverse vergleicht ohne Ruecksicht auf Schreibweise - und die
+     Auflösung legte ihn unter der zurueckgemeldeten Schreibweise ab.
+     Gesucht wurde danach kleingeschrieben. Ergebnis: "nicht vorhanden"
+     ueber einen Datensatz, den sie sich selbst geholt hatte, und ein
+     leeres Feld ohne einen einzigen Fehlschlag. */
+  const { LAUF, EXCEL, gesendet } = baueLauf(() => antwort([{ status: 204 }]));
+  const k = stufenKulisse(EXCEL);
+  k.mappe.blaetter[1].zeilen[0].Status = "CHECK FEASIBILITY";
+  k.werte = {};
+  const e = await LAUF.ausfuehren({ profil: k.profil, mappe: k.mappe, aufl: k.aufl,
+                                    werte: k.werte, entscheidungen: null });
+
+  gleich(e.eintraege.filter(x => x.aktion === "aktualisiert").length, 1,
+    "andere Schreibweise trifft denselben Datensatz");
+  pruefe(gesendet[0].koerper.includes(`/processstages(${STUFE_C})`),
+    "und bindet ihn ueber seine GUID");
+  gleich(e.eintraege.flatMap(x => x.warnungen || []).length, 0,
+    "ohne Warnung - es gibt nichts zu warnen");
 }
 
 console.log("\nEin Statuswert, den es als Stufe nicht gibt");

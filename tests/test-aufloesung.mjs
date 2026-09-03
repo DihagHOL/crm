@@ -294,5 +294,80 @@ console.log("\nDer Primaerschluessel kommt aus den Metadaten");
     "ohne Metadaten-Antwort bleibt der Rueckfallweg ueber den logischen Namen");
 }
 
+console.log("\nGross- und Kleinschreibung");
+{
+  /* Der Fall, der den Besitzer kostete. Dataverse vergleicht Zeichenketten
+     OHNE Ruecksicht auf Gross- und Kleinschreibung:
+
+       internalemailaddress eq 'holger.kappelt@schmie-guss.de'  -> 1 Treffer
+       zurueck kommt         Holger.Kappelt@Schmie-guss.de
+
+     Die Auflösung legte ihn unter der zurueckgemeldeten Schreibweise ab und
+     suchte ihn danach kleingeschrieben (die Spalte Mitarbeiter laeuft durch
+     `trim|lower`). Sie meldete "abgefragt und nicht vorhanden" ueber einen
+     Datensatz, den sie sich selbst geholt hatte - und das Feld blieb leer,
+     ohne dass irgendetwas fehlschlug. */
+  const { A } = baueAufloesung(() => [
+    { internalemailaddress: "Holger.Kappelt@Schmie-guss.de", systemuserid: G1 }
+  ]);
+  const m = await A.sammle("systemusers", "internalemailaddress",
+    ["holger.kappelt@schmie-guss.de"], "internalemailaddress,systemuserid");
+
+  pruefe(m.has("holger.kappelt@schmie-guss.de"),
+    "der Treffer liegt unter der Vergleichsform, nicht unter der Antwort");
+
+  const aufl = { treffer: new Map([["systemusers|internalemailaddress", m]]),
+                 idFelder: new Map([["systemusers", "systemuserid"]]), abfragen: [] };
+  const f = A.finde(aufl, "systemusers", "internalemailaddress",
+                    "holger.kappelt@schmie-guss.de");
+  gleich(f.records.length, 1, "und wird kleingeschrieben gefunden");
+  gleich(f.records[0].internalemailaddress, "Holger.Kappelt@Schmie-guss.de",
+    "der Datensatz behaelt dabei seine eigene Schreibweise");
+
+  const loesen = A.aufloeser(aufl, null);
+  gleich(loesen("systemusers", ["internalemailaddress"], "HOLGER.KAPPELT@SCHMIE-GUSS.DE"),
+    G1, "auch grossgeschrieben - die App vergleicht wie ihre eigene Abfrage");
+}
+
+console.log("\nDer Bericht zaehlt nicht als fehlend, was gefunden wurde");
+{
+  /* Dieselbe Ursache, andere Auswirkung: "gesucht 8 / gefunden 0" und acht
+     Adressen unter "fehlend" - obwohl Dataverse alle acht geliefert hat. */
+  const gefragt = [];
+  const g = {
+    DV: { alle: async pfad => {
+            gefragt.push(decodeURIComponent(pfad));
+            return [{ internalemailaddress: "Holger.Kappelt@Schmie-guss.de",
+                      systemuserid: G1 }];
+          },
+          logischerName: async es => es.replace(/ies$/, "y").replace(/s$/, ""),
+          primaerId: async () => null, navigation: async () => ({}),
+          schluessel: async () => [] },
+    EXCEL: { blatt: (m, n) => m.blaetter.find(b => b.name === n) },
+    TRANSFORMS: { anwenden: w => ({ wert: String(w).toLowerCase(), unbekannt: [] }) },
+    MAPPING: { zugeordnet: () => undefined },
+    console
+  };
+  const src = readFileSync(join(wurzel, "js/aufloesung.js"), "utf8");
+  const A = new Function(...Object.keys(g), src + "; return AUFLOESUNG;")(...Object.values(g));
+
+  const profil = {
+    schritte: [{ step: 30, entitySet: "opportunities", sourceSheet: "Anfragen",
+                 mappingKey: "OPP", mode: "Upsert", aktiv: true }],
+    zuordnungen: { OPP: [
+      { aktiv: true, sourceColumn: "Mitarbeiter", targetField: "ownerid",
+        targetType: "Lookup", lookupEntitySet: "systemusers",
+        lookupKeyField: "internalemailaddress", transform: "trim|lower" }
+    ] }
+  };
+  const mappe = { blaetter: [{ name: "Anfragen", anzahl: 1,
+    zeilen: [{ _zeile: 2, Mitarbeiter: "Holger.Kappelt@Schmie-guss.de" }] }] };
+
+  const r = await A.fuer(profil, mappe, () => {});
+  const a = r.abfragen.find(x => x.entitySet === "systemusers");
+  gleich(a.gefunden, 1, "der Benutzer zaehlt als gefunden");
+  gleich(a.fehlend, [], "und steht nicht zugleich unter den fehlenden");
+}
+
 console.log(fehler ? `\n${fehler} Prüfung(en) fehlgeschlagen.` : "\nAlle Prüfungen bestanden.");
 process.exit(fehler ? 1 : 0);

@@ -74,6 +74,23 @@ const AUFLOESUNG = (() => {
    *  der Altflow mit `$top: 1`, und genau deshalb schreibt er bei doppelten
    *  Kundennummern auf das falsche Konto.
    *  @returns {Promise<Map<*, object[]>>} */
+  /** Vergleichsform eines Schlüsselwerts.
+   *
+   *  Dataverse vergleicht Zeichenketten **ohne** Rücksicht auf Gross- und
+   *  Kleinschreibung. `internalemailaddress eq 'holger.kappelt@schmie-guss.de'`
+   *  findet den Benutzer — zurück kommt er aber als
+   *  `Holger.Kappelt@Schmie-guss.de`.
+   *
+   *  Die Auflösung legte ihn unter DIESER Schreibweise ab und suchte ihn
+   *  danach kleingeschrieben, weil die Spalte `Mitarbeiter` durch
+   *  `trim|lower` läuft. Ergebnis: „abgefragt und nicht vorhanden" über
+   *  einen Datensatz, den sie sich selbst gerade geholt hatte — und der
+   *  Besitzer blieb leer, ohne dass irgendetwas fehlgeschlagen wäre.
+   *
+   *  Die App muss so vergleichen wie die Abfrage, die sie stellt. Sonst
+   *  widerspricht sie ihrem eigenen Ergebnis. */
+  const vergleichbar = v => String(v).toLowerCase();
+
   async function sammle(entitySet, feld, werte, select) {
     const treffer = new Map();
     const liste = [...new Set(werte.filter(v => !leer(v)).map(v => String(v)))];
@@ -104,7 +121,7 @@ const AUFLOESUNG = (() => {
       if (rows === null) rows = await ketteAbfragen(entitySet, feld, teil, sel);
 
       for (const r of rows) {
-        const k = String(r[feld]);
+        const k = vergleichbar(r[feld]);
         if (!treffer.has(k)) treffer.set(k, []);
         treffer.get(k).push(r);
       }
@@ -175,7 +192,7 @@ const AUFLOESUNG = (() => {
         entitySet, feld, zweck, mehrfachErwartet: !!mehrfachErwartet,
         gesucht: gesucht.size,
         gefunden: m.size,
-        fehlend: [...gesucht].filter(v => !m.has(v)),
+        fehlend: [...gesucht].filter(v => !m.has(vergleichbar(v))),
         mehrdeutig: mehrdeutig.map(([wert, v]) => ({ wert, anzahl: v.length }))
       });
     }
@@ -333,9 +350,12 @@ const AUFLOESUNG = (() => {
   function finde(aufl, entitySet, feld, wert, entscheidungen) {
     const m = aufl.treffer.get(schluessel(entitySet, feld));
     if (!m) return { records: [], mehrdeutig: false, fehlt: true, entschieden: false };
-    const r = m.get(String(wert)) || [];
+    const r = m.get(vergleichbar(wert)) || [];
     if (r.length > 1 && entscheidungen) {
-      const gewaehlt = entscheidungen.get(`${entitySet}|${feld}|${wert}`);
+      // Der Schlüssel der Entscheidung wird aus derselben Vergleichsform
+      // gebaut wie in `offeneEntscheidungen` – sonst zeigt die Oberfläche
+      // eine Frage an, deren Antwort hier nie ankommt.
+      const gewaehlt = entscheidungen.get(`${entitySet}|${feld}|${vergleichbar(wert)}`);
       if (gewaehlt) {
         const id = idFeld(aufl, entitySet);
         const treffer = r.filter(x => x[id] === gewaehlt);
@@ -360,7 +380,7 @@ const AUFLOESUNG = (() => {
         const k = `${a.entitySet}|${a.feld}|${m.wert}`;
         if (entscheidungen?.get(k)) continue;
         const kandidaten = aufl.treffer.get(schluessel(a.entitySet, a.feld))
-          ?.get(String(m.wert)) || [];
+          ?.get(vergleichbar(m.wert)) || [];
         offen.push({ schluessel: k, entitySet: a.entitySet, feld: a.feld,
                      wert: m.wert, idFeld: idFeld(aufl, a.entitySet), kandidaten });
       }
@@ -404,5 +424,5 @@ const AUFLOESUNG = (() => {
   }
 
   return { fuer, finde, sammle, vergleichsFelder, offeneEntscheidungen, idFeld,
-           filterFeld, aufloeser, schluesselFelder, BLOCK };
+           filterFeld, aufloeser, schluesselFelder, vergleichbar, BLOCK };
 })();

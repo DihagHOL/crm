@@ -1,5 +1,38 @@
 # Session-Log
 
+## 03.09.2026 — Der Besitzer blieb leer, und niemand war schuld
+
+Vermutet war, der Mitarbeiter existiere nicht als Systembenutzer. Nachgesehen:
+**acht Benutzer mit `@schmie-guss.de`, alle aktiv**, keiner gesperrt. Der
+Fehler lag in der App.
+
+Dataverse vergleicht Zeichenketten ohne Rücksicht auf Gross- und
+Kleinschreibung. Die Abfrage fand den Benutzer:
+
+```
+internalemailaddress eq 'holger.kappelt@schmie-guss.de'   → 1 Treffer
+zurück kommt                Holger.Kappelt@Schmie-guss.de
+```
+
+Phase 0 legte ihn unter der **Antwort** ab und schlug ihn danach unter dem
+**Suchwert** nach — die Spalte `Mitarbeiter` läuft durch `trim|lower`. Also
+„abgefragt und nicht vorhanden" über einen Datensatz, den sie sich eine
+Zeile vorher selbst geholt hatte. Kein Fehlschlag, kein Abbruch: das Feld
+blieb einfach leer. Im Bericht stand derselbe Benutzer zugleich unter
+*gefunden* und unter *fehlend*.
+
+`AUFLOESUNG.vergleichbar()` ist jetzt die eine Vergleichsform — unter ihr
+liegen die Schlüssel der Trefferkarte, mit ihr wird nachgeschlagen, in
+`finde`, `aufloeser`, `merkeNeu` und bei den Elternverweisen. Der Datensatz
+behält seine eigene Schreibweise.
+
+Der Test in `test-lauf.mjs` bildete den Fehler beim Umbau von selbst nach:
+die Kulisse legte Treffer noch in Originalschreibweise ab, und prompt wurde
+nichts mehr geschrieben. Genau das war im Echtbetrieb passiert.
+
+**Merksatz für CLAUDE.md.** Eine App, die anders vergleicht als die Abfrage,
+die sie stellt, widerspricht ihrem eigenen Ergebnis.
+
 ## 03.09.2026 — Erster Prüflauf mit Schritt 50: drei Befunde
 
 **Doppelte Meldungen.** Ein unbekannter Wert an einem Verweis stand zweimal

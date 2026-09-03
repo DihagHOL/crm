@@ -207,7 +207,8 @@ const PRUEFUNG = (() => {
           const et = AUFLOESUNG.finde(aufl, eltern.lookupEntitySet, eltern.lookupKeyField,
                                       ew, entscheidungen);
           const elternId = et.records[0] && eid ? et.records[0][eid] : null;
-          const bestand = elternId ? instanzen?.get(String(elternId))?.[0] || null : null;
+          const bestand = elternId
+            ? instanzen?.get(AUFLOESUNG.vergleichbar(elternId))?.[0] || null : null;
           if (!bestand) {
             z.uebersprungen++;
             alleWarnungen.push({ schritt: s.step, zeile: zeile._zeile,
