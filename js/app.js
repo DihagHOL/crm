@@ -545,6 +545,39 @@ const APP = (() => {
             return { ok: false, text: e.detail || e.message };
           }
         }
+      },
+      {
+        // Anlass: docs/05, Befund B1. Der Altflow hat am 04.06.2026 durch
+        // eine verschachtelte Schleife 76 Verkaufschancen doppelt angelegt.
+        // Aufgefallen ist das erst, als der Alternativschlüssel nicht
+        // anlegbar war – also Wochen später und nur durch Zufall. Ein
+        // Schlüsselfeld, das seine Eindeutigkeit verliert, macht den
+        // gesamten Upsert-Ansatz kaputt. Deshalb wird jetzt nachgesehen.
+        titel: "Eindeutigkeit der Schlüsselfelder",
+        lauf: async () => {
+          if (istOffen(C.dataverseUrl))
+            return { ok: false, text: "Übersprungen – dataverseUrl nicht gesetzt." };
+
+          const felder = [
+            { es: "opportunities", feld: "new_dagextopid", was: "Verkaufschancen" },
+            { es: "accounts",      feld: "dag_dihag_kdnr", was: "Konten" }
+          ];
+          const teile = [];
+          let sauber = true;
+          for (const f of felder) {
+            const r = await DV.dubletten(f.es, f.feld);
+            const n = r.dubletten.length;
+            if (n) sauber = false;
+            const bsp = r.dubletten.slice(0, 3)
+              .map(d => `${d.wert}×${d.anzahl}`).join(", ");
+            teile.push(`${f.was}: ${r.gesamt} mit ${f.feld}, `
+              + (n ? `${n} DOPPELT (${bsp}${n > 3 ? " …" : ""})` : "alle eindeutig")
+              + (r.vollstaendig ? "" : " – Abfrage abgeschnitten, Zahl unvollständig"));
+          }
+          return { ok: sauber, text: teile.join(" · ")
+            + (sauber ? "" : "  Ein Alternativschlüssel lässt sich darauf nicht "
+              + "aktivieren, und die Auflösung müsste raten. Siehe docs/03 und docs/05.") };
+        }
       }
     ];
   }

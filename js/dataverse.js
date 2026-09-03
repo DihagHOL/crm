@@ -97,5 +97,50 @@ const DV = (() => {
    *  @returns {Promise<{UserId:string, BusinessUnitId:string, OrganizationId:string}>} */
   const whoAmI = () => call("/WhoAmI");
 
-  return { call, whoAmI, basis, pruefeKonfiguration };
+  /** Alle Seiten einer Abfrage einsammeln (`@odata.nextLink`).
+   *  @param {number} [maxSeiten] Deckel gegen einen unbeabsichtigten
+   *    Vollscan. Wird er erreicht, sagt der Aufrufer das auch – ein still
+   *    abgeschnittenes Ergebnis waere schlimmer als ein langsames. */
+  async function alle(pfad, maxSeiten = 20) {
+    let out = [], next = pfad, seiten = 0, vollstaendig = true;
+    while (next) {
+      if (seiten++ >= maxSeiten) { vollstaendig = false; break; }
+      const d = await call(next, { headers: { Prefer: "odata.maxpagesize=1000" } });
+      out = out.concat(d?.value || []);
+      next = d?.["@odata.nextLink"] || null;
+    }
+    out.vollstaendig = vollstaendig;
+    return out;
+  }
+
+  /** Doppelte Werte in einem Feld zaehlen.
+   *
+   *  Der Anlass steht in docs/05: Der Altflow hat am 04.06.2026 durch eine
+   *  verschachtelte Schleife 76 Verkaufschancen doppelt angelegt, und
+   *  aufgefallen ist das erst, als der Alternativschluessel nicht anlegbar
+   *  war. Ein Schluesselfeld, das seine Eindeutigkeit verliert, macht den
+   *  ganzen Upsert-Ansatz kaputt – also wird es nachgesehen, statt darauf zu
+   *  vertrauen.
+   *
+   *  @returns {Promise<{gesamt:number, verschieden:number,
+   *                     dubletten:Array<{wert:any, anzahl:number}>,
+   *                     vollstaendig:boolean}>} */
+  async function dubletten(entitySet, feld) {
+    const rows = await alle(
+      `/${entitySet}?$select=${feld}&$filter=${feld} ne null`);
+    const zaehler = new Map();
+    for (const r of rows) {
+      const v = r[feld];
+      if (v === null || v === undefined) continue;
+      zaehler.set(v, (zaehler.get(v) || 0) + 1);
+    }
+    const dub = [...zaehler.entries()]
+      .filter(([, n]) => n > 1)
+      .map(([wert, anzahl]) => ({ wert, anzahl }))
+      .sort((a, b) => b.anzahl - a.anzahl);
+    return { gesamt: rows.length, verschieden: zaehler.size,
+             dubletten: dub, vollstaendig: rows.vollstaendig !== false };
+  }
+
+  return { call, alle, dubletten, whoAmI, basis, pruefeKonfiguration };
 })();

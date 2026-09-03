@@ -670,11 +670,13 @@ scharf geschaltet werden.
       **Ja, 76 Stück.** Alle am 04.06.2026 angelegt, alle ohne Konto — genau
       das Muster der verschachtelten Schleife. 04.06.2026 ist das
       Änderungsdatum des Flows. Messung in `docs/05`.
-- [ ] **Die 76 überzähligen Verkaufschancen entfernen.** Sie blockieren den
-      Alternativschlüssel, verfälschen die Nachpflege der Opp-IDs und jeden
-      Vergleich zwischen Altflow und neuer App. Reihenfolge: erst löschen,
-      dann die ~137 verbleibenden `new_dagextopid` nachpflegen, dann den
-      Schlüssel anlegen.
+- [x] ~~Die 76 überzähligen Verkaufschancen entfernen~~ — **erledigt am
+      02.09.2026** mit `aufraeumen-b1.ps1`. 76 gelöscht, 0 Fehler, danach
+      137 `new_dagextopid` nachgepflegt. Ergebnis: 1.662 Verkaufschancen mit
+      Opp-ID, **1.662 verschiedene Werte, 0 Dubletten**.
+- [ ] **Alternativschlüssel auf `new_dagextopid` anlegen.** Die Voraussetzung
+      ist jetzt erfüllt. Power Apps ▸ Tabellen ▸ Verkaufschance ▸ Schlüssel.
+      Status muss auf *Aktiv* gehen, nicht *Ausstehend*.
 - [ ] Läuft der Altflow während der Entwicklung weiter? Wenn ja, importieren
       zwei Systeme in dieselbe Umgebung. Für den Vergleichslauf muss der Flow
       kurzzeitig abgeschaltet werden, sonst ist nicht zuzuordnen, welche
