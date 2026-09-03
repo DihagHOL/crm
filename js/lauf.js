@@ -113,6 +113,75 @@ const LAUF = (() => {
     const zusatzZeile = zusatzZeileFn(k.mappe);
     const aufgeloestRoh = AUFLOESUNG.aufloeser(k.aufl, k.entscheidungen);
 
+    /** Eine Zeile im Modus `SetStage`.
+     *
+     *  Die Vertriebsphase hängt nicht an der Verkaufschance, sondern an
+     *  ihrer Prozessinstanz: `opportunitysalesprocess.activestageid`. Das
+     *  sind zwei Sprünge — Opp-ID auf die Chance, Chance auf ihre Instanz —
+     *  und deshalb passt der Schritt nicht in die gewöhnliche Schleife, die
+     *  einen Datensatz über einen Schlüsselwert findet.
+     *
+     *  ANGELEGT WIRD HIER NICHTS. Dataverse erzeugt Prozessinstanzen selbst
+     *  (Review B6). Eine von Hand gebaute Instanz träfe womöglich einen
+     *  anderen Prozess als den, auf dem der Bestand läuft — und ein
+     *  Datensatz auf dem falschen Prozess ist schwerer zu bemerken als
+     *  einer, der fehlt. Fehlt die Instanz, sagt das Protokoll es und lässt
+     *  die Zeile aus.
+     *
+     *  @returns {{eintrag?:object, auftrag?:object}} */
+    function stufenAuftrag(s, zu, zeile) {
+      const e = { schritt: s.step, entitySet: s.entitySet, zeile: zeile._zeile };
+      const ueber = (meldung, schluessel) => ({ eintrag: {
+        ...e, ...(schluessel !== undefined ? { schluessel } : {}),
+        aktion: "uebersprungen", meldung } });
+
+      const eltern = zu.find(z => z.aktiv && z.targetType === "Lookup"
+                                  && z.targetField === s.parentField);
+      if (!eltern?.lookupEntitySet || !eltern.lookupKeyField)
+        return ueber(`Schritt ${s.step} hat keinen aufgelösten Verweis auf `
+          + `${s.parentField || "den Elterndatensatz"}`);
+
+      if (aus.ist(s.sourceSheet, zeile))
+        return ueber("Zeile wurde in einem früheren Schritt ausgeschlossen");
+
+      const uebergangen = PRUEFUNG.ausgelassen(s, zeile);
+      if (uebergangen)
+        return ueber(`${uebergangen.spalte} = „${uebergangen.wert}“ steht in SkipOnValues`);
+
+      const ew = TRANSFORMS.anwenden(zeile[eltern.sourceColumn], eltern.transform).wert;
+      if (leer(ew)) return ueber("Schlüsselwert fehlt");
+
+      const et = AUFLOESUNG.finde(k.aufl, eltern.lookupEntitySet, eltern.lookupKeyField,
+                                  ew, k.entscheidungen);
+      const eid = k.aufl.idFelder?.get(eltern.lookupEntitySet);
+      const elternId = et.records[0] && eid ? et.records[0][eid] : null;
+      if (!elternId)
+        return ueber(`${eltern.lookupEntitySet} zu „${ew}“ nicht aufgelöst`, ew);
+
+      const instanzen = k.aufl.treffer?.get(`${s.entitySet}|_${s.parentField}_value`);
+      const bestand = instanzen?.get(String(elternId))?.[0] || null;
+      if (!bestand)
+        return ueber("Keine Prozessinstanz vorhanden – Dataverse legt sie selbst an", ew);
+
+      const r = MAPPING.baue(zeile, zu, {
+        modus: "update", bestand, werte: k.werte, zusatzZeile,
+        nav: k.aufl.navigation?.get(s.entitySet),
+        aufloesen: aufgeloest,
+        schluesselImRumpf: false });
+
+      if (r.fehler.length)
+        return { eintrag: { ...e, schluessel: ew, aktion: "fehlgeschlagen",
+          meldung: r.fehler.map(f => f.meldung).join(" · ") } };
+      if (r.unveraendert)
+        return { eintrag: { ...e, schluessel: ew, aktion: "unveraendert",
+          ...(r.warnungen.length ? { warnungen: r.warnungen.map(kurzWarnung) } : {}) } };
+
+      return { auftrag: { zeile, sw: ew, bestand, nutzlast: r.nutzlast, felder: r.felder,
+        warnungen: r.warnungen, schritt: s, zuordnungen: zu,
+        eigeneId: bestand[AUFLOESUNG.idFeld(k.aufl, s.entitySet)] } };
+    }
+
+
     for (const s of k.profil.schritte) {
       if (signal?.aborted) { abgebrochen = true; break; }
       if (!s.aktiv) continue;
@@ -122,9 +191,10 @@ const LAUF = (() => {
       if (!blatt) continue;
       melde({ schritt: s.step, text: `Schritt ${s.step} · ${s.entitySet}` });
 
-      if (s.mode === "SetStage" || s.mode === "CloseOpportunity") {
-        // Bewusst nicht gebaut: Win/Loss werden vorerst nicht importiert,
-        // und ohne zugeordnete Status-Spalte gibt es keine Phase zu setzen.
+      if (s.mode === "CloseOpportunity") {
+        // Bewusst nicht gebaut: Win/Loss werden vorerst nicht importiert.
+        // Sie sind Aktionen (WinOpportunity/LoseOpportunity), keine
+        // Feldzuweisungen - und die Entscheidung dazu steht aus.
         for (const zeile of blatt.zeilen)
           notiere({ schritt: s.step, entitySet: s.entitySet, zeile: zeile._zeile,
             aktion: "uebersprungen",
@@ -136,6 +206,12 @@ const LAUF = (() => {
       const key = zu.find(z => z.aktiv && z.istSchluessel && z.targetField);
 
       for (const zeile of blatt.zeilen) {
+        if (s.mode === "SetStage") {
+          const a = stufenAuftrag(s, zu, zeile);
+          if (a.eintrag) notiere(a.eintrag); else auftraege.push(a.auftrag);
+          continue;
+        }
+
         const sw = key ? TRANSFORMS.anwenden(zeile[key.sourceColumn], key.transform).wert : null;
 
         const uebergangen = PRUEFUNG.ausgelassen(s, zeile);

@@ -144,15 +144,93 @@ const PRUEFUNG = (() => {
         continue;
       }
 
+      /* Spalten mit Quelle, aber ohne Zielfeld, sind Klartext für Meldungen
+         und Vorschau – im Profil steht das bei `Firmaname` ausdrücklich so.
+         Ohne sie steht im Fehlerbericht nur eine Kundennummer, und wer ihn
+         liest, muss zurück in die Datei, um zu sehen, welche Firma gemeint
+         ist (CLAUDE.md §14). */
+      const klartextSpalten = zu
+        .filter(k => k.aktiv && k.sourceColumn && !k.targetField)
+        .map(k => k.sourceColumn);
+      const klartext = zeile => klartextSpalten
+        .map(sp => zeile[sp]).filter(v => !leer(v)).map(String).join(" · ");
+
       /* Nicht scharf geschaltete Modi zählen als übersprungen, nicht als
          „neu". Der Import überspringt sie (Win/Loss ist fachlich
          zurückgestellt) – die Vorschau muss dasselbe sagen, sonst kündigt
          sie Datensätze an, die nie entstehen. */
-      if (s.mode === "SetStage" || s.mode === "CloseOpportunity") {
+      if (s.mode === "CloseOpportunity") {
         z.uebersprungen = blatt.anzahl;
         alleWarnungen.push({ schritt: s.step,
           meldung: `Modus ${s.mode} ist nicht scharf geschaltet – `
             + `${blatt.anzahl} Zeile(n) werden übersprungen (fachlich offen).` });
+        schritte.push(z);
+        for (const k of Object.keys(gesamt)) gesamt[k] += z[k];
+        continue;
+      }
+
+      /* Vertriebsphase setzen. Die Vorschau muss denselben Weg gehen wie
+         der Import (`stufenAuftrag` in lauf.js): zwei Sprünge, und
+         angelegt wird nichts. Rechnete sie anders, kündigte sie Änderungen
+         an, die nie geschrieben werden — und das ist genau die Zusage, die
+         der Prüflauf gibt. */
+      if (s.mode === "SetStage") {
+        const eltern = zu.find(x => x.aktiv && x.targetType === "Lookup"
+                                    && x.targetField === s.parentField);
+        const instanzen = eltern
+          ? aufl.treffer?.get(`${s.entitySet}|_${s.parentField}_value`) : null;
+        const eid = eltern ? aufl.idFelder?.get(eltern.lookupEntitySet) : null;
+
+        /* Ohne aufgelösten Elternverweis gibt es keine Prozessinstanz zu
+           finden. Das ist ein Konfigurationsfehler, keine Eigenschaft der
+           Daten – und er gehört einmal in den Bericht, nicht stumm in die
+           Spalte „übersprungen". */
+        if (!eltern?.lookupEntitySet || !eltern.lookupKeyField) {
+          z.uebersprungen = blatt.anzahl;
+          alleWarnungen.push({ schritt: s.step,
+            meldung: `Modus SetStage braucht einen aufgelösten Verweis auf `
+              + `${s.parentField || "den Elterndatensatz"} – ohne ihn ist die `
+              + `Prozessinstanz nicht zu finden. ${blatt.anzahl} Zeile(n) werden `
+              + `übersprungen.` });
+          schritte.push(z);
+          for (const k of Object.keys(gesamt)) gesamt[k] += z[k];
+          continue;
+        }
+
+        for (const zeile of blatt.zeilen) {
+          if (aus.ist(s.sourceSheet, zeile)) { z.uebersprungen++; continue; }
+          if (ausgelassen(s, zeile)) { z.uebersprungen++; continue; }
+
+          const ew = TRANSFORMS.anwenden(zeile[eltern.sourceColumn], eltern.transform).wert;
+          if (leer(ew)) { z.uebersprungen++; continue; }
+
+          const et = AUFLOESUNG.finde(aufl, eltern.lookupEntitySet, eltern.lookupKeyField,
+                                      ew, entscheidungen);
+          const elternId = et.records[0] && eid ? et.records[0][eid] : null;
+          const bestand = elternId ? instanzen?.get(String(elternId))?.[0] || null : null;
+          if (!bestand) {
+            z.uebersprungen++;
+            alleWarnungen.push({ schritt: s.step, zeile: zeile._zeile,
+              spalte: eltern.sourceColumn, wert: ew, klartext: klartext(zeile),
+              meldung: elternId
+                ? "Keine Prozessinstanz vorhanden – die Phase kann nicht gesetzt werden"
+                : `${eltern.lookupEntitySet} zu „${ew}“ nicht aufgelöst` });
+            continue;
+          }
+
+          const r = MAPPING.baue(zeile, zu, {
+            modus: "update", bestand, werte, zusatzZeile,
+            nav: aufl.navigation?.get(s.entitySet),
+            aufloesen: aufgeloest, schluesselImRumpf: false });
+
+          for (const f of r.fehler) alleFehler.push({ schritt: s.step, ...f });
+          for (const w of r.warnungen) alleWarnungen.push({ schritt: s.step, ...w });
+
+          if (r.fehler.length) z.fehler++;
+          else if (r.unveraendert) z.unveraendert++;
+          else z.aktualisiert++;
+        }
+
         schritte.push(z);
         for (const k of Object.keys(gesamt)) gesamt[k] += z[k];
         continue;
@@ -168,17 +246,6 @@ const PRUEFUNG = (() => {
       }
 
       const key = zu.find(k => k.aktiv && k.istSchluessel && k.targetField);
-
-      /* Spalten mit Quelle, aber ohne Zielfeld, sind Klartext für Meldungen
-         und Vorschau – im Profil steht das bei `Firmaname` ausdrücklich so.
-         Ohne sie steht im Fehlerbericht nur eine Kundennummer, und wer ihn
-         liest, muss zurück in die Datei, um zu sehen, welche Firma gemeint
-         ist (CLAUDE.md §14). */
-      const klartextSpalten = zu
-        .filter(k => k.aktiv && k.sourceColumn && !k.targetField)
-        .map(k => k.sourceColumn);
-      const klartext = zeile => klartextSpalten
-        .map(sp => zeile[sp]).filter(v => !leer(v)).map(String).join(" · ");
 
       for (const zeile of blatt.zeilen) {
         // Hängt die Zeile an einer, die schon ausgeschlossen ist? Dann

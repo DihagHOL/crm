@@ -256,7 +256,10 @@ Was diese App **nicht** tut:
 
 - Sie legt **keine Konten an.** Unbekannte Kunden sind ein Stammdatenthema.
 - Sie **schließt keine Verkaufschancen.** Win und Loss laufen im CRM.
-- Sie setzt **keine Vertriebsphase.**
+- Sie legt **keine Prozessinstanzen an.** Die Vertriebsphase setzt sie
+  (Schritt 50), aber nur an Chancen, die schon eine Prozessinstanz haben —
+  die erzeugt Dynamics selbst. Fehlt eine, steht die Zeile mit Begründung
+  im Protokoll.
 - Sie **löscht keine Dateien** und verschiebt keine.
 - Sie läuft **nicht von allein.** Das ist Absicht: vor jedem Schreibzugriff
   steht ein Prüflauf, den ein Mensch gesehen hat.

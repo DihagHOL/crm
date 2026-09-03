@@ -1,5 +1,62 @@
 # Session-Log
 
+## 03.09.2026 — Status ist eine Prozessstufe, und Schritt 50 tut jetzt etwas
+
+**Korrektur.** Ich hatte geschrieben, für `Status` gebe es kein Zielfeld,
+weil `opportunityproduct` weder `statecode` noch `statuscode` hat. Das
+stimmt — und führt trotzdem in die Irre. Die Vertriebsphase ist überhaupt
+kein Feld: sie ist die aktive Stufe eines Geschäftsprozessflows und steht an
+`opportunitysalesprocess.activestageid`. „Check Feasibility – Machbarkeit
+prüfen" ist ein Stufenname, kein Feldwert.
+
+Gegen die Umgebung geprüft:
+
+| | |
+|---|---|
+| Instanzen | 4732, **alle** auf Prozess `Vertriebsprozess` (`3e8ebee6`) |
+| Stufen | Setup Opportunity 3352 · Negotiate And Close 1227 · Develop And Submitt Proposal 86 · Calculate Products 43 · Check Feasibility 24 |
+| Schlüssel | `stagename` — jeder der fünf Namen ist **systemweit eindeutig** |
+| `activestageid` | Lookup, anlegbar und änderbar |
+
+Drei weitere Verkaufschancen-Prozesse führen dieselben Stufen unter anderen
+Beschriftungen — zweisprachig und deutsch — und haben **keine einzige
+Instanz**. Ihre Namen stehen jetzt als Wertzuordnung im Profil, denn Dateien
+und Oberflächen zeigen sie.
+
+**Schritt 50 war eine Attrappe.** Er stand auf `Active: true`, und
+`lauf.js:125` sprang ihn mit „Modus SetStage ist nicht scharf geschaltet"
+für jede Zeile ab. Jetzt ist er gebaut:
+
+- `stufenAuftrag()` in `lauf.js` — zwei Sprünge, Opp-ID → Chance → Instanz.
+  Der gewöhnliche Weg findet einen Datensatz über einen Schlüsselwert; hier
+  gibt es keinen.
+- Phase 0 holt die Instanzen über `ParentField` **samt**
+  `_activestageid_value`. Ohne den Wert meldete jede Zeile eine Änderung.
+- Vorschau und Import rechnen denselben Weg — sonst kündigt der Prüflauf
+  Änderungen an, die nie geschrieben werden.
+- **Angelegt wird nichts.** Dynamics erzeugt Prozessinstanzen selbst; eine
+  von Hand gebaute träfe womöglich den falschen Prozess, und das fällt
+  später schwerer auf als eine fehlende. Fehlt sie, sagt das Protokoll es.
+
+Beim Bauen fiel auf, dass mein eigener Zweig bei fehlender
+Verweiskonfiguration **stumm** überspringt — genau das, was dieses Projekt
+sonst vermeidet. Der Prüflauf nennt den Grund jetzt einmal je Schritt.
+
+**Preisliste ist die Default Price List der Chance.** Auch hier lag der
+Fehler in der Ebene, nicht in der Sache: `opportunityproduct` hat kein
+`pricelevelid`, `opportunity` schon (Lookup, beschreibbar). 209 Preislisten,
+alle aktiv, **keine Doppelnamen** — `name` genügt als Schlüssel. Die Spalte
+steht im Blatt `Positionen` und wird über `SourceLookupBy` an die Chance
+gezogen, wie `Mitarbeiter` auch.
+
+Eine Preisliste zu setzen greift in die Preisfindung ein. Deshalb steht im
+Profil ausdrücklich, dass `OnlyIfEmpty` die schonende Variante ist — ein
+Wort, wenn bestehende Pflege nicht überschrieben werden soll.
+
+**Als Nächstes.** `./setup-crm.ps1 -ProfilLaden`, dann ein Prüflauf. Er sagt
+zum ersten Mal, welche Statuswerte wirklich in der Datei stehen — fehlende
+Übersetzungen kommen danach in `CRM_ValueMappings`.
+
 ## 03.09.2026 — Die drei „offenen" Felder, und eine Prüfung, die schwieg
 
 **Zwei der drei waren nie offen.** In der Zuordnung standen `Preisliste`,

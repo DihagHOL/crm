@@ -82,10 +82,11 @@
       "SourceSheet": "Anfragen",
       "MappingKey": "SALESPROCESS_STD",
       "Mode": "SetStage",
+      "ParentField": "opportunityid",
       "BatchSize": 50,
       "StopOnError": false,
       "Active": true,
-      "$hinweis": "Nicht nur anlegen: Dataverse erzeugt Prozessinstanzen meist selbst (Review B6). Der eigentliche Zweck ist activestageid aus den Phasenwerten der Status-Spalte. Phase 0 prueft, ob schon eine Instanz existiert. HINWEIS: Solange die Status-Spalte nicht zugeordnet ist, hat dieser Schritt keine Phase zu setzen und stellt nur sicher, dass eine Prozessinstanz existiert.",
+      "$hinweis": "Setzt activestageid an der Prozessinstanz der Verkaufschance. Am 03.09.2026 gegen die Umgebung geprueft: die Vertriebsphase ist kein Feld an der Chance, sondern eine Stufe eines Geschaeftsprozessflows - opportunitysalesprocess.activestageid (Lookup, anlegbar und aenderbar). Alle 4732 Instanzen laufen auf dem Prozess Vertriebsprozess (3e8ebee6) mit fuenf Stufen: Setup Opportunity 3352, Negotiate And Close 1227, Develop And Submitt Proposal 86, Calculate Products 43, Check Feasibility 24. Die Namen sind systemweit eindeutig, deshalb genuegt stagename als Schluessel. ANGELEGT WIRD NICHTS: Dataverse erzeugt Prozessinstanzen selbst (Review B6); fehlt eine, meldet das Protokoll es und laesst die Zeile aus. ParentField verbindet Chance und Instanz - darueber holt Phase 0 den Bestand samt aktueller Stufe, sonst meldete jede Zeile eine Aenderung.",
       "OnMissingKey": "Fail"
     },
     {
@@ -284,6 +285,20 @@
         "Transform": "trim"
       },
       {
+        "SourceColumn": "Preisliste",
+        "SourceSheet": "Positionen",
+        "SourceLookupBy": "Opp-ID",
+        "TargetField": "pricelevelid",
+        "TargetType": "Lookup",
+        "LookupEntitySet": "pricelevels",
+        "LookupKeyField": "name",
+        "OnLookupFail": "WarnAndSkipField",
+        "Transform": "trim|empty2null",
+        "SortOrder": 76,
+        "WritePolicy": "Always",
+        "$hinweis": "Die Preisliste ist die Default Price List der Verkaufschancenprodukte - sie haengt an der CHANCE (pricelevelid, Lookup, anlegbar und aenderbar), nicht an der Position: opportunityproduct hat gar kein solches Feld. Am 03.09.2026 geprueft: 209 Preislisten, alle aktiv, keine Doppelnamen - name genuegt als Schluessel. 307 von 1000 Chancen fuehren heute eine. Steht im Blatt Positionen, gehoert aber an die Chance, deshalb SourceSheet und SourceLookupBy. ACHTUNG: Eine Preisliste zu setzen greift in die Preisfindung der Chance ein. Wer bestehende Pflege nicht ueberschreiben will, setzt WritePolicy auf OnlyIfEmpty - dann wird nur ergaenzt, wo heute nichts steht."
+      },
+      {
         "SourceColumn": "Mitarbeiter",
         "SourceSheet": "Positionen",
         "SourceLookupBy": "Opp-ID",
@@ -403,7 +418,7 @@
         "TargetType": "String",
         "Active": false,
         "SortOrder": 120,
-        "$hinweis": "ENTSCHIEDEN am 02.09.2026: bleibt aussen vor. Am 03.09.2026 gegen die Metadaten geprueft und praezisiert: opportunityproduct hat gar kein pricelevelid. Das Feld gibt es nur an der Verkaufschance (Lookup, anlegbar und aenderbar), 307 von 1000 Chancen fuehren eine, ueber 50 Preislisten existieren. Wer die Spalte importieren will, ordnet sie also OPPORTUNITY_STD zu, nicht hier. Dagegen steht der Befund von damals: von 60 geprueften Positionen haengen 59 an Chancen ohne Preisliste - Freitextpositionen, die keine brauchen. Eine Preisliste an der Chance zu setzen, greift in deren Preisfindung ein. Fachliche Entscheidung, kein technisches Hindernis."
+        "$hinweis": "ERLEDIGT an anderer Stelle: die Spalte wird seit dem 03.09.2026 von OPPORTUNITY_STD nach pricelevelid an der Verkaufschance geschrieben. Hier kann sie nicht stehen - opportunityproduct hat kein pricelevelid; die Preisliste ist die Default Price List der Chance, aus der sich ihre Produkte bedienen. Die Zeile bleibt als Beleg, damit die Spalte nicht zweimal geprueft wird."
       },
       {
         "SourceColumn": "Status",
@@ -451,7 +466,22 @@
         "Required": true,
         "Transform": "trim",
         "SortOrder": 20,
-        "WritePolicy": "Always"
+        "WritePolicy": "OnCreateOnly",
+        "$hinweis": "OnCreateOnly, weil dieser Schritt nur aendert: die Instanz haengt bereits an ihrer Chance, und den Elternverweis noch einmal zu schreiben, aendert nichts und kann nur schiefgehen. Fuer die Zuordnung Zeile->Instanz wird die Spalte trotzdem gebraucht."
+      },
+      {
+        "SourceColumn": "Status",
+        "SourceSheet": "Positionen",
+        "SourceLookupBy": "Opp-ID",
+        "TargetField": "activestageid",
+        "TargetType": "Lookup",
+        "LookupEntitySet": "processstages",
+        "LookupKeyField": "stagename",
+        "OnLookupFail": "WarnAndSkipField",
+        "Transform": "trim|empty2null",
+        "SortOrder": 30,
+        "WritePolicy": "Always",
+        "$hinweis": "Die Status-Spalte steht im Blatt Positionen, die Phase gehoert an die Chance - deshalb SourceSheet und SourceLookupBy. WarnAndSkipField: ein Statuswert, den es als Stufe nicht gibt, kostet die Phase, nicht die Zeile. Welche Werte wirklich in der Datei stehen, sagt der erste Pruflauf; fehlende Uebersetzungen kommen dann nach CRM_ValueMappings."
       }
     ],
     "CLOSE_STD": [
@@ -470,6 +500,22 @@
     ]
   },
   "valueMappings": {
+    "$hinweis_SALESPROCESS_STD": "Die Umgebung fuehrt vier Verkaufschancen-Prozesse mit denselben Stufen unter verschiedenen Beschriftungen. Gelebt wird 3e8ebee6 mit englischen Namen; die zweisprachigen und die deutschen Beschriftungen stammen aus den anderen Prozessen und tauchen in Oberflaechen und Dateien auf. Hier werden sie auf die Stufennamen abgebildet, die es wirklich gibt. Der Abgleich ist ohnehin gross-/kleinschreibungsunabhaengig - deshalb steht jede Schreibweise nur einmal.",
+    "SALESPROCESS_STD": {
+      "activestageid": {
+        "Check Feasibility - Machbarkeit Prüfen": "Check Feasibility",
+        "Check Feasibility – Machbarkeit prüfen": "Check Feasibility",
+        "Machbarkeit prüfen": "Check Feasibility",
+        "Setup Opportunity / Verkaufschance Anlegen": "Setup Opportunity",
+        "Verkaufschance eröffnen": "Setup Opportunity",
+        "Calculate Products / Produkte Kalkulieren": "Calculate Products",
+        "Produkte kalkulieren": "Calculate Products",
+        "Develop And Submitt Proposal / Angebot Erstellen Und Versenden": "Develop And Submitt Proposal",
+        "Angebot erstellen und versenden": "Develop And Submitt Proposal",
+        "Negotiate And Close / Verhandeln Und Abschließen": "Negotiate And Close",
+        "Verhandeln und abschließen": "Negotiate And Close"
+      }
+    },
     "OPPORTUNITY_STD": {
       "cr570_technicalaudit_lookup": {
         "Ja": "Yes",

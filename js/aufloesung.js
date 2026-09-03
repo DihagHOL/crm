@@ -257,10 +257,17 @@ const AUFLOESUNG = (() => {
             `Schritt ${s.step}: Verweis ${z.targetField}`);
       }
 
-      // 3. Ersetzungsschritt: welche Kinddatensätze hängen heute dran?
-      //    Ohne sie gibt es nichts zu löschen – und ein Ersetzen, das nur
-      //    anlegt, verdoppelt die Positionen still.
-      if (s.mode === "ReplaceByParent" && s.parentField) {
+      /* 3. Kinddatensätze zum Elterndatensatz.
+            Zwei Schrittarten brauchen sie, aus entgegengesetzten Gründen:
+
+            · `ReplaceByParent` muss wissen, was heute dranhängt – sonst
+              gibt es nichts zu löschen, und ein Ersetzen, das nur anlegt,
+              verdoppelt die Positionen still.
+            · `SetStage` muss die Prozessinstanz der Verkaufschance finden.
+              Die Phase steht nicht an der Chance, sondern an ihrer
+              `opportunitysalesprocess`-Zeile. Ohne diese Abfrage gäbe es
+              keinen Datensatz, den der Import ändern könnte.            */
+      if ((s.mode === "ReplaceByParent" || s.mode === "SetStage") && s.parentField) {
         const eltern = zu.find(z => z.aktiv && z.targetField === s.parentField
                                     && z.targetType === "Lookup");
         if (eltern?.lookupEntitySet && eltern.lookupKeyField) {
@@ -269,9 +276,21 @@ const AUFLOESUNG = (() => {
           if (elternMap && elternId) {
             const guids = [...elternMap.values()].flat()
               .map(r => r[elternId]).filter(Boolean);
+            /* Die übrigen Verweise des Schrittes mitlesen. Nur so lässt
+               sich „unverändert" feststellen: steht die Chance schon auf
+               der Phase, die die Datei nennt, darf der Import sie nicht
+               noch einmal schreiben. Ohne `_activestageid_value` im
+               Bestand meldete jede Zeile eine Änderung. */
+            const weitere = zu
+              .filter(z => z.aktiv && z.targetType === "Lookup"
+                           && z.targetField && z.targetField !== s.parentField
+                           && !z.targetField.startsWith("KLAEREN"))
+              .map(z => `_${z.targetField}_value`);
             await frage(s.entitySet, `_${s.parentField}_value`, guids,
-              `_${s.parentField}_value`,
-              `Schritt ${s.step}: vorhandene Kinddatensätze zum Ersetzen`,
+              [`_${s.parentField}_value`, ...weitere].join(","),
+              s.mode === "SetStage"
+                ? `Schritt ${s.step}: Prozessinstanz je Verkaufschance`
+                : `Schritt ${s.step}: vorhandene Kinddatensätze zum Ersetzen`,
               /* mehrfachErwartet */ true);
           }
         }

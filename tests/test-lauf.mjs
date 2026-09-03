@@ -409,5 +409,124 @@ console.log("\nGeloeschte Positionen stehen im Protokoll");
     "loeschen und anlegen stehen im selben Changeset");
 }
 
+
+/* ── Vertriebsphase setzen (Modus SetStage) ─────────────────────────────
+   Anlass: Die Status-Spalte galt als „kein Zielfeld vorhanden". Sie hat
+   eins — nur nicht an der Verkaufschance und nicht an der Position,
+   sondern an der Prozessinstanz: `opportunitysalesprocess.activestageid`.
+   Das sind zwei Spruenge, Opp-ID auf die Chance und Chance auf ihre
+   Instanz, und deshalb hat der Schritt einen eigenen Zweig.
+
+   Angelegt wird nichts: Dataverse erzeugt Prozessinstanzen selbst. Fehlt
+   eine, sagt das Protokoll es — still uebergehen waere hier besonders
+   teuer, weil eine fehlende Phase niemandem auffaellt.               */
+
+const INST_A  = "cccccccc-0000-0000-0000-00000000000a";
+const STUFE_S = "dddddddd-0000-0000-0000-000000000001";   // Setup Opportunity
+const STUFE_C = "dddddddd-0000-0000-0000-000000000002";   // Check Feasibility
+
+function stufenKulisse(EXCEL) {
+  const mappe = { blaetter: [
+    EXCEL.blattAus("Anfragen", [["Opp-ID"], [6440], [6441], [6442]]),
+    EXCEL.blattAus("Positionen", [
+      ["Opp-ID", "Status"],
+      [6440, "Machbarkeit pruefen"],      // uebersetzt auf Check Feasibility
+      [6441, "Check Feasibility"],        // steht schon darauf
+      [6442, "Check Feasibility"]         // hat keine Prozessinstanz
+    ])
+  ] };
+
+  const zuordnungen = { STAGE: [
+    { aktiv: true, mappingKey: "STAGE", sourceColumn: "Opp-ID",
+      targetField: "opportunityid", targetType: "Lookup",
+      lookupEntitySet: "opportunities", lookupKeyField: "new_dagextopid",
+      writePolicy: "OnCreateOnly" },
+    { aktiv: true, mappingKey: "STAGE", sourceColumn: "Status",
+      sourceSheet: "Positionen", sourceLookupBy: "Opp-ID",
+      targetField: "activestageid", targetType: "Lookup",
+      lookupEntitySet: "processstages", lookupKeyField: "stagename",
+      onLookupFail: "WarnAndSkipField", writePolicy: "Always" }
+  ] };
+
+  const profil = { name: "T", zuordnungen, schritte: [
+    { step: 50, entitySet: "opportunitysalesprocesses", sourceSheet: "Anfragen",
+      mappingKey: "STAGE", mode: "SetStage", parentField: "opportunityid", aktiv: true }
+  ] };
+
+  const opp = n => ({ new_dagextopid: n, opportunityid: `eeeeeeee-0000-0000-0000-00000000000${n - 6439}`, statecode: 0 });
+  const aufl = {
+    treffer: new Map([
+      ["opportunities|new_dagextopid", new Map([
+        ["6440", [opp(6440)]], ["6441", [opp(6441)]], ["6442", [opp(6442)]]
+      ])],
+      ["opportunitysalesprocesses|_opportunityid_value", new Map([
+        [opp(6440).opportunityid, [{ opportunitysalesprocessid: INST_A,
+          _opportunityid_value: opp(6440).opportunityid, _activestageid_value: STUFE_S }]],
+        [opp(6441).opportunityid, [{ opportunitysalesprocessid: "cccccccc-0000-0000-0000-00000000000b",
+          _opportunityid_value: opp(6441).opportunityid, _activestageid_value: STUFE_C }]]
+      ])],
+      ["processstages|stagename", new Map([
+        ["Check Feasibility", [{ stagename: "Check Feasibility", processstageid: STUFE_C }]]
+      ])]
+    ]),
+    abfragen: [],
+    idFelder: new Map([["opportunities", "opportunityid"],
+                       ["opportunitysalesprocesses", "opportunitysalesprocessid"],
+                       ["processstages", "processstageid"]])
+  };
+
+  const werte = { "STAGE|activestageid":
+    { werte: { "Machbarkeit pruefen": "Check Feasibility" }, standard: null } };
+
+  return { mappe, profil, aufl, werte };
+}
+
+console.log("\nVertriebsphase setzen");
+{
+  const { LAUF, EXCEL, gesendet } = baueLauf(() => antwort([{ status: 204 }]));
+  const k = stufenKulisse(EXCEL);
+  const e = await LAUF.ausfuehren({ profil: k.profil, mappe: k.mappe, aufl: k.aufl,
+                                    werte: k.werte, entscheidungen: null });
+
+  const nach = w => e.eintraege.filter(x => x.aktion === w);
+  gleich(nach("aktualisiert").length, 1, "nur die Chance mit anderer Phase wird geschrieben");
+  gleich(nach("unveraendert").length, 1, "wer schon auf der Phase steht, wird nicht angefasst");
+  gleich(nach("angelegt").length, 0, "Prozessinstanzen werden nie angelegt");
+
+  const uebersprungen = nach("uebersprungen");
+  gleich(uebersprungen.length, 1, "die Chance ohne Prozessinstanz bleibt liegen");
+  pruefe(/Keine Prozessinstanz/.test(uebersprungen[0].meldung),
+    "und das Protokoll sagt, warum - statt sie still zu uebergehen");
+
+  const b = gesendet[0].koerper;
+  pruefe(b.includes("PATCH"), "geaendert wird per PATCH, nicht angelegt");
+  pruefe(b.includes(`opportunitysalesprocesses(${INST_A})`),
+    "adressiert wird die Prozessinstanz ueber ihre eigene GUID");
+  pruefe(b.includes(`/processstages(${STUFE_C})`),
+    "gebunden wird die aufgeloeste Stufe - die Wertzuordnung hat gegriffen");
+  pruefe(!b.includes("opportunityid@odata.bind"),
+    "der Elternverweis wird nicht noch einmal geschrieben (OnCreateOnly)");
+}
+
+console.log("\nEin Statuswert, den es als Stufe nicht gibt");
+{
+  /* WarnAndSkipField: der Wert kostet die Phase, nicht die Zeile. Vorher
+     war der Verweis der teuerste Einzelposten im Lauf - eine unbekannte
+     Auspraegung verwarf den ganzen Datensatz. */
+  const { LAUF, EXCEL } = baueLauf(() => antwort([{ status: 204 }]));
+  const k = stufenKulisse(EXCEL);
+  k.mappe.blaetter[1].zeilen[0].Status = "Gibt es nicht";
+  k.werte = {};
+  const e = await LAUF.ausfuehren({ profil: k.profil, mappe: k.mappe, aufl: k.aufl,
+                                    werte: k.werte, entscheidungen: null });
+
+  gleich(e.eintraege.filter(x => x.aktion === "fehlgeschlagen").length, 0,
+    "kein Fehler - der unbekannte Wert kostet nur das Feld");
+  const w = e.eintraege.flatMap(x => x.warnungen || []);
+  pruefe(w.some(x => x.feld === "activestageid"),
+    "aber er steht als Warnung am Datensatz, nicht nirgends");
+}
+
+
 console.log(fehler ? `\n${fehler} Pruefung(en) fehlgeschlagen.` : "\nAlle Pruefungen bestanden.");
 process.exit(fehler ? 1 : 0);

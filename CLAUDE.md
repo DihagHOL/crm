@@ -541,6 +541,34 @@ Der Altflow macht es umgekehrt: löschen, 60 Sekunden warten, neu anlegen.
 Bricht er dazwischen ab, sind die Positionen weg. Das ist der einzige Ort im
 Projekt, an dem ein Changeset zwingend ist — sonst gilt §7.
 
+### Modus `SetStage` — die Vertriebsphase
+
+Die Phase ist **kein Feld an der Verkaufschance.** Sie ist die aktive Stufe
+eines Geschäftsprozessflows und steht an einem eigenen Datensatz:
+`opportunitysalesprocess.activestageid`. `opportunityproduct` hat weder
+`statecode` noch `statuscode`, `opportunity` selbst kein Phasenfeld — wer
+dort sucht, findet nichts und schließt daraus das Falsche.
+
+Das kostet zwei Sprünge: Opp-ID → Verkaufschance → ihre Prozessinstanz.
+Deshalb hat der Schritt einen eigenen Zweig (`stufenAuftrag` in `lauf.js`)
+statt der gewöhnlichen Schleife, die einen Datensatz über einen
+Schlüsselwert findet. `ParentField` verbindet beides; Phase 0 holt darüber
+die Instanzen samt `_activestageid_value` — ohne den Wert meldete jede Zeile
+eine Änderung.
+
+**Angelegt wird nichts.** Dynamics erzeugt Prozessinstanzen selbst. Eine von
+Hand gebaute träfe womöglich einen anderen Prozess als den, auf dem der
+Bestand läuft, und ein Datensatz auf dem falschen Prozess ist schwerer zu
+bemerken als einer, der fehlt. Fehlt die Instanz, steht die Zeile mit
+Begründung im Protokoll.
+
+In dieser Umgebung (Stand 03.09.2026): alle 4732 Instanzen laufen auf
+`Vertriebsprozess` (`3e8ebee6`), fünf Stufen, Namen systemweit eindeutig —
+deshalb genügt `stagename` als Schlüssel. Drei weitere Prozesse führen
+dieselben Stufen unter anderen Beschriftungen, ohne eine einzige Instanz;
+ihre Namen stehen als Wertzuordnung im Profil, weil Dateien und Oberflächen
+sie zeigen.
+
 ### Generelles Muster (andere Profile)
 
 Wenn Konten **geschrieben** statt nur gelesen werden, entsteht eine
