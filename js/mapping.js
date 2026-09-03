@@ -149,14 +149,26 @@ const MAPPING = (() => {
         const abbild = zugeordnet(wert, wz);
         if (abbild !== undefined) wert = abbild;
         else if (wz.standard !== null && wz.standard !== undefined) wert = wz.standard;
-        // Kein Abbild und kein Standard: den Wert lassen, wie er ist, und
-        // warnen. Ein harter Fehler hiesse, dass eine einzige neue
-        // Produktgruppe die ganze Zeile verwirft – dabei entscheidet gleich
-        // darauf ohnehin der Verweis, ob der Wert etwas trifft.
-        else warnungen.push({ zeile: zeile._zeile, spalte: z.sourceColumn,
-          feld: z.targetField, wert,
-          meldung: `Wert „${wert}" ist in ${CRM_CONFIG.listen.werte} nicht zugeordnet `
-            + "– er wird unverändert verwendet" });
+        /* Kein Abbild und kein Standard: den Wert lassen, wie er ist. Ein
+           harter Fehler hiesse, dass eine einzige neue Produktgruppe die
+           ganze Zeile verwirft.
+
+           Gewarnt wird nur bei SKALAREN Zielen. Bei einem Verweis
+           entscheidet zwei Zeilen weiter unten ohnehin die Auflösung, und
+           sie sagt mehr: „In processstages nicht gefunden" nennt die
+           Tabelle, in der gesucht wurde. Vorher standen beide Sätze im
+           Bericht — derselbe Wert, dieselbe Zeile, zweimal:
+
+             50  8  Status  activestageid  Win  … nicht zugeordnet …
+             50  8  Status  activestageid  Win  … In processstages nicht gefunden …
+
+           Doppelte Meldungen verwässern den Bericht: wer 120 Zeilen liest,
+           hält 60 Ursachen für 120.                                      */
+        else if (z.targetType !== "Lookup")
+          warnungen.push({ zeile: zeile._zeile, spalte: z.sourceColumn,
+            feld: z.targetField, wert,
+            meldung: `Wert „${wert}" ist in ${CRM_CONFIG.listen.werte} nicht zugeordnet `
+              + "– er wird unverändert verwendet" });
       }
 
       // Pflicht

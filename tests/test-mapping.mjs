@@ -236,10 +236,41 @@ console.log("\nWertzuordnungen");
   const werte = { "OPP|cr570_productlinie_lookup": { werte: { "A": "1 A" }, standard: null } };
   const r = MAPPING.baue({ _zeile: 2, Gruppe: "Ganz neu" }, zu, { modus: "create", werte });
   gleich(r.fehler.length, 0, "kein Fehler");
-  pruefe(r.warnungen.some(w => /nicht zugeordnet/.test(w.meldung)),
-    "sondern eine Warnung");
   pruefe(String(r.nutzlast["cr570_productlinie_lookup@odata.bind"]).includes("Ganz%20neu"),
     "und der Wert wird unveraendert versucht");
+}
+{
+  /* Ein unbekannter Wert an einem VERWEIS wird genau EINMAL gemeldet.
+     Vorher standen zwei Saetze im Bericht - derselbe Wert, dieselbe Zeile:
+
+       50  8  Status  activestageid  Win  … nicht zugeordnet …
+       50  8  Status  activestageid  Win  … In processstages nicht gefunden …
+
+     Die zweite Meldung sagt mehr, weil sie die Tabelle nennt. Die erste
+     ist Fuellung, und wer 120 Zeilen liest, haelt 60 Ursachen fuer 120. */
+  const zu = [{ aktiv: true, mappingKey: "STAGE", sourceColumn: "Status",
+    targetField: "activestageid", targetType: "Lookup",
+    lookupEntitySet: "processstages", lookupKeyField: "stagename",
+    onLookupFail: "WarnAndSkipField", writePolicy: "Always" }];
+  const werte = { "STAGE|activestageid": {
+    werte: { "Machbarkeit pruefen": "Check Feasibility" }, standard: null } };
+  const r = MAPPING.baue({ _zeile: 8, Status: "Win" }, zu,
+    { modus: "create", werte, aufloesen: () => null });
+
+  gleich(r.warnungen.length, 1, "ein Wert, eine Meldung");
+  pruefe(/In processstages nicht gefunden/.test(r.warnungen[0].meldung),
+    "und zwar die, die die Tabelle nennt");
+  gleich(r.fehler.length, 0, "kein Fehler - der Wert kostet das Feld, nicht die Zeile");
+}
+{
+  // An einem SKALAREN Ziel bleibt die Meldung: dort entscheidet niemand
+  // mehr nach, ob der Wert etwas trifft.
+  const zu = [{ aktiv: true, mappingKey: "OPP", sourceColumn: "Gruppe",
+    targetField: "dag_produktgruppe", targetType: "String", writePolicy: "Always" }];
+  const werte = { "OPP|dag_produktgruppe": { werte: { "A": "1 A" }, standard: null } };
+  const r = MAPPING.baue({ _zeile: 2, Gruppe: "Ganz neu" }, zu, { modus: "create", werte });
+  pruefe(r.warnungen.some(w => /nicht zugeordnet/.test(w.meldung)),
+    "unzugeordneter Wert an einem Textfeld wird weiterhin gemeldet");
 }
 
 console.log(fehler ? `\n${fehler} Prüfung(en) fehlgeschlagen.\n` : "\nAlle Prüfungen bestanden.\n");

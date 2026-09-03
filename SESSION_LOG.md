@@ -1,5 +1,43 @@
 # Session-Log
 
+## 03.09.2026 — Erster Prüflauf mit Schritt 50: drei Befunde
+
+**Doppelte Meldungen.** Ein unbekannter Wert an einem Verweis stand zweimal
+im Bericht — derselbe Wert, dieselbe Zeile:
+
+```
+50  8  Status  activestageid  Win  … ist in CRM_ValueMappings nicht zugeordnet …
+50  8  Status  activestageid  Win  … In processstages nicht gefunden …
+```
+
+Der Code wusste es sogar: im Kommentar stand „dabei entscheidet gleich
+darauf ohnehin der Verweis". Er warnte trotzdem. Die zweite Meldung sagt
+mehr, weil sie die Tabelle nennt — die erste ist Füllung. Bei Verweisen
+entfällt sie jetzt; an skalaren Zielen bleibt sie, dort entscheidet niemand
+mehr nach. **Wer 120 Zeilen liest, hält 60 Ursachen für 120.**
+
+**„Submit" gegen „Submitt".** Zeile 14 meldete
+`Develop And Submit Proposal / Angebot Erstellen Und Versenden`. Dataverse
+führt die Stufe mit Tippfehler: **`Develop And Submitt Proposal`**, zwei t.
+Die Datei schreibt sie richtig — und trifft deshalb nichts. Beide
+Schreibweisen stehen jetzt in der Zuordnung, dazu die ss/ß-Paare: der
+Abgleich ist zwar gross-/kleinschreibungsunabhängig, aber sonst
+buchstabengetreu.
+
+**`Win` im Statusfeld** — erwartet. Die Spalte mischt Phasen und
+Abschlusszustände (Review A5), Schritt 60 ist zurückgestellt. Nach dem
+ersten Befund bleibt davon eine Meldung je Zeile statt zwei. Wer sie ganz
+loswerden will, ordnet `Win` und `Loss` dem leeren Wert zu — dann übergeht
+der Import das Feld wortlos.
+
+**Die Preisliste ist offen.** Die Datei nennt
+`Default Price List für Verkaufschancenprodukte`. Unter den 209 Preislisten
+gibt es diesen Namen **nicht**. Nahe dran sind
+`Preisliste für individuelle Verkaufschancenprodukte` und
+`Default Price List - Sales Professional Business`. Welche gemeint ist,
+entscheidet der Fachbereich — geraten wird nicht, eine falsche Preisliste
+greift in die Preisfindung ein.
+
 ## 03.09.2026 — Eine Regel, die zehnmal stimmt, ist trotzdem eine Falle
 
 Der erste Prüflauf mit dem gebauten Schritt 50 endete sofort:

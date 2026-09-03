@@ -500,7 +500,7 @@
     ]
   },
   "valueMappings": {
-    "$hinweis_SALESPROCESS_STD": "Die Umgebung fuehrt vier Verkaufschancen-Prozesse mit denselben Stufen unter verschiedenen Beschriftungen. Gelebt wird 3e8ebee6 mit englischen Namen; die zweisprachigen und die deutschen Beschriftungen stammen aus den anderen Prozessen und tauchen in Oberflaechen und Dateien auf. Hier werden sie auf die Stufennamen abgebildet, die es wirklich gibt. Der Abgleich ist ohnehin gross-/kleinschreibungsunabhaengig - deshalb steht jede Schreibweise nur einmal.",
+    "$hinweis_SALESPROCESS_STD": "Die Umgebung fuehrt vier Verkaufschancen-Prozesse mit denselben Stufen unter verschiedenen Beschriftungen. Gelebt wird 3e8ebee6 mit englischen Namen; die zweisprachigen und die deutschen Beschriftungen stammen aus den anderen Prozessen und tauchen in Oberflaechen und Dateien auf. Hier werden sie auf die Stufennamen abgebildet, die es wirklich gibt. Der Abgleich ist gross-/kleinschreibungsunabhaengig, aber sonst buchstabengetreu - deshalb stehen abweichende Schreibweisen einzeln da. Zwei Faelle aus dem Pruflauf vom 03.09.2026: Dataverse fuehrt die Stufe mit Tippfehler als 'Develop And Submitt Proposal', die Datei schreibt 'Submit' mit einem t. Und ss/sz sind fuer den Vergleich zwei verschiedene Zeichenfolgen ('abschliessen' trifft 'abschliessen' nicht). Beide Schreibweisen stehen deshalb drin.",
     "SALESPROCESS_STD": {
       "activestageid": {
         "Check Feasibility - Machbarkeit Prüfen": "Check Feasibility",
@@ -511,9 +511,13 @@
         "Calculate Products / Produkte Kalkulieren": "Calculate Products",
         "Produkte kalkulieren": "Calculate Products",
         "Develop And Submitt Proposal / Angebot Erstellen Und Versenden": "Develop And Submitt Proposal",
+        "Develop And Submit Proposal / Angebot Erstellen Und Versenden": "Develop And Submitt Proposal",
+        "Develop And Submit Proposal": "Develop And Submitt Proposal",
         "Angebot erstellen und versenden": "Develop And Submitt Proposal",
         "Negotiate And Close / Verhandeln Und Abschließen": "Negotiate And Close",
-        "Verhandeln und abschließen": "Negotiate And Close"
+        "Negotiate And Close / Verhandeln Und Abschliessen": "Negotiate And Close",
+        "Verhandeln und abschließen": "Negotiate And Close",
+        "Verhandeln und abschliessen": "Negotiate And Close"
       }
     },
     "OPPORTUNITY_STD": {
