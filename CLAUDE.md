@@ -481,6 +481,27 @@ geänderten Felder. Das ist die einzige Möglichkeit, eine Änderung im
 Nachhinein zu beurteilen — und der Ersatz für das „Datenbank leeren" des
 Altflows.
 
+### Ausschlüsse sind keine Fehler
+
+Ein Datensatz, den `LookupOnly` nicht findet, ist kein blockierender
+Fehler. Genau das war Befund B3: *Vorher hätte eine einzige unbekannte
+Nummer den ganzen Import verhindert.* Die Zeile fällt aus allen
+Folgeschritten, der Rest läuft durch.
+
+Damit sie nicht hinten herunterfällt, gilt dreierlei:
+
+1. Der Prüflauf weist sie **eigens aus** — eigene Kachel, eigene Liste,
+   eigenes Blatt im Excel-Bericht. Sie zählt nicht als Fehler.
+2. Der Import ist erst frei, wenn jemand die Kenntnisnahme **ankreuzt**.
+   Ohne das wäre „12 Zeilen fehlen" eine Zahl, die man wegklickt.
+3. Die Vorschau rechnet sie in **allen Folgeschritten** heraus. Täte sie
+   das nicht, sagte sie mehr voraus, als der Import tut.
+
+Prüflauf und Import erkennen dieselbe Zeile über denselben Verfolger
+(`PRUEFUNG.ausschluss`) — innerhalb eines Blattes über die Zeilennummer,
+blattübergreifend über die Spalte, mit der ein Kindblatt an sein
+Elternblatt hängt. Zwei Fassungen desselben Gedankens liefen auseinander.
+
 ### Warnungen sind keine Fehler
 
 Drei Fälle aus der Datenanalyse, die protokolliert werden, den Import aber

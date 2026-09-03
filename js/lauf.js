@@ -44,8 +44,10 @@ const LAUF = (() => {
     const eintraege = [];
     const gesamt = { angelegt: 0, aktualisiert: 0, unveraendert: 0,
                      uebersprungen: 0, fehlgeschlagen: 0 };
-    /** Zeilen, die in Schritt 10 durchgefallen sind – Schlüsselwert. */
-    const ausgeschlossen = new Set();
+    /* Ausgeschlossene Zeilen – derselbe Verfolger wie im Prüflauf.
+       Zwei Fassungen desselben Gedankens laufen auseinander, und dann sagt
+       der Prüflauf etwas anderes voraus, als hier geschieht. */
+    const aus = PRUEFUNG.ausschluss(k.profil);
     let gedrosselt = 0, abgebrochen = false;
 
     // Drosselung: mit maßvoller Parallelität starten. Große Stapel sind
@@ -87,7 +89,7 @@ const LAUF = (() => {
             aktion: "uebersprungen", meldung: "Schlüsselwert fehlt" });
           continue;
         }
-        if (sw !== null && ausgeschlossen.has(String(sw))) {
+        if (aus.ist(s.sourceSheet, zeile)) {
           notiere({ schritt: s.step, entitySet: s.entitySet, zeile: zeile._zeile,
             schluessel: sw, aktion: "uebersprungen",
             meldung: "Zeile wurde in einem früheren Schritt ausgeschlossen" });
@@ -100,7 +102,7 @@ const LAUF = (() => {
         const bestand = t.records[0] || null;
 
         if (t.mehrdeutig) {
-          ausgeschlossen.add(String(sw));
+          aus.merke(s.sourceSheet, zeile);
           notiere({ schritt: s.step, entitySet: s.entitySet, zeile: zeile._zeile,
             schluessel: sw, aktion: "fehlgeschlagen",
             meldung: "Mehrfachtreffer ohne Entscheidung" });
@@ -109,9 +111,13 @@ const LAUF = (() => {
 
         if (s.mode === "LookupOnly") {
           if (!bestand) {
-            ausgeschlossen.add(String(sw));
+            aus.merke(s.sourceSheet, zeile);
+            // „übersprungen", nicht „fehlgeschlagen": Der Lauf hat hier
+            // nichts versucht und ist an nichts gescheitert. Er hat eine
+            // Zeile bewusst ausgelassen, die im Prüflauf ausgewiesen und
+            // bestätigt wurde.
             notiere({ schritt: s.step, entitySet: s.entitySet, zeile: zeile._zeile,
-              schluessel: sw, aktion: "fehlgeschlagen",
+              schluessel: sw, aktion: "uebersprungen",
               meldung: "Nicht gefunden – Zeile wird in allen Folgeschritten übersprungen" });
           } else {
             notiere({ schritt: s.step, entitySet: s.entitySet, zeile: zeile._zeile,

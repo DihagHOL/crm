@@ -34,6 +34,45 @@ const PRUEFUNG = (() => {
     };
   }
 
+  /** Ausgeschlossene Zeilen wiedererkennen.
+   *
+   *  Fällt eine Zeile in Schritt 10 durch, darf nichts mehr geschrieben
+   *  werden, was an ihr hängt. Sie über den Schlüsselwert des Schrittes zu
+   *  merken, geht nicht: Schritt 10 sucht über die Kundennummer, Schritt 20
+   *  über die E-Mail, Schritt 30 über die Opp-ID.
+   *
+   *  Zwei Wege reichen:
+   *  · innerhalb desselben Blattes die Zeilennummer,
+   *  · blattübergreifend die Spalte, mit der ein Kindblatt an sein
+   *    Elternblatt hängt (`Opp-ID` zwischen Anfragen und Positionen).
+   *  Welche Spalte das ist, steht im Profil: die Quellspalte der Zuordnung,
+   *  die auf `parentField` zeigt.
+   *
+   *  Prüflauf und Import benutzen denselben Verfolger. Zwei Fassungen
+   *  desselben Gedankens wären zwei Fassungen, die auseinanderlaufen – und
+   *  dann sagt der Prüflauf etwas anderes voraus, als der Import tut.    */
+  function ausschluss(profil) {
+    const zeilen = new Set();   // "Blatt|Zeilennummer"
+    const links = new Set();    // "Spalte|Wert"
+    const spalten = [...new Set(
+      profil.schritte.flatMap(st => (profil.zuordnungen[st.mappingKey] || [])
+        .filter(z => z.aktiv && st.parentField && z.targetField === st.parentField)
+        .map(z => z.sourceColumn).filter(Boolean)))];
+
+    return {
+      spalten,
+      merke(blatt, zeile) {
+        zeilen.add(`${blatt}|${zeile._zeile}`);
+        for (const sp of spalten)
+          if (!leer(zeile[sp])) links.add(`${sp}|${String(zeile[sp])}`);
+      },
+      ist(blatt, zeile) {
+        return zeilen.has(`${blatt}|${zeile._zeile}`)
+          || spalten.some(sp => !leer(zeile[sp]) && links.has(`${sp}|${String(zeile[sp])}`));
+      }
+    };
+  }
+
   /**
    * @param {object} profil aus SPLISTEN.profil()
    * @param {object} mappe  aus EXCEL.lesen()
@@ -44,8 +83,10 @@ const PRUEFUNG = (() => {
    */
   function lauf(profil, mappe, aufl, werte = {}, entscheidungen = null) {
     const zusatzZeile = zusatzZeileFn(mappe);
-    const schritte = [], alleFehler = [], alleWarnungen = [];
-    const gesamt = { neu: 0, aktualisiert: 0, unveraendert: 0, uebersprungen: 0, fehler: 0 };
+    const aus = ausschluss(profil);
+    const schritte = [], alleFehler = [], alleWarnungen = [], alleAusschluesse = [];
+    const gesamt = { neu: 0, aktualisiert: 0, unveraendert: 0, uebersprungen: 0,
+                     ausgeschlossen: 0, fehler: 0 };
 
     for (const s of profil.schritte) {
       if (!s.aktiv) { schritte.push({ ...zaehler(), s, inaktiv: true }); continue; }
@@ -76,6 +117,11 @@ const PRUEFUNG = (() => {
         .map(sp => zeile[sp]).filter(v => !leer(v)).map(String).join(" · ");
 
       for (const zeile of blatt.zeilen) {
+        // Hängt die Zeile an einer, die schon ausgeschlossen ist? Dann
+        // entsteht hier nichts – und die Vorschau darf sie auch nicht als
+        // „neu" zählen, sonst sagt sie mehr voraus, als der Import tut.
+        if (aus.ist(s.sourceSheet, zeile)) { z.uebersprungen++; continue; }
+
         // Schlüsselwert
         let schluesselWert = null;
         if (key) {
@@ -113,6 +159,7 @@ const PRUEFUNG = (() => {
 
         if (mehrdeutig) {
           z.fehler++;
+          aus.merke(s.sourceSheet, zeile);
           alleFehler.push({ schritt: s.step, zeile: zeile._zeile, spalte: key.sourceColumn,
             wert: schluesselWert, klartext: klartext(zeile),
             meldung: `Mehrfachtreffer: ${schluesselWert} findet mehrere Datensätze. `
@@ -121,14 +168,22 @@ const PRUEFUNG = (() => {
           continue;
         }
 
-        // Nur nachschlagen (Konten)
+        /* Nur nachschlagen (Konten).
+
+           Ein Konto, das es nicht gibt, ist KEIN blockierender Fehler.
+           Genau das war Befund B3: „Vorher hätte eine einzige unbekannte
+           Nummer den ganzen Import verhindert." Die Zeile fällt aus allen
+           Folgeschritten, der Lauf geht weiter — und weil sie ausdrücklich
+           ausgewiesen und bestätigt wird, fällt sie niemandem hinten
+           herunter (Randbedingung 12).                                     */
         if (s.mode === "LookupOnly") {
           if (!bestand) {
-            z.fehler++;
-            alleFehler.push({ schritt: s.step, zeile: zeile._zeile, spalte: key?.sourceColumn,
-              wert: schluesselWert, klartext: klartext(zeile),
-              meldung: `Nicht gefunden – diese Zeile wird in allen Folgeschritten `
-                + "übersprungen, der Lauf geht weiter (Review B3)." });
+            z.ausgeschlossen++;
+            aus.merke(s.sourceSheet, zeile);
+            alleAusschluesse.push({ schritt: s.step, zeile: zeile._zeile,
+              spalte: key?.sourceColumn, wert: schluesselWert, klartext: klartext(zeile),
+              meldung: `In ${s.entitySet} nicht gefunden – diese Zeile wird in allen `
+                + "Folgeschritten übersprungen, der Lauf geht weiter (Review B3)." });
           } else z.unveraendert++;
           continue;
         }
@@ -161,17 +216,19 @@ const PRUEFUNG = (() => {
       schritte.push(z);
     }
 
-    return { schritte, gesamt, fehler: alleFehler, warnungen: alleWarnungen };
+    return { schritte, gesamt, fehler: alleFehler, warnungen: alleWarnungen,
+             ausschluesse: alleAusschluesse };
   }
 
   const zaehler = () => ({ neu: 0, aktualisiert: 0, unveraendert: 0,
-                           uebersprungen: 0, fehler: 0, zeilen: 0 });
+                           uebersprungen: 0, ausgeschlossen: 0, fehler: 0, zeilen: 0 });
 
   /** Ein Satz für die Oberfläche. */
   const zusammenfassung = g =>
     `${g.neu} neu · ${g.aktualisiert} geändert · ${g.unveraendert} unverändert`
     + (g.uebersprungen ? ` · ${g.uebersprungen} übersprungen` : "")
+    + (g.ausgeschlossen ? ` · ${g.ausgeschlossen} ausgeschlossen` : "")
     + (g.fehler ? ` · ${g.fehler} mit Fehler` : "");
 
-  return { lauf, zusammenfassung };
+  return { lauf, zusammenfassung, ausschluss };
 })();

@@ -408,3 +408,12 @@ table.tbl tr.gut td     { }
   height: 100%; width: 0; background: var(--azur);
   transition: width .2s linear;
 }
+
+/* Kenntnisnahme der ausgeschlossenen Zeilen im Prüflauf. Kein Zierrat:
+   ohne sie liesse sich „12 Zeilen fehlen" wegklicken, ohne es gelesen zu
+   haben. */
+.bestaetigung {
+  display: flex; align-items: center; gap: 9px;
+  margin: 10px 0 4px; font-size: 14px; color: var(--navy); cursor: pointer;
+}
+.bestaetigung input { width: 16px; height: 16px; accent-color: var(--azur); cursor: pointer; }

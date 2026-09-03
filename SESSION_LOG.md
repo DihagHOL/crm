@@ -1,5 +1,66 @@
 # Session-Log
 
+## 03.09.2026 — Eine unbekannte Kundennummer sperrt den Import nicht mehr
+
+Der erste Prüflauf gegen echte Daten meldete `1 Fehler` bei 30 Zeilen — und
+darunter stand: *„Solange Fehler offen sind, bleibt der Import gesperrt. Es
+gibt keinen Weg daran vorbei."*
+
+Das widersprach zwei Stellen im eigenen Haus. Die Fehlermeldung derselben
+Zeile sagte *„wird in allen Folgeschritten übersprungen, der Lauf geht
+weiter"*, und im Profil steht seit Review B3: *„Vorher hätte eine einzige
+unbekannte Nummer den ganzen Import verhindert."* Genau das tat die App
+wieder.
+
+**Ausschluss statt Fehler.** Ein Konto, das es nicht gibt, ist jetzt eine
+eigene Kategorie: eigene Kachel, eigene Liste, eigenes Blatt im
+Excel-Bericht. Es sperrt den Import nicht. Damit die Zeile trotzdem nicht
+hinten herunterfällt, ist der Import erst frei, wenn jemand die
+Kenntnisnahme ankreuzt — ohne das wäre „12 Zeilen fehlen" eine Zahl, die man
+wegklickt.
+
+**Zwei Fehler, die dabei auffielen.**
+
+Der Import merkte sich ausgeschlossene Zeilen über den *Schlüsselwert des
+Schrittes*, in dem sie durchfielen — also die Kundennummer aus Schritt 10.
+Schritt 20 sucht aber über die E-Mail, Schritt 30 über die Opp-ID. Der
+Vergleich traf **nie**. „Wird in allen Folgeschritten übersprungen" war eine
+Zusage, die der Code nicht hielt; die Zeile wäre weitergelaufen und erst an
+einem 404 von Dataverse gescheitert.
+
+Und die Vorschau zählte dieselbe Zeile in den Schritten 20, 30, 40 und 50 als
+*neu* mit. Sie hätte „7 neu" gesagt, wo der Import 3 anlegt — der eine Satz,
+den ein Prüflauf können muss, wäre falsch gewesen.
+
+Beides hängt an derselben Frage: *Ist das dieselbe Zeile?* Die Antwort steht
+jetzt an einer Stelle (`PRUEFUNG.ausschluss`) und wird von beiden Läufen
+benutzt — innerhalb eines Blattes über die Zeilennummer, blattübergreifend
+über die Spalte, mit der ein Kindblatt an sein Elternblatt hängt (`Opp-ID`).
+Welche Spalte das ist, steht im Profil, nicht im Code.
+
+**Dazu.** Die Fehlerliste auf dem Schirm zeigt jetzt den **Wert** — bei
+„nicht gefunden" ist er die Information, und er stand bisher nur im
+Excel-Bericht. Daneben der Klartext aus den Spalten ohne Zielfeld: das
+Profil reserviert `Firmaname` ausdrücklich „nur für Fehlermeldungen und
+Vorschau", benutzt wurde die Spalte dafür nie. Statt `99999999` steht dort
+jetzt `99999999 · Unbekannt AG`.
+
+**Geprüft.** Gegen eine Vorschau mit erzeugter Mappe und gestellten
+Dataverse-Antworten, zwei Anfragen mit je einer Position, davon eine mit
+unbekannter Kundennummer:
+
+    3 neu · 1 geändert · 1 unverändert · 4 übersprungen · 1 ausgeschlossen · 0 mit Fehler
+
+    10 accounts             LookupOnly        1 unverändert   1 ausgeschlossen
+    20 contacts             Upsert            1 neu           1 übersprungen
+    30 opportunities        Upsert            1 geändert      1 übersprungen
+    40 opportunityproducts  ReplaceByParent   1 neu           1 übersprungen
+    50 salesprocesses       SetStage          1 neu           1 übersprungen
+
+Der Import-Knopf blieb gesperrt („Erst die ausgeschlossenen Zeilen
+bestätigen"), bis das Häkchen gesetzt war. 205 automatische Prüfungen in acht
+Dateien.
+
 ## 03.09.2026 — Erster echter Prüflauf: drei Befunde behoben
 
 Der erste Prüflauf gegen die echte Datei brach ab. Das ist der Zweck eines

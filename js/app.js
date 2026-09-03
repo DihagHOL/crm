@@ -231,6 +231,7 @@ const APP = (() => {
           ${[["neu", g.neu, "gruen"], ["geändert", g.aktualisiert, "gruen"],
              ["unverändert", g.unveraendert, "grau"],
              ["übersprungen", g.uebersprungen, "grau"],
+             ["ausgeschlossen", g.ausgeschlossen, "grau"],
              ["mit Fehler", g.fehler, g.fehler ? "rot" : "grau"]]
             .map(([t, n, f]) => `<div class="zahl-kachel ${f}">
                  <b>${n}</b><small>${t}</small></div>`).join("")}
@@ -247,6 +248,13 @@ const APP = (() => {
         </div>
         ${g.fehler ? `<p class="err" style="margin-top:14px">Solange Fehler offen sind,
           bleibt der Import gesperrt. Es gibt keinen Weg daran vorbei.</p>` : ""}
+        ${!g.fehler && g.ausgeschlossen ? `<p class="warn" style="margin-top:14px">
+          <b>${g.ausgeschlossen}</b> Zeile(n) werden <b>nicht</b> importiert – siehe unten.
+          Der Rest läuft durch. Eine unbekannte Kundennummer hält den Import
+          nicht mehr auf (Review B3), sie soll aber auch niemandem hinten
+          herunterfallen:</p>
+          <label class="bestaetigung"><input type="checkbox" id="plOk">
+            Ich habe die ausgeschlossenen Zeilen gesehen.</label>` : ""}
       </div>
 
       ${entscheidungsBlock()}
@@ -254,7 +262,8 @@ const APP = (() => {
       <h3 class="section">Je Schritt</h3>
       <div class="card"><div class="tbl-wrap"><table class="tbl">
         <thead><tr><th>Schritt</th><th>Ziel</th><th>Modus</th><th>Zeilen</th>
-          <th>neu</th><th>geändert</th><th>unverändert</th><th>übersprungen</th><th>Fehler</th></tr></thead>
+          <th>neu</th><th>geändert</th><th>unverändert</th><th>übersprungen</th>
+          <th>ausgeschlossen</th><th>Fehler</th></tr></thead>
         <tbody>${b.schritte.map(z => `
           <tr class="${z.inaktiv ? "inaktiv" : z.fehler ? "problem" : ""}">
             <td><b>${z.s.step}</b></td>
@@ -263,9 +272,9 @@ const APP = (() => {
             <td>${z.zeilen || ""}</td>
             <td>${z.neu || ""}</td><td>${z.aktualisiert || ""}</td>
             <td>${z.unveraendert || ""}</td><td>${z.uebersprungen || ""}</td>
-            <td>${z.fehler || ""}</td>
+            <td>${z.ausgeschlossen || ""}</td><td>${z.fehler || ""}</td>
           </tr>
-          ${z.strukturfehler ? `<tr class="problem"><td></td><td colspan="8">
+          ${z.strukturfehler ? `<tr class="problem"><td></td><td colspan="9">
              <span class="hinweis-text">${esc(z.strukturfehler)}</span></td></tr>` : ""}
         `).join("")}</tbody>
       </table></div></div>
@@ -288,13 +297,26 @@ const APP = (() => {
       </div>
 
       ${liste("Fehler", b.fehler, "err")}
+      ${liste("Ausgeschlossen – diese Zeilen werden nicht importiert",
+              b.ausschluesse, "warn")}
       ${liste("Warnungen – der Import läuft trotzdem", b.warnungen, "warn")}`;
 
     const imp = $("plImport");
+    const ok = $("plOk");
     if (imp) {
-      imp.disabled = !!g.fehler;
-      imp.title = g.fehler ? "Erst die Fehler beheben" : "Zum Import wechseln";
-      if (!g.fehler) imp.onclick = () => zeigeSchritt("import");
+      // Fehler sperren. Ausschlüsse sperren nicht, sie verlangen aber eine
+      // bewusste Kenntnisnahme – sonst wäre „N Zeilen fehlen" eine Zahl,
+      // die man wegklickt.
+      const frei = () => !g.fehler && (!g.ausgeschlossen || ok?.checked);
+      const stand = () => {
+        imp.disabled = !frei();
+        imp.title = g.fehler ? "Erst die Fehler beheben"
+          : imp.disabled ? "Erst die ausgeschlossenen Zeilen bestätigen"
+          : "Zum Import wechseln";
+      };
+      stand();
+      if (ok) ok.onchange = stand;
+      imp.onclick = () => { if (frei()) zeigeSchritt("import"); };
     }
     $("plNeu").onclick = renderPruefung;
     $("plExcel").onclick = berichtExportieren;
@@ -433,6 +455,9 @@ const APP = (() => {
         <h4>Das wird passieren</h4>
         <p class="hint">${esc(PRUEFUNG.zusammenfassung(g))} ·
            Quelle <code>${esc(_datei.name)}</code></p>
+        ${g.ausgeschlossen ? `<p class="warn"><b>${g.ausgeschlossen}</b> Zeile(n)
+          werden übersprungen – sie hängen an einem Datensatz, den es im CRM
+          nicht gibt. Sie stehen mit Grund im Protokoll.</p>` : ""}
         ${String(C.umgebung).toUpperCase() === "PROD"
           ? '<p class="err"><b>Produktivsystem.</b> Schreibzugriffe wirken sofort '
             + 'und sind nicht zurücknehmbar.</p>' : ""}
@@ -633,6 +658,9 @@ const APP = (() => {
       Klartext: e.klartext || "", Meldung: e.meldung });
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(
       b.fehler.length ? b.fehler.map(spalten) : [{ Meldung: "keine" }]), "Fehler");
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(
+      b.ausschluesse.length ? b.ausschluesse.map(spalten) : [{ Meldung: "keine" }]),
+      "Ausgeschlossen");
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(
       b.warnungen.length ? b.warnungen.map(spalten) : [{ Meldung: "keine" }]), "Warnungen");
 

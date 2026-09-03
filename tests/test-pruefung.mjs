@@ -122,11 +122,34 @@ console.log("\nLookupOnly – Konten werden nie angelegt");
   const s = schritt({ step: 10, entitySet: "opportunities", mode: "LookupOnly" });
   const r = PRUEFUNG.lauf({ schritte: [s], zuordnungen }, mappe, aufl);
   gleich(r.schritte[0].neu, 0, "LookupOnly legt nichts an");
-  const f = r.fehler.find(x => /Nicht gefunden/.test(x.meldung));
+  const f = r.ausschluesse.find(x => /nicht gefunden/.test(x.meldung));
   pruefe(!!f && f.zeile === 4, "der unbekannte Schlüssel wird gemeldet");
   pruefe(/der Lauf geht weiter/.test(f.meldung),
     "und zwar zeilenweise – eine unbekannte Nummer bricht nicht den ganzen Import ab (Review B3)");
-  gleich(f.wert, 7000, "der gesuchte Wert steht am Fehler – bei „nicht gefunden\" IST er die Information");
+  gleich(f.wert, 7000, "der gesuchte Wert steht dabei – bei „nicht gefunden\" IST er die Information");
+
+  // Der Kern von Review B3: Ein nicht gefundener Datensatz ist ein
+  // Ausschluss, KEIN Fehler. Zählte er als Fehler, bliebe der Import
+  // gesperrt – und eine einzige unbekannte Nummer verhinderte wieder den
+  // ganzen Lauf, genau wie beim Altflow.
+  pruefe(!r.fehler.some(x => /nicht gefunden/.test(x.meldung)),
+    "er steht NICHT in der Fehlerliste");
+  gleich(r.schritte[0].ausgeschlossen, 1, "er zählt als ausgeschlossen");
+}
+{
+  // Die Probe aufs Exempel: eine Mappe, deren einziges Problem eine
+  // unbekannte Nummer ist. Sie darf den Import nicht sperren.
+  const eine = { blaetter: [EXCEL.blattAus("Anfragen", [
+    ["Opp-ID", "Thema", "Umsatz"],
+    [6440, "geht durch",       150000],
+    [7000, "gibt es nicht",    500]
+  ])] };
+  const s = schritt({ step: 10, entitySet: "opportunities", mode: "LookupOnly" });
+  const r = PRUEFUNG.lauf({ schritte: [s], zuordnungen }, eine, aufl);
+  gleich(r.gesamt.ausgeschlossen, 1, "eine Zeile fällt raus");
+  gleich(r.gesamt.unveraendert, 1, "die andere läuft durch");
+  gleich(r.gesamt.fehler, 0,
+    "und der Import bleibt offen – eine unbekannte Nummer verhindert ihn nicht mehr (Review B3)");
 }
 {
   // Eine Spalte mit Quelle, aber ohne Zielfeld, ist Klartext für Meldungen.
@@ -136,8 +159,60 @@ console.log("\nLookupOnly – Konten werden nie angelegt");
     { aktiv: true, sourceColumn: "Thema", targetField: null, targetType: "String" }] };
   const s = schritt({ step: 10, mode: "LookupOnly" });
   const r = PRUEFUNG.lauf({ schritte: [s], zuordnungen: zuMitKlartext }, mappe, aufl);
-  const f = r.fehler.find(x => /Nicht gefunden/.test(x.meldung));
+  const f = r.ausschluesse.find(x => /nicht gefunden/.test(x.meldung));
   gleich(f.klartext, "gibt es noch nicht", "der Klartext der Zeile steht dabei");
+}
+
+console.log("\nAusschluss wirkt in den Folgeschritten");
+{
+  /* Der Kern von Review B3 - und die Probe darauf, dass die Vorschau
+     stimmt: Faellt eine Zeile in Schritt 10 durch, darf der Prueflauf sie
+     in Schritt 30 nicht als "neu" zaehlen. Taete er es, sagte er mehr
+     voraus, als der Import tut, und die Zahl auf dem Schirm waere eine
+     Luege. */
+  const mappe2 = { blaetter: [
+    EXCEL.blattAus("Anfragen", [
+      ["Opp-ID", "Thema", "Umsatz"],
+      [6440, "geht durch",    150000],
+      [7000, "gibt es nicht", 500]
+    ]),
+    EXCEL.blattAus("Positionen", [
+      ["Opp-ID", "Thema", "Umsatz"],
+      [6440, "Position A", 10],
+      [7000, "Position B", 20]
+    ])
+  ] };
+
+  const kind = [
+    { aktiv: true, sourceColumn: "Opp-ID", targetField: "opportunityid",
+      targetType: "Lookup", lookupEntitySet: "opportunities",
+      lookupKeyField: "new_dagextopid", writePolicy: "Always" },
+    { aktiv: true, sourceColumn: "Thema", targetField: "name",
+      targetType: "String", writePolicy: "Always" }
+  ];
+
+  const profil = {
+    schritte: [
+      schritt({ step: 10, mode: "LookupOnly" }),
+      schritt({ step: 30, mode: "Upsert" }),
+      schritt({ step: 40, sourceSheet: "Positionen", mappingKey: "KIND",
+                mode: "ReplaceByParent", parentField: "opportunityid",
+                alternateKey: "" })
+    ],
+    zuordnungen: { ...zuordnungen, KIND: kind }
+  };
+
+  const r = PRUEFUNG.lauf(profil, mappe2, aufl);
+  const [s10, s30, s40] = r.schritte;
+
+  gleich(s10.ausgeschlossen, 1, "Schritt 10 schliesst die unbekannte Zeile aus");
+  gleich(s30.neu, 0, "Schritt 30 legt fuer sie NICHTS an");
+  gleich(s30.uebersprungen, 1, "sondern ueberspringt sie");
+  gleich(s30.aktualisiert, 1, "die andere Zeile laeuft durch");
+  gleich(s40.uebersprungen, 1,
+    "auch im Kindblatt - die Position haengt ueber Opp-ID an der ausgeschlossenen Zeile");
+  gleich(s40.neu, 1, "die Position der guten Zeile entsteht");
+  gleich(r.gesamt.fehler, 0, "und nichts davon sperrt den Import");
 }
 
 console.log("\nMehrfachtreffer entscheiden statt raten");
