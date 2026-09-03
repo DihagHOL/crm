@@ -269,5 +269,40 @@ console.log("\nStrukturfehler");
     "inaktive Schritte werden nicht gerechnet");
 }
 
+console.log("\nSkipOnValues - ausdruecklich ausgelassene Werte");
+{
+  /* Die Sammeladresse dummy@dihag.com soll keinen Kontakt erzeugen
+     (docs/06). Ohne diese Regel legt der Import sie an wie jede andere -
+     und verknuepft fremde Anfragen mit demselben Kontakt. */
+  const m = { blaetter: [EXCEL.blattAus("Anfragen", [
+    ["Opp-ID", "Thema", "Umsatz"],
+    [6440, "normal",  150000],
+    [6441, "sammel",  1]
+  ])] };
+  const s = schritt({ skipOnValues: { Thema: ["SAMMEL"] } });
+  const r = PRUEFUNG.lauf({ schritte: [s], zuordnungen }, m, aufl);
+
+  gleich(r.schritte[0].uebersprungen, 1, "die Zeile mit dem Wert wird ausgelassen");
+  pruefe(r.warnungen.some(w => /SkipOnValues/.test(w.meldung)),
+    "und das steht als Warnung im Bericht, nicht als stiller Verlust");
+  gleich(r.gesamt.fehler, 0, "ein Auslassen ist kein Fehler");
+  pruefe(!r.warnungen.some(w => w.zeile === 2 && /SkipOnValues/.test(w.meldung)),
+    "die andere Zeile bleibt unberuehrt");
+}
+
+console.log("\nNicht scharf geschaltete Modi");
+{
+  /* Der Import ueberspringt SetStage und CloseOpportunity (Win/Loss ist
+     fachlich zurueckgestellt). Zaehlte die Vorschau sie als "neu", kuendigte
+     sie Datensaetze an, die nie entstehen - im echten Lauf waren das drei
+     Dutzend. */
+  const r = PRUEFUNG.lauf(
+    { schritte: [schritt({ step: 50, mode: "SetStage" })], zuordnungen }, mappe, aufl);
+  gleich(r.schritte[0].neu, 0, "SetStage kuendigt nichts an");
+  gleich(r.schritte[0].uebersprungen, 6, "sondern zaehlt alle Zeilen als uebersprungen");
+  pruefe(r.warnungen.some(w => /nicht scharf geschaltet/.test(w.meldung)),
+    "und sagt im Bericht, warum");
+}
+
 console.log(fehler ? `\n${fehler} Prüfung(en) fehlgeschlagen.\n` : "\nAlle Prüfungen bestanden.\n");
 process.exit(fehler ? 1 : 0);

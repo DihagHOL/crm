@@ -1,5 +1,82 @@
 # Session-Log
 
+## 03.09.2026 — Die 79 Fehler: vier Ursachen, alle im Code
+
+Lauf 2 lieferte dieselben Zahlen wie Lauf 1 — **66 angelegt, 0 aktualisiert,
+79 fehlgeschlagen** — aber diesmal stand der Grund auf dem Schirm. Vier
+Ursachen, davon drei in der App und eine echte Folge.
+
+**1. `contacts`: 29 × 0x80060888.** „The key in the request URI is not valid
+for resource 'contact'." Schritt 20 hat im Profil ausdrücklich
+`AlternateKey: null` — `contact` hat keinen. Der Lauf baute bei Modus
+`Upsert` trotzdem immer die Schlüsseladresse `contacts(emailaddress1='…')`.
+Jede Zeile abgewiesen.
+
+Jetzt gilt: bekannter Datensatz → über seine **GUID**; unbekannt mit
+Alternativschlüssel → Schlüsseladresse; unbekannt ohne → **POST**, und der
+Schlüsselwert wandert in den Rumpf, sonst entstünde ein Kontakt ohne
+E-Mail-Adresse. Dazu löst Phase 0 den eigenen Schlüssel eines Schrittes jetzt
+auch **ohne** Alternativschlüssel auf — ob ein Datensatz existiert, hängt
+nicht daran, wie er adressiert wird.
+
+**2. `opportunities`: 29 × 0x80048d19.** „An undeclared property
+'cr570_technicalaudit_lookup' which only has property annotations in the
+payload but no property value was found in the payload." `@odata.bind`
+verlangt den Namen der **Navigationseigenschaft**, nicht den des Attributs.
+Bei `parentaccountid` sind beide gleich, bei selbst angelegten Feldern fast
+nie: das Attribut heisst `cr570_technicalaudit_lookup`, die
+Navigationseigenschaft `cr570_TechnicalAudit_lookup`. Die Zuordnung kommt
+jetzt aus den Metadaten (`ManyToOneRelationships`), wie die Feldliste auch.
+
+**3. Gebunden wird über die GUID.** Nicht über den Alternativschlüssel des
+Ziels. Das war ursprünglich nur der bequeme Weg — es ist aber auch der
+einzige richtige: über `dag_dihag_kdnr=47000004` gebunden sucht Dataverse
+selbst und trifft dieselbe Doppeldeutigkeit wieder, gegen die im Prüflauf
+gerade jemand entschieden hat. Und `unveraendert` wird endlich feststellbar:
+im Bestand steht eine GUID, keine Kundennummer.
+
+**4. Die 21 Positionen** waren keine eigene Ursache, sondern die Folge: ihre
+Verkaufschancen sind in Schritt 30 gescheitert. Mit 1–3 behoben, erledigen
+sie sich mit.
+
+**Dazu, damit die Vorschau wieder stimmt.** Drei Stellen sagten mehr voraus,
+als der Import tut:
+
+- `SetStage` und `CloseOpportunity` sind nicht scharf geschaltet — der Import
+  überspringt sie, die Vorschau zählte sie als „neu".
+- `SkipOnValues` war im Profil, aber nirgends umgesetzt. `dummy@dihag.com`
+  soll keinen Kontakt erzeugen (docs/06); ohne die Regel legt der Import die
+  Sammeladresse an wie jede andere. Neue Spalte in `CRM_ImportProfiles`.
+- `OnLookupFail` stand ebenfalls nur im Profil. `WarnAndSkipField` lässt das
+  Feld jetzt leer, statt an einen Datensatz zu binden, von dem die App
+  **weiss**, dass es ihn nicht gibt. Für `parentcontactid` eingetragen: keine
+  Sammeladresse, keine Verknüpfung.
+
+Dabei war eine Feinheit nötig: Was ein früherer Schritt anlegt, gibt es beim
+Import — die Vorschau darf für einen Kontakt, den Schritt 20 gerade anlegt,
+nicht „nicht gefunden" melden. Prüflauf und Import führen dieselbe Buchhaltung.
+
+**Und ein Wächter.** Der Prüflauf prüft jetzt, ob ein im Profil eingetragener
+Alternativschlüssel in der Umgebung überhaupt existiert und sein Index aktiv
+ist. Er sperrt den Import, wenn nicht — statt 156-mal dieselbe HTTP 400 zu
+sammeln.
+
+**Geprüft.** Gegen die Vorschau mit dem echten Profil, drei Anfragen
+(eine bekannt, eine neu, eine mit Sammeladresse) und drei Positionen:
+
+    Vorschau:  6 neu · 1 geändert · 4 unverändert · 4 übersprungen · 0 mit Fehler
+    Ergebnis:  6 angelegt · 1 aktualisiert · 4 unverändert · 4 übersprungen · 0 fehlgeschlagen
+
+Deckungsgleich. Im Rumpf: `parentaccountid → /accounts(a-1)`,
+`parentcontactid → /contacts(<GUID aus Schritt 20>)`,
+`cr570_TechnicalAudit_lookup@odata.bind`. Die Sammeladresse ist nirgends
+verknüpft. 229 automatische Prüfungen in neun Dateien.
+
+**Vor dem nächsten Lauf nötig:** `setup-crm.ps1` erneut laufen lassen (legt
+die Spalte `SkipOnValues` an) und danach `-ProfilLaden` (schreibt
+`SkipOnValues` und `OnLookupFail` in die Liste). Ohne das bleiben beide
+Regeln wirkungslos.
+
 ## 03.09.2026 — Erster echter Import: 79 Fehler, eine Ursache
 
 Der Lauf gegen `Anfragen 2026-09-03.xlsx` kündigte **156 neu · 18 geändert**

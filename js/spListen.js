@@ -19,7 +19,7 @@ const SPLISTEN = (() => {
   const SPALTEN_PROFIL = [
     "Title", "Step", "EntitySet", "SourceSheet", "MappingKey", "Mode",
     "OnMissingKey", "AlternateKey", "ParentField", "ReplaceScope",
-    "BatchSize", "StopOnError", "SkipIfClosed", "Active"
+    "BatchSize", "StopOnError", "SkipIfClosed", "SkipOnValues", "Active"
   ];
 
   const SPALTEN_MAPPING = [
@@ -72,6 +72,19 @@ const SPLISTEN = (() => {
         batchSize: zahl(r.BatchSize) ?? C.batchSize,
         stopOnError: r.StopOnError === true,
         skipIfClosed: r.SkipIfClosed === true,
+        // Zeilen, die dieser Schritt auslassen soll, als JSON in einer
+        // Spalte: {"Kontaktemail":["dummy@dihag.com"]}. Steht dort Unsinn,
+        // wird das gemeldet statt still ignoriert – ein stillschweigend
+        // verworfenes Skip legt Datensätze an, die niemand wollte.
+        skipOnValues: (() => {
+          if (!r.SkipOnValues) return null;
+          try { return JSON.parse(r.SkipOnValues); }
+          catch (e) {
+            console.warn(`[Profil] SkipOnValues in Schritt ${r.Step} ist kein `
+              + `gültiges JSON und wird übergangen: ${e.message}`);
+            return null;
+          }
+        })(),
         aktiv: r.Active !== false
       }))
       // Die Reihenfolge steht im Profil, nicht im Code. Ohne diese Sortierung

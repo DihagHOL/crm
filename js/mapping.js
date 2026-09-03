@@ -140,16 +140,21 @@ const MAPPING = (() => {
         continue;
       }
 
-      // Schlüsselwerte: nur in die URL, nie in den Rumpf (Review A1)
+      /* Schlüsselwerte gehören in die URL, nicht in den Rumpf (Review A1)
+         – aber nur, wenn über einen Alternativschlüssel adressiert wird.
+         Gibt es keinen, wird über die GUID adressiert oder angelegt, und
+         dann MUSS der Schlüssel in den Rumpf: sonst entsteht ein Kontakt
+         ohne E-Mail-Adresse. `schluesselImRumpf` sagt, welcher Fall
+         vorliegt; es steht am Schritt, nicht an der Zeile.              */
       if (z.istSchluessel) {
-        if (!leer(wert)) {
-          if (KEY_VERBOTEN.test(String(wert)))
-            fehler.push({ zeile: zeile._zeile, spalte: z.sourceColumn, feld: z.targetField,
-              wert, meldung: "Schlüsselwert enthält ein Zeichen, das die Adresse "
-                + "zerbricht (/ < > * % & : \\ ? +) – Review A2" });
-          schluessel[z.targetField] = wert;
-        }
-        continue;
+        if (leer(wert)) continue;
+        if (KEY_VERBOTEN.test(String(wert)))
+          fehler.push({ zeile: zeile._zeile, spalte: z.sourceColumn, feld: z.targetField,
+            wert, meldung: "Schlüsselwert enthält ein Zeichen, das die Adresse "
+              + "zerbricht (/ < > * % & : \\ ? +) – Review A2" });
+        schluessel[z.targetField] = wert;
+        if (!opt.schluesselImRumpf) continue;
+        // sonst weiter unten wie ein gewöhnliches Feld
       }
 
       if (leer(wert) && leer(z.defaultValue)) continue;
@@ -168,12 +173,50 @@ const MAPPING = (() => {
             wert, meldung: "Lookup ohne Zieltabelle in der Zuordnung" });
           continue;
         }
-        const ziel = GUID.test(String(wert))
-          ? `/${z.lookupEntitySet}(${wert})`
+        // Aufgeloeste GUID schlaegt den Alternativschluessel: sie geht auch
+        // ohne einen, sie macht eine getroffene Entscheidung bei
+        // Mehrfachtreffern wirksam (ueber `dag_dihag_kdnr=47000004`
+        // gebunden, sucht Dataverse selbst - und trifft dieselbe
+        // Doppeldeutigkeit wieder), und nur mit ihr laesst sich
+        // "unveraendert" feststellen: im Bestand steht eine GUID, keine
+        // Kundennummer.
+        const gesucht = GUID.test(String(wert)) ? String(wert)
+          : opt.aufloesen?.(z.lookupEntitySet, z.lookupKeyField, wert);
+        const aufgeloest = gesucht || null;
+
+        /* Abgefragt und nicht vorhanden (`null`, nicht `undefined`)? Dann
+           entscheidet `OnLookupFail`. Ohne diese Stelle bindet der Import
+           an einen Datensatz, von dem er WEISS, dass es ihn nicht gibt –
+           bei `dummy@dihag.com` genau das, was das Profil ausschliessen
+           will: keine Sammeladresse, keine Verknüpfung (docs/06). */
+        if (gesucht === null) {
+          if (z.onLookupFail === "WarnAndSkipField") {
+            warnungen.push({ zeile: zeile._zeile, spalte: z.sourceColumn,
+              feld: z.targetField, wert,
+              meldung: `In ${z.lookupEntitySet} nicht gefunden – das Feld bleibt leer, `
+                + "der Rest der Zeile wird geschrieben" });
+            continue;
+          }
+          if (z.onLookupFail === "Fail") {
+            fehler.push({ zeile: zeile._zeile, spalte: z.sourceColumn,
+              feld: z.targetField, wert,
+              meldung: `In ${z.lookupEntitySet} nicht gefunden` });
+            continue;
+          }
+        }
+
+        const ziel = aufgeloest
+          ? `/${z.lookupEntitySet}(${aufgeloest})`
           : `/${z.lookupEntitySet}(${schluesselTeil(z.lookupKeyField || "id", wert)})`;
-        nutzlast[`${z.targetField}@odata.bind`] = ziel;
+
+        // `@odata.bind` verlangt den Namen der NAVIGATIONSEIGENSCHAFT, nicht
+        // den des Attributs. Bei Standardfeldern sind beide gleich, bei
+        // selbst angelegten fast nie.
+        const nav = opt.nav?.[z.targetField] || z.targetField;
+        nutzlast[`${nav}@odata.bind`] = ziel;
         gesetzt.push(z.targetField);
-        if (!bestand || bestand[`_${z.targetField}_value`] !== wert) abweichung = true;
+        const bisher = bestand ? bestand[`_${z.targetField}_value`] : undefined;
+        if (!bestand || bisher !== (aufgeloest ?? wert)) abweichung = true;
         continue;
       }
 

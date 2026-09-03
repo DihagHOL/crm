@@ -91,6 +91,7 @@ const LAUF = (() => {
     }
 
     const zusatzZeile = zusatzZeileFn(k.mappe);
+    const aufgeloest = AUFLOESUNG.aufloeser(k.aufl, k.entscheidungen);
 
     for (const s of k.profil.schritte) {
       if (signal?.aborted) { abgebrochen = true; break; }
@@ -117,6 +118,14 @@ const LAUF = (() => {
       for (const zeile of blatt.zeilen) {
         const sw = key ? TRANSFORMS.anwenden(zeile[key.sourceColumn], key.transform).wert : null;
 
+        const uebergangen = PRUEFUNG.ausgelassen(s, zeile);
+        if (uebergangen) {
+          notiere({ schritt: s.step, entitySet: s.entitySet, zeile: zeile._zeile,
+            aktion: "uebersprungen",
+            meldung: `${uebergangen.spalte} = „${uebergangen.wert}“ steht in SkipOnValues` });
+          continue;
+        }
+
         if (key && leer(sw)) {
           notiere({ schritt: s.step, entitySet: s.entitySet, zeile: zeile._zeile,
             aktion: "uebersprungen", meldung: "Schlüsselwert fehlt" });
@@ -129,7 +138,9 @@ const LAUF = (() => {
           continue;
         }
 
-        const t = key && s.alternateKey
+        // Auch ohne Alternativschlüssel nachschlagen: ob der Datensatz
+        // existiert, hängt nicht daran, wie er adressiert wird.
+        const t = key
           ? AUFLOESUNG.finde(k.aufl, s.entitySet, key.targetField, sw, k.entscheidungen)
           : { records: [], mehrdeutig: false };
         const bestand = t.records[0] || null;
@@ -167,7 +178,10 @@ const LAUF = (() => {
         }
 
         const r = MAPPING.baue(zeile, zu, {
-          modus: bestand ? "update" : "create", bestand, werte: k.werte, zusatzZeile });
+          modus: bestand ? "update" : "create", bestand, werte: k.werte, zusatzZeile,
+          nav: k.aufl.navigation?.get(s.entitySet),
+          aufloesen: aufgeloest,
+          schluesselImRumpf: !s.alternateKey });
 
         if (r.fehler.length) {
           notiere({ schritt: s.step, entitySet: s.entitySet, zeile: zeile._zeile,
@@ -182,7 +196,8 @@ const LAUF = (() => {
         }
 
         const auftrag = { zeile, sw, bestand, nutzlast: r.nutzlast, felder: r.felder,
-                          schritt: s, zuordnungen: zu };
+                          schritt: s, zuordnungen: zu,
+                          eigeneId: bestand ? bestand[AUFLOESUNG.idFeld(k.aufl, s.entitySet)] : null };
 
         // Beim Ersetzen: welcher Elterndatensatz, und was haengt heute dran?
         if (s.mode === "ReplaceByParent" && s.parentField) {
@@ -297,14 +312,34 @@ const LAUF = (() => {
       }
     } else {
       for (const a of stapel) {
-        const adresse = a.bestand || s.mode === "Update" || s.mode === "Upsert"
-          ? MAPPING.schluesselAdresse(s.entitySet, { [schluesselFeld(a)]: a.sw })
-          : null;
-        if (s.mode === "Create" || (!adresse && !a.bestand)) {
-          teile.push({ methode: "POST", url: `${basis}/${s.entitySet}`, koerper: a.nutzlast });
-        } else {
+        /* Wie wird der Datensatz adressiert? Drei Fälle, und der mittlere
+           hat 29 Kontakte gekostet:
+
+           · Bekannt (Phase 0 hat ihn gefunden) → über seine GUID. Die geht
+             immer, auch ohne Alternativschlüssel, und ist eindeutig.
+           · Unbekannt, aber der Schritt hat einen Alternativschlüssel →
+             Upsert über die Schlüsseladresse. Dataverse legt an.
+           · Unbekannt, kein Alternativschlüssel → POST. Der Schlüsselwert
+             steht dann im Rumpf (`schluesselImRumpf`), sonst entstünde ein
+             Kontakt ohne E-Mail-Adresse.
+
+           Vorher wurde bei `Upsert` IMMER die Schlüsseladresse gebaut, auch
+           wenn die Tabelle gar keinen Alternativschlüssel hat. Dataverse
+           antwortet darauf mit 0x80060888 – „The key in the request URI is
+           not valid" – und zwar für jede einzelne Zeile.                */
+        const adresse = a.eigeneId
+          ? `${s.entitySet}(${a.eigeneId})`
+          : (s.alternateKey && (s.mode === "Upsert" || s.mode === "Update"))
+            ? MAPPING.schluesselAdresse(s.entitySet, { [schluesselFeld(a)]: a.sw })
+            : null;
+
+        if (!adresse || s.mode === "Create") {
           const headers = {};
           if (s.mode === "Create") headers["If-None-Match"] = "*";
+          teile.push({ methode: "POST", url: `${basis}/${s.entitySet}`,
+                       koerper: a.nutzlast, headers });
+        } else {
+          const headers = {};
           if (s.mode === "Update") headers["If-Match"] = "*";
           teile.push({ methode: "PATCH", url: `${basis}/${adresse}`,
                        koerper: a.nutzlast, headers });

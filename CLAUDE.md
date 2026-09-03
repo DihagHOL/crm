@@ -275,6 +275,27 @@ Der Modus kommt pro Schritt aus dem Importprofil (`Create` / `Update` /
 danach URL-kodiert. Das ist keine Kosmetik — ein Firmenname wie
 `O'Brien GmbH` als Schlüssel bricht sonst die URL auf.
 
+### Adressierung: GUID, Schlüsseladresse oder POST
+
+Drei Fälle, und der mittlere hat im ersten echten Lauf 29 Kontakte gekostet:
+
+| Lage | Weg |
+|---|---|
+| Phase 0 kennt den Datensatz | `PATCH entitySet(<GUID>)` — geht immer, auch ohne Alternativschlüssel |
+| Unbekannt, Schritt hat einen Alternativschlüssel | `PATCH entitySet(feld=wert)` — Dataverse legt an |
+| Unbekannt, kein Alternativschlüssel | `POST entitySet` — der Schlüsselwert steht dann **im Rumpf** |
+
+Nicht jede Tabelle hat einen Alternativschlüssel. `contact` hat keinen (das
+Profil sagt das auch: `AlternateKey: null`), und wer trotzdem
+`contacts(emailaddress1='…')` adressiert, bekommt für **jede** Zeile
+
+    0x80060888: The key in the request URI is not valid for resource
+    'Microsoft.Dynamics.CRM.contact'.
+
+Der Prüflauf prüft deshalb, ob ein im Profil eingetragener
+Alternativschlüssel in der Umgebung überhaupt existiert und aktiv ist —
+und sperrt den Import, wenn nicht.
+
 ### Lookups binden
 
 Ebenfalls über den Alternate Key des Ziels. Damit entfällt jede
@@ -286,6 +307,30 @@ GUID-Zwischentabelle:
   "parentcustomerid_account@odata.bind": "/accounts(dag_dihag_kdnr=10042)"
 }
 ```
+
+**`@odata.bind` verlangt den Namen der NAVIGATIONSEIGENSCHAFT**, nicht den
+des Attributs. Bei Standardfeldern sind beide gleich (`parentaccountid`), bei
+selbst angelegten fast nie: das Attribut `cr570_technicalaudit_lookup` heisst
+als Navigationseigenschaft `cr570_TechnicalAudit_lookup`. Auf den falschen
+Namen antwortet Dataverse mit
+
+    An undeclared property '…' which only has property annotations in the
+    payload but no property value was found in the payload.
+
+— einer Meldung, die den Grund nicht nennt. Die Zuordnung kommt aus den
+Metadaten (`ManyToOneRelationships`), nicht aus einer Konstante.
+
+**Gebunden wird über die aufgelöste GUID**, nicht über den
+Alternativschlüssel des Ziels, wo Phase 0 sie kennt. Drei Gründe: es geht
+auch dort, wo es keinen Alternativschlüssel gibt; eine getroffene
+Entscheidung bei Mehrfachtreffern wirkt tatsächlich (über
+`dag_dihag_kdnr=47000004` gebunden sucht Dataverse selbst und trifft dieselbe
+Doppeldeutigkeit wieder); und nur so lässt sich `unveraendert` feststellen —
+im Bestand steht eine GUID, keine Kundennummer.
+
+Was ein früherer Schritt anlegt, wird in die Auflösung nachgetragen. Ohne das
+kennt Schritt 40 die Verkaufschance nicht, die Schritt 30 gerade angelegt
+hat, und die Positionen jeder **neuen** Anfrage scheitern.
 
 ### Batch
 

@@ -145,8 +145,10 @@ console.log("\nPositionen zu einer im selben Lauf angelegten Verkaufschance");
   gleich(e.gesamt.angelegt, 3, "eine Chance und zwei Positionen");
 
   const batch40 = gesendet.find(s => s.koerper.includes("/opportunityproducts"));
-  pruefe(batch40.koerper.includes("new_dagextopid=6441"),
-    "die neue Chance wird ueber ihren Alternativschluessel gebunden");
+  pruefe(batch40.koerper.includes(GUID_NEU),
+    "gebunden wird ueber die zurueckgemeldete GUID, nicht ueber den Schluessel");
+  pruefe(batch40.koerper.includes(GUID_ALT),
+    "und die Bestandschance ueber ihre GUID aus Phase 0");
 }
 
 console.log("\nOhne OData-EntityId geht es trotzdem weiter");
@@ -154,12 +156,15 @@ console.log("\nOhne OData-EntityId geht es trotzdem weiter");
   /* Nicht jede Antwort traegt die GUID. Fuer einen eben angelegten
      Elterndatensatz braucht es sie auch nicht: es gibt nichts zu loeschen,
      und gebunden wird ueber den Alternativschluessel. */
-  const { LAUF, EXCEL } = baueLauf(() => antwort([{ status: 204 }, { status: 204 }]));
+  const { LAUF, EXCEL, gesendet } = baueLauf(() => antwort([{ status: 204 }, { status: 204 }]));
   const k = kulisse(EXCEL);
   const e = await LAUF.ausfuehren({ profil: k.profil, mappe: k.mappe, aufl: k.aufl,
                                     werte: {}, entscheidungen: null });
   gleich(e.eintraege.filter(x => x.schritt === 40 && x.aktion === "fehlgeschlagen").length, 0,
     "auch ohne zurueckgemeldete GUID scheitert nichts");
+  const batch40 = gesendet.find(s => s.koerper.includes("/opportunityproducts"));
+  pruefe(batch40.koerper.includes("new_dagextopid=6441"),
+    "dann wird ueber den Alternativschluessel gebunden - der Rueckfallweg");
 }
 
 console.log("\nEin Elterndatensatz, den es wirklich nicht gibt, bleibt ein Fehler");
@@ -176,6 +181,102 @@ console.log("\nEin Elterndatensatz, den es wirklich nicht gibt, bleibt ein Fehle
   gleich(schlecht.length, 1, "genau eine Position scheitert");
   pruefe(/nicht aufgeloest/.test(schlecht[0].meldung || ""),
     "und zwar mit der Begruendung, dass der Elterndatensatz fehlt");
+}
+
+console.log("\nSchritt ohne Alternativschluessel");
+{
+  /* Schritt 20 im echten Profil hat AlternateKey: null - `contact` hat
+     keinen. Trotzdem baute der Lauf bei Modus Upsert immer die
+     Schluesseladresse `contacts(emailaddress1=...)`, und Dataverse wies
+     jede der 29 Zeilen ab:
+
+       0x80060888: The key in the request URI is not valid for resource
+       'Microsoft.Dynamics.CRM.contact'.
+
+     Richtig ist: bekannten Datensatz ueber seine GUID adressieren,
+     unbekannten anlegen - und den Schluesselwert dann in den Rumpf.    */
+  const { LAUF, EXCEL, gesendet } = baueLauf(() => antwort([{ status: 204 }, { status: 204 }]));
+
+  const mappe = { blaetter: [EXCEL.blattAus("Anfragen", [
+    ["Mail", "Vorname"],
+    ["bekannt@kunde.de", "Bea"],
+    ["neu@kunde.de", "Nils"]
+  ])] };
+
+  const KONTAKT = "cccccccc-0000-0000-0000-000000000003";
+  const profil = {
+    name: "T",
+    zuordnungen: { C: [
+      { aktiv: true, sourceColumn: "Mail", targetField: "emailaddress1",
+        targetType: "String", istSchluessel: true, writePolicy: "Always" },
+      { aktiv: true, sourceColumn: "Vorname", targetField: "firstname",
+        targetType: "String", writePolicy: "Always" }
+    ] },
+    schritte: [{ step: 20, entitySet: "contacts", sourceSheet: "Anfragen",
+                 mappingKey: "C", mode: "Upsert", alternateKey: null, aktiv: true }]
+  };
+  const aufl = {
+    treffer: new Map([["contacts|emailaddress1", new Map([
+      ["bekannt@kunde.de", [{ emailaddress1: "bekannt@kunde.de", contactid: KONTAKT,
+                              firstname: "alt" }]]
+    ])]]),
+    abfragen: [], idFelder: new Map([["contacts", "contactid"]]),
+    navigation: new Map(), schluesselFehlt: new Map()
+  };
+
+  const e = await LAUF.ausfuehren({ profil, mappe, aufl, werte: {}, entscheidungen: null });
+  const b = gesendet[0].koerper;
+
+  pruefe(!b.includes("contacts(emailaddress1="),
+    "es wird NICHT ueber einen Alternativschluessel adressiert, den es nicht gibt");
+  pruefe(b.includes(`PATCH https://test.crm4.dynamics.com/api/data/v9.2/contacts(${KONTAKT})`),
+    "der bekannte Kontakt wird ueber seine GUID aktualisiert");
+  pruefe(/POST \S+\/contacts HTTP/.test(b),
+    "der unbekannte wird angelegt");
+  const Q = String.fromCharCode(34);
+  pruefe(b.includes(Q + "emailaddress1" + Q + ":" + Q + "neu@kunde.de" + Q),
+    "und traegt seine E-Mail-Adresse im Rumpf - ohne sie entstuende ein Kontakt ohne Schluessel");
+  gleich(e.gesamt.angelegt, 1, "einer angelegt");
+  gleich(e.gesamt.aktualisiert, 1, "einer aktualisiert");
+}
+
+console.log("\nNavigationsname beim Binden");
+{
+  /* `@odata.bind` verlangt den Namen der Navigationseigenschaft. Der
+     Attributname fuehrt zu „An undeclared property ... which only has
+     property annotations in the payload" - 29-mal im echten Lauf. */
+  const { LAUF, EXCEL, gesendet } = baueLauf(() => antwort([{ status: 204 }]));
+  const mappe = { blaetter: [EXCEL.blattAus("Anfragen", [
+    ["Opp-ID", "Pruefung"],
+    [6440, "TP-1"]
+  ])] };
+  const profil = {
+    name: "T",
+    zuordnungen: { O: [
+      { aktiv: true, sourceColumn: "Opp-ID", targetField: "new_dagextopid",
+        targetType: "Int", istSchluessel: true, writePolicy: "Always" },
+      { aktiv: true, sourceColumn: "Pruefung", targetField: "cr570_technicalaudit_lookup",
+        targetType: "Lookup", lookupEntitySet: "cr570_technicalaudit_lookups",
+        lookupKeyField: "cr570_name", writePolicy: "Always" }
+    ] },
+    schritte: [{ step: 30, entitySet: "opportunities", sourceSheet: "Anfragen",
+                 mappingKey: "O", mode: "Upsert", alternateKey: "new_dagextopid",
+                 aktiv: true }]
+  };
+  const aufl = {
+    treffer: new Map(), abfragen: [],
+    idFelder: new Map([["opportunities", "opportunityid"]]),
+    navigation: new Map([["opportunities",
+      { cr570_technicalaudit_lookup: "cr570_TechnicalAudit_lookup" }]]),
+    schluesselFehlt: new Map()
+  };
+
+  await LAUF.ausfuehren({ profil, mappe, aufl, werte: {}, entscheidungen: null });
+  const b = gesendet[0].koerper;
+  pruefe(b.includes("cr570_TechnicalAudit_lookup@odata.bind"),
+    "gebunden wird ueber den Navigationsnamen");
+  pruefe(!b.includes("cr570_technicalaudit_lookup@odata.bind"),
+    "und nicht ueber den Attributnamen - genau daran scheiterten 29 Zeilen");
 }
 
 console.log(fehler ? `\n${fehler} Pruefung(en) fehlgeschlagen.` : "\nAlle Pruefungen bestanden.");

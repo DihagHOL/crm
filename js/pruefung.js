@@ -81,8 +81,35 @@ const PRUEFUNG = (() => {
    * @param {Map} [entscheidungen] Antworten auf Mehrfachtreffer
    * @returns {{schritte:object[], gesamt:object, fehler:object[], warnungen:object[]}}
    */
+  /** Steht ein Wert der Zeile in `SkipOnValues` des Schrittes?
+   *  @returns {{spalte:string, wert:*}|null} */
+  function ausgelassen(s, zeile) {
+    const regeln = s.skipOnValues;
+    if (!regeln) return null;
+    for (const [spalte, werte] of Object.entries(regeln)) {
+      const v = zeile[spalte];
+      if (leer(v)) continue;
+      const liste = Array.isArray(werte) ? werte : [werte];
+      if (liste.some(x => String(x).toLowerCase() === String(v).toLowerCase()))
+        return { spalte, wert: v };
+    }
+    return null;
+  }
+
   function lauf(profil, mappe, aufl, werte = {}, entscheidungen = null) {
     const zusatzZeile = zusatzZeileFn(mappe);
+    /* Was ein früherer Schritt anlegt, gibt es beim Import – auch wenn
+       Phase 0 es noch nicht kennt. Die Vorschau muss das mitrechnen, sonst
+       meldet sie „Kontakt nicht gefunden, Feld bleibt leer" für genau die
+       Kontakte, die Schritt 20 gerade anlegt. Der Importlauf tut dasselbe
+       (`merkeNeu` in lauf.js) – nur mit der echten GUID. */
+    const entstehen = new Set();
+    const aufgeloestRoh = AUFLOESUNG.aufloeser(aufl, entscheidungen);
+    const aufgeloest = (es, feld, wert) => {
+      const r = aufgeloestRoh(es, feld, wert);
+      if (r === null && entstehen.has(`${es}|${feld}|${wert}`)) return undefined;
+      return r;
+    };
     const aus = ausschluss(profil);
     const schritte = [], alleFehler = [], alleWarnungen = [], alleAusschluesse = [];
     const gesamt = { neu: 0, aktualisiert: 0, unveraendert: 0, uebersprungen: 0,
@@ -103,6 +130,34 @@ const PRUEFUNG = (() => {
       }
       z.zeilen = blatt.anzahl;
 
+      // Ein Alternativschlüssel, den es in Dataverse nicht gibt, macht
+      // jede Zeile dieses Schrittes unschreibbar. Einmal melden, nicht
+      // hundertmal – und den Import sperren.
+      const skFehler = s.alternateKey
+        && aufl.schluesselFehlt?.get(`${s.entitySet}|${s.alternateKey}`);
+      if (skFehler) {
+        z.strukturfehler = skFehler;
+        z.fehler++;
+        alleFehler.push({ schritt: s.step, feld: s.alternateKey, meldung: skFehler });
+        schritte.push(z);
+        for (const k of Object.keys(gesamt)) gesamt[k] += z[k];
+        continue;
+      }
+
+      /* Nicht scharf geschaltete Modi zählen als übersprungen, nicht als
+         „neu". Der Import überspringt sie (Win/Loss ist fachlich
+         zurückgestellt) – die Vorschau muss dasselbe sagen, sonst kündigt
+         sie Datensätze an, die nie entstehen. */
+      if (s.mode === "SetStage" || s.mode === "CloseOpportunity") {
+        z.uebersprungen = blatt.anzahl;
+        alleWarnungen.push({ schritt: s.step,
+          meldung: `Modus ${s.mode} ist nicht scharf geschaltet – `
+            + `${blatt.anzahl} Zeile(n) werden übersprungen (fachlich offen).` });
+        schritte.push(z);
+        for (const k of Object.keys(gesamt)) gesamt[k] += z[k];
+        continue;
+      }
+
       const key = zu.find(k => k.aktiv && k.istSchluessel && k.targetField);
 
       /* Spalten mit Quelle, aber ohne Zielfeld, sind Klartext für Meldungen
@@ -121,6 +176,17 @@ const PRUEFUNG = (() => {
         // entsteht hier nichts – und die Vorschau darf sie auch nicht als
         // „neu" zählen, sonst sagt sie mehr voraus, als der Import tut.
         if (aus.ist(s.sourceSheet, zeile)) { z.uebersprungen++; continue; }
+
+        // Ausdrücklich ausgelassene Werte (Sammeladresse dummy@dihag.com).
+        // Kein Fehler und keine Warnung, sondern eine Regel aus dem Profil.
+        const uebergangen = ausgelassen(s, zeile);
+        if (uebergangen) {
+          z.uebersprungen++;
+          alleWarnungen.push({ schritt: s.step, zeile: zeile._zeile,
+            spalte: uebergangen.spalte, wert: uebergangen.wert,
+            meldung: "Steht in SkipOnValues – dieser Schritt lässt die Zeile aus" });
+          continue;
+        }
 
         // Schlüsselwert
         let schluesselWert = null;
@@ -142,9 +208,10 @@ const PRUEFUNG = (() => {
           }
         }
 
-        // Bestand nachschlagen
+        // Bestand nachschlagen – auch ohne Alternativschlüssel. Ob der
+        // Datensatz existiert, hängt nicht daran, wie er adressiert wird.
         let bestand = null, mehrdeutig = false, entschieden = false;
-        if (key && s.alternateKey) {
+        if (key) {
           const t = AUFLOESUNG.finde(aufl, s.entitySet, key.targetField,
                                      schluesselWert, entscheidungen);
           mehrdeutig = t.mehrdeutig;
@@ -200,14 +267,20 @@ const PRUEFUNG = (() => {
 
         const r = MAPPING.baue(zeile, zu, {
           modus: bestand ? "update" : "create",
-          bestand, werte, zusatzZeile
+          bestand, werte, zusatzZeile,
+          nav: aufl.navigation?.get(s.entitySet),
+          aufloesen: aufgeloest,
+          schluesselImRumpf: !s.alternateKey
         });
 
         for (const f of r.fehler) alleFehler.push({ schritt: s.step, ...f });
         for (const w of r.warnungen) alleWarnungen.push({ schritt: s.step, ...w });
 
         if (r.fehler.length) { z.fehler++; continue; }
-        if (!bestand) z.neu++;
+        if (!bestand) {
+          z.neu++;
+          if (key) entstehen.add(`${s.entitySet}|${key.targetField}|${schluesselWert}`);
+        }
         else if (r.unveraendert) z.unveraendert++;
         else z.aktualisiert++;
       }
@@ -230,5 +303,5 @@ const PRUEFUNG = (() => {
     + (g.ausgeschlossen ? ` · ${g.ausgeschlossen} ausgeschlossen` : "")
     + (g.fehler ? ` · ${g.fehler} mit Fehler` : "");
 
-  return { lauf, zusammenfassung, ausschluss };
+  return { lauf, zusammenfassung, ausschluss, ausgelassen };
 })();

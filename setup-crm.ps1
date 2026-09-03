@@ -1,4 +1,4 @@
-# ══════════════════════════════════════════════════════════════════════
+﻿# ══════════════════════════════════════════════════════════════════════
 #  Einrichtung „DIHAG CRM Schnittstelle"
 #    1. Quellbibliothek um die vier Statusspalten ergaenzen
 #    2. Konfigurationssite pruefen (optional anlegen)
@@ -266,6 +266,11 @@ if ($ksite) {
         @{ name = "SecondPassFields"; kind = "text"    },
         @{ name = "StopOnError";      kind = "boolean" },
         @{ name = "SkipIfClosed";     kind = "boolean" },   # Review A3
+        # Zeilen, die dieser Schritt auslassen soll - als JSON, etwa
+        # {"Kontaktemail":["dummy@dihag.com"]}. Die Sammeladresse soll
+        # keinen Kontakt erzeugen (docs/06); ohne diese Spalte legt der
+        # Import sie an wie jede andere.
+        @{ name = "SkipOnValues";     kind = "note"    },
         @{ name = "Active";           kind = "boolean" }
     )
 
@@ -423,6 +428,11 @@ if ($ProfilLaden -and $ksite) {
                     $v = W $s $k
                     if ($null -ne $v) { $body[$k] = $v }
                 }
+                # SkipOnValues ist ein Objekt und wandert als JSON-Text in
+                # die Liste - eine Spalte je Quellspalte waere nicht
+                # pflegbar.
+                $sov = W $s "SkipOnValues"
+                if ($null -ne $sov) { $body["SkipOnValues"] = ($sov | ConvertTo-Json -Compress -Depth 5) }
                 Gx -Method POST -Uri "$g/sites/$sid/lists/CRM_ImportProfiles/items" `
                    -Body @{ fields = $body } | Out-Null
                 Info "    Schritt $($s.Step) $($s.EntitySet) ($($s.Mode))"

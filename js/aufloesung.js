@@ -125,6 +125,8 @@ const AUFLOESUNG = (() => {
     const treffer = new Map();      // "entitySet|feld" → Map(wert → records)
     const abfragen = [];
     const idFelder = new Map();     // entitySet → Primärschlüsselfeld
+    const navigation = new Map();   // entitySet → { Attribut: Navigationsname }
+    const schluesselFehlt = new Map();  // "entitySet|feld" → Meldung oder null
 
     /** Eine Abfrage vorbereiten, ausführen und protokollieren. */
     async function frage(entitySet, feld, werte, select, zweck) {
@@ -162,9 +164,51 @@ const AUFLOESUNG = (() => {
       const blatt = EXCEL.blatt(mappe, s.sourceSheet);
       if (!blatt) continue;
 
+      // Navigationsnamen der Verweisfelder. Ohne sie schreibt der Import
+      // `cr570_technicalaudit_lookup@odata.bind` statt
+      // `cr570_TechnicalAudit_lookup@odata.bind` – und Dataverse lehnt die
+      // ganze Zeile ab.
+      if (!navigation.has(s.entitySet) && zu.some(z => z.aktiv && z.targetType === "Lookup")) {
+        try { navigation.set(s.entitySet, await DV.navigation(s.entitySet)); }
+        catch { navigation.set(s.entitySet, {}); }
+      }
+
+      /* Steht im Profil ein Alternativschlüssel, den es in dieser Umgebung
+         nicht gibt, scheitert JEDE Zeile dieses Schrittes – mit
+         „0x80060888: The key in the request URI is not valid". Das gehört
+         in den Prüflauf, nicht in 156 Fehlerzeilen.
+
+         Nur für schreibende Schritte: `LookupOnly` benutzt das Feld zum
+         Suchen, und dafür braucht es keinen Schlüssel.                  */
+      const schreibt = ["Upsert", "Update", "Create", "CreateIfMissing"].includes(s.mode);
+      const sk = `${s.entitySet}|${s.alternateKey}`;
+      if (s.alternateKey && schreibt && !schluesselFehlt.has(sk)) {
+        let meldung = null;
+        try {
+          const keys = await DV.schluessel(s.entitySet);
+          const t = keys.find(x => x.felder.length === 1 && x.felder[0] === s.alternateKey);
+          if (!t)
+            meldung = `In ${s.entitySet} gibt es keinen Alternativschlüssel auf `
+              + `${s.alternateKey}. Ohne ihn lässt sich kein Upsert über diesen `
+              + "Wert adressieren – anzulegen nach docs/03.";
+          else if (t.status && t.status !== "Active")
+            meldung = `Der Alternativschlüssel ${t.name} auf ${s.alternateKey} steht `
+              + `auf „${t.status}“, nicht „Active“. Solange der Index nicht aktiv ist, `
+              + "weist Dataverse jede Adressierung darüber ab.";
+        } catch { /* Metadaten nicht lesbar – dann eben keine Aussage */ }
+        schluesselFehlt.set(sk, meldung);
+      }
+
       // 1. Der eigene Schlüssel – existiert der Datensatz schon?
+      //
+      //    Auch OHNE Alternativschlüssel. Der Schlüssel entscheidet, wie
+      //    geschrieben wird (Adresse oder POST); ob der Datensatz schon da
+      //    ist, ist eine ganz andere Frage – und ohne Antwort darauf legt
+      //    Schritt 20 jeden Kontakt neu an. Genau das war der Grund für
+      //    „The key in the request URI is not valid": adressiert wurde über
+      //    einen Alternativschlüssel, den es an `contact` nicht gibt.
       const key = zu.find(z => z.aktiv && z.istSchluessel && z.targetField);
-      if (key && s.alternateKey) {
+      if (key) {
         const werte = blatt.zeilen.map(r => {
           const t = TRANSFORMS.anwenden(r[key.sourceColumn], key.transform);
           return t.wert;
@@ -208,7 +252,7 @@ const AUFLOESUNG = (() => {
       }
     }
 
-    return { treffer, abfragen, idFelder };
+    return { treffer, abfragen, idFelder, navigation, schluesselFehlt };
   }
 
   /** Primärschlüsselfeld einer Tabelle, aus der Auflösung.
@@ -261,6 +305,33 @@ const AUFLOESUNG = (() => {
     return offen;
   }
 
+  /** Auflöser für `MAPPING.baue`: die GUID zu einem Verweiswert.
+   *
+   *  Gebunden wird darüber statt über den Alternativschlüssel des Ziels.
+   *  Drei Gründe:
+   *  · Es geht auch dort, wo es keinen Alternativschlüssel gibt.
+   *  · Eine getroffene Entscheidung bei Mehrfachtreffern wirkt tatsächlich.
+   *    Über `dag_dihag_kdnr=47000004` gebunden, sucht Dataverse selbst –
+   *    und trifft dieselbe Doppeldeutigkeit wieder.
+   *  · Der Vergleich auf „unverändert" wird richtig: im Bestand steht eine
+   *    GUID, nicht die Kundennummer.
+   *
+   *  `null` heisst: nicht aufgelöst – dann bleibt der bisherige Weg. */
+  function aufloeser(aufl, entscheidungen) {
+    return (entitySet, feld, wert) => {
+      if (!entitySet || !feld || leer(wert)) return undefined;
+      // `undefined` heisst „keine Auskunft" – dazu wurde nichts abgefragt,
+      // also bleibt der bisherige Weg über den Alternativschlüssel.
+      // `null` heisst „abgefragt und nicht vorhanden" – das ist eine
+      // Aussage, und darauf darf `OnLookupFail` reagieren.
+      if (!aufl.treffer?.get(schluessel(entitySet, feld))) return undefined;
+      const t = finde(aufl, entitySet, feld, wert, entscheidungen);
+      if (t.mehrdeutig) return undefined;      // offene Entscheidung: nicht raten
+      if (!t.records.length) return null;
+      return t.records[0][idFeld(aufl, entitySet)] || null;
+    };
+  }
+
   return { fuer, finde, sammle, vergleichsFelder, offeneEntscheidungen, idFeld,
-           filterFeld, BLOCK };
+           filterFeld, aufloeser, BLOCK };
 })();

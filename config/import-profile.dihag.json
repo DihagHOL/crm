@@ -232,7 +232,9 @@
         "LookupKeyField": "emailaddress1",
         "Transform": "trim|lower|empty2null",
         "SortOrder": 60,
-        "WritePolicy": "OnCreateOnly"
+        "WritePolicy": "OnCreateOnly",
+        "OnLookupFail": "WarnAndSkipField",
+        "$onLookupFail": "dummy@dihag.com erzeugt keinen Kontakt (Schritt 20, SkipOnValues). Dann darf Schritt 30 auch nicht darauf verweisen - das Feld bleibt leer, die Zeile wird geschrieben (docs/06)."
       },
       {
         "SourceColumn": null,

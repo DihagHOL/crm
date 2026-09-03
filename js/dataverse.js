@@ -197,6 +197,60 @@ const DV = (() => {
     return out;
   }
 
+  /** Navigationsnamen der Verweisfelder.
+   *
+   *  `@odata.bind` verlangt den Namen der NAVIGATIONSEIGENSCHAFT, nicht den
+   *  des Attributs. Bei den Standardfeldern sind beide gleich
+   *  (`parentaccountid`), bei selbst angelegten fast nie:
+   *  `cr570_technicalaudit_lookup` heisst als Navigationseigenschaft
+   *  `cr570_TechnicalAudit_lookup`. Dataverse antwortet auf den falschen
+   *  Namen mit
+   *
+   *    An undeclared property '…' which only has property annotations in
+   *    the payload but no property value was found in the payload.
+   *
+   *  – einer Meldung, die den eigentlichen Grund nicht nennt.
+   *
+   *  @returns {Promise<Object<string,string>>} Attributname → Navigationsname */
+  async function navigation(entitySet) {
+    const k = "nav|" + entitySet;
+    if (_meta[k]) return _meta[k];
+    const ln = await logischerName(entitySet);
+    const d = await call(`/EntityDefinitions(LogicalName='${ln}')/ManyToOneRelationships`
+      + `?$select=ReferencingAttribute,ReferencingEntityNavigationPropertyName`);
+    const out = {};
+    for (const r of d?.value || [])
+      if (r.ReferencingAttribute && r.ReferencingEntityNavigationPropertyName)
+        out[r.ReferencingAttribute] = r.ReferencingEntityNavigationPropertyName;
+    _meta[k] = out;
+    metaSichern();
+    return out;
+  }
+
+  /** Alternativschlüssel einer Tabelle.
+   *
+   *  Steht im Profil ein Schlüssel, den es in der Umgebung nicht gibt,
+   *  scheitert JEDER Schreibzugriff dieses Schrittes – mit
+   *  `0x80060888: The key in the request URI is not valid`. Das soll der
+   *  Prüflauf sagen, nicht der Import.
+   *
+   *  @returns {Promise<Array<{name:string, felder:string[], status:string}>>} */
+  async function schluessel(entitySet) {
+    const k = "keys|" + entitySet;
+    if (_meta[k]) return _meta[k];
+    const ln = await logischerName(entitySet);
+    const d = await call(`/EntityDefinitions(LogicalName='${ln}')/Keys`
+      + `?$select=LogicalName,KeyAttributes,EntityKeyIndexStatus`);
+    const out = (d?.value || []).map(r => ({
+      name: r.LogicalName,
+      felder: r.KeyAttributes || [],
+      status: r.EntityKeyIndexStatus || ""
+    }));
+    _meta[k] = out;
+    metaSichern();
+    return out;
+  }
+
   const metaLeeren = () => {
     for (const k of Object.keys(_meta)) delete _meta[k];
     try { sessionStorage.removeItem(META_KEY); } catch {}
@@ -223,5 +277,5 @@ const DV = (() => {
   }
 
   return { call, alle, dubletten, whoAmI, basis, pruefeKonfiguration,
-           felder, logischerName, typPasst, metaLeeren };
+           felder, logischerName, navigation, schluessel, typPasst, metaLeeren };
 })();
