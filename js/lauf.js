@@ -72,6 +72,18 @@ const LAUF = (() => {
     const neuAngelegt = new Set();     // "entitySet|feld|wert"
     const istNeu = (es, feld, wert) => neuAngelegt.has(`${es}|${feld}|${wert}`);
 
+    /** Auflöser mit Gedächtnis: Was ein früherer Schritt in DIESEM Lauf
+     *  angelegt hat, gilt als vorhanden – auch wenn Phase 0 es nicht kennt
+     *  und die Antwort keine GUID mitgebracht hat. Sonst liesse der Import
+     *  das Verweisfeld leer, weil er den Datensatz nicht findet, den er
+     *  eine Sekunde vorher selbst angelegt hat. Der Prüflauf rechnet
+     *  genauso (`entstehen` in pruefung.js). */
+    const aufgeloest = (es, feld, wert) => {
+      const r = aufgeloestRoh(es, feld, wert);
+      if (r === null && istNeu(es, feld, String(wert))) return undefined;
+      return r;
+    };
+
     function merkeNeu(s, key, n) {
       if (n.aktion !== "angelegt" || !key?.targetField || leer(n.schluessel)) return;
       const wert = String(n.schluessel);
@@ -91,7 +103,7 @@ const LAUF = (() => {
     }
 
     const zusatzZeile = zusatzZeileFn(k.mappe);
-    const aufgeloest = AUFLOESUNG.aufloeser(k.aufl, k.entscheidungen);
+    const aufgeloestRoh = AUFLOESUNG.aufloeser(k.aufl, k.entscheidungen);
 
     for (const s of k.profil.schritte) {
       if (signal?.aborted) { abgebrochen = true; break; }

@@ -139,5 +139,31 @@ console.log("\nBlockbildung");
     "leere Werte fliegen raus, doppelte werden einmal gefragt");
 }
 
+console.log("\nMehrere Kinddatensaetze sind keine Doppeldeutigkeit");
+{
+  /* Eine Verkaufschance hat mehrere Positionen - das ist der Normalfall,
+     keine Frage. Im echten Lauf standen elf "Entscheidungen" im Bericht,
+     die niemand treffen kann und die nichts bewirken: beim Ersetzen werden
+     ohnehin alle geloescht. */
+  const { A } = baueAufloesung(() => []);
+  const aufl = {
+    treffer: new Map([
+      ["accounts|dag_dihag_kdnr", new Map([["47000004", [{ accountid: "a" }, { accountid: "b" }]]])],
+      ["opportunityproducts|_opportunityid_value", new Map([[G1, [{ x: 1 }, { x: 2 }, { x: 3 }]]])]
+    ]),
+    idFelder: new Map(),
+    abfragen: [
+      { entitySet: "accounts", feld: "dag_dihag_kdnr",
+        mehrdeutig: [{ wert: "47000004", anzahl: 2 }] },
+      { entitySet: "opportunityproducts", feld: "_opportunityid_value",
+        mehrfachErwartet: true, mehrdeutig: [{ wert: G1, anzahl: 3 }] }
+    ]
+  };
+  const offen = A.offeneEntscheidungen(aufl, new Map());
+  gleich(offen.length, 1, "nur eine offene Entscheidung");
+  gleich(offen[0].entitySet, "accounts",
+    "und zwar die doppelte Kundennummer - die Positionen nicht");
+}
+
 console.log(fehler ? `\n${fehler} Prüfung(en) fehlgeschlagen.` : "\nAlle Prüfungen bestanden.");
 process.exit(fehler ? 1 : 0);

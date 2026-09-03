@@ -1,5 +1,59 @@
 # Session-Log
 
+## 03.09.2026 — Lauf 3: Kontakte laufen, ein Verweis kostet noch die Zeile
+
+Aus dem Vollprotokoll von Lauf `afda0508`:
+
+    angelegt 75 · aktualisiert 0 · unverändert 47 · übersprungen 37 · fehlgeschlagen 50
+
+    10 accounts             29 unverändert ·  1 übersprungen
+    20 contacts              9 angelegt    · 18 unverändert · 3 übersprungen
+    30 opportunities        29 FEHLER      ·  1 übersprungen
+    40 opportunityproducts  66 angelegt    · 21 FEHLER · 2 übersprungen
+    50 salesprocesses       30 übersprungen (nicht scharf geschaltet)
+
+**Schritt 20 ist geheilt** — die 29 Kontaktfehler sind weg, stattdessen 9
+angelegt und 18 unverändert. Die Adressierung über die GUID trägt.
+
+**Schritt 30 scheitert an einer anderen Stelle mit derselben Meldung.** Nicht
+mehr die Verkaufschance selbst, sondern ihr Verweisziel:
+
+    0x80060888: The key in the request URI is not valid for resource
+    'Microsoft.Dynamics.CRM.cr570_technicalaudit_lookup'.
+
+Gebunden wurde auf `/cr570_technicalaudit_lookups(cr570_newcolumn='…')`, weil
+Phase 0 den Datensatz nicht gefunden hat und der Rückfallweg über den
+Alternativschlüssel des Ziels lief. Diese Tabelle hat keinen — die wenigsten
+haben einen. Ein Verweis, den es nicht gibt, kostete damit **29 vollständige
+Verkaufschancen** samt aller ihrer Positionen.
+
+Jetzt kostet er ein Feld: Ist ein Verweisziel abgefragt und nicht vorhanden,
+bleibt das Feld leer und der Rest der Zeile wird geschrieben — mit einer
+Warnung, die Wert und Zieltabelle nennt. **Pflichtverweise bleiben ein
+Fehler**; eine Zeile ohne Pflichtverweis ist keine halbe Zeile, sondern eine
+falsche.
+
+Wichtig ist der Unterschied zwischen *nicht abgefragt* und *abgefragt und
+nicht da*. Nur im zweiten Fall greift die Regel — sonst würde ein Feld
+stillschweigend fallen, nur weil Phase 0 nichts darüber weiss. Der Auflöser
+unterscheidet das jetzt (`undefined` gegen `null`).
+
+**Elf Entscheidungen, die keine waren.** Im Bericht standen elf
+Mehrfachtreffer auf `opportunityproducts|_opportunityid_value`. Eine
+Verkaufschance hat mehrere Positionen — das ist der Normalfall, keine Frage,
+und beim Ersetzen werden ohnehin alle gelöscht. Abfragen, bei denen mehrere
+Treffer je Wert erwartet sind, tauchen nicht mehr unter „Offene
+Entscheidungen" auf.
+
+**Offen, fachlich:** Warum findet Phase 0 die Prüfungen und Produktgruppen
+nicht? Entweder stehen in `cr570_technicalaudit_lookups` andere Werte als in
+der Spalte *Technische Prüfung*, oder `cr570_newcolumn` ist nicht das
+richtige Schlüsselfeld. Der Prüflauf zeigt es in der Auflösungstabelle unter
+„nicht gefunden". Bis das geklärt ist, laufen die Chancen durch und die
+beiden Felder bleiben leer.
+
+237 automatische Prüfungen in neun Dateien.
+
 ## 03.09.2026 — Die 79 Fehler: vier Ursachen, alle im Code
 
 Lauf 2 lieferte dieselben Zahlen wie Lauf 1 — **66 angelegt, 0 aktualisiert,

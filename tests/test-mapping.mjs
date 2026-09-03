@@ -149,5 +149,50 @@ console.log("\nValidierung");
   gleich(r.nutzlast, {}, "inaktive und KLAEREN-Zuordnungen werden übergangen");
 }
 
+console.log("\nVerweis, den es nicht gibt");
+{
+  /* Im echten Lauf kostete ein unaufloesbarer Verweis 29 vollstaendige
+     Verkaufschancen: gebunden wurde auf /tabelle(feld='wert'), und weil die
+     Zieltabelle keinen Alternativschluessel auf dem Feld hat, wies Dataverse
+     die ganze Zeile ab (0x80060888). Jetzt kostet er ein Feld. */
+  const zu = [
+    { aktiv: true, sourceColumn: "Pruefung", targetField: "cr570_technicalaudit_lookup",
+      targetType: "Lookup", lookupEntitySet: "cr570_technicalaudit_lookups",
+      lookupKeyField: "cr570_newcolumn", writePolicy: "Always" },
+    { aktiv: true, sourceColumn: "Thema", targetField: "name",
+      targetType: "String", writePolicy: "Always" }
+  ];
+  const zeile = { _zeile: 2, Pruefung: "gibt es nicht", Thema: "Anfrage" };
+
+  // aufloesen liefert null = abgefragt und nicht vorhanden
+  const r = MAPPING.baue(zeile, zu, { modus: "create", aufloesen: () => null });
+  pruefe(!Object.keys(r.nutzlast).some(k => k.includes("odata.bind")),
+    "das Verweisfeld wird nicht gebunden");
+  gleich(r.nutzlast.name, "Anfrage", "der Rest der Zeile wird geschrieben");
+  gleich(r.fehler.length, 0, "und das ist kein Fehler");
+  pruefe(r.warnungen.some(w => /gibt es in cr570_technicalaudit_lookups nicht/.test(w.meldung)),
+    "sondern eine Warnung, die den Wert und die Tabelle nennt");
+}
+{
+  // Pflichtfeld bleibt ein Fehler - eine Zeile ohne Pflichtverweis ist
+  // keine halbe Zeile, sondern eine falsche.
+  const zu = [{ aktiv: true, sourceColumn: "Firma", targetField: "parentaccountid",
+    targetType: "Lookup", lookupEntitySet: "accounts", lookupKeyField: "dag_dihag_kdnr",
+    pflicht: true, writePolicy: "Always" }];
+  const r = MAPPING.baue({ _zeile: 2, Firma: "99999999" }, zu,
+    { modus: "create", aufloesen: () => null });
+  gleich(r.fehler.length, 1, "Pflichtverweis ohne Ziel ist ein Fehler");
+}
+{
+  // Keine Auskunft (undefined) heisst: nicht abgefragt. Dann bleibt der
+  // bisherige Weg ueber den Alternativschluessel.
+  const zu = [{ aktiv: true, sourceColumn: "Firma", targetField: "parentaccountid",
+    targetType: "Lookup", lookupEntitySet: "accounts", lookupKeyField: "dag_dihag_kdnr",
+    writePolicy: "Always" }];
+  const r = MAPPING.baue({ _zeile: 2, Firma: "10042" }, zu, { modus: "create" });
+  gleich(r.nutzlast["parentaccountid@odata.bind"], "/accounts(dag_dihag_kdnr=10042)",
+    "ohne Auskunft wird ueber den Alternativschluessel gebunden");
+}
+
 console.log(fehler ? `\n${fehler} Prüfung(en) fehlgeschlagen.\n` : "\nAlle Prüfungen bestanden.\n");
 process.exit(fehler ? 1 : 0);

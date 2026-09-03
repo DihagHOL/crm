@@ -129,7 +129,10 @@ const AUFLOESUNG = (() => {
     const schluesselFehlt = new Map();  // "entitySet|feld" → Meldung oder null
 
     /** Eine Abfrage vorbereiten, ausführen und protokollieren. */
-    async function frage(entitySet, feld, werte, select, zweck) {
+    /** @param {boolean} [mehrfachErwartet] Mehrere Treffer je Wert sind
+     *    hier normal, keine Doppeldeutigkeit – etwa die Positionen einer
+     *    Verkaufschance. */
+    async function frage(entitySet, feld, werte, select, zweck, mehrfachErwartet) {
       const gesucht = new Set(werte.filter(v => !leer(v)).map(v => String(v)));
       if (!gesucht.size) return;
       const k = schluessel(entitySet, feld);
@@ -150,7 +153,7 @@ const AUFLOESUNG = (() => {
       treffer.set(k, m);
       const mehrdeutig = [...m.entries()].filter(([, v]) => v.length > 1);
       abfragen.push({
-        entitySet, feld, zweck,
+        entitySet, feld, zweck, mehrfachErwartet: !!mehrfachErwartet,
         gesucht: gesucht.size,
         gefunden: m.size,
         fehlend: [...gesucht].filter(v => !m.has(v)),
@@ -246,7 +249,8 @@ const AUFLOESUNG = (() => {
               .map(r => r[elternId]).filter(Boolean);
             await frage(s.entitySet, `_${s.parentField}_value`, guids,
               `_${s.parentField}_value`,
-              `Schritt ${s.step}: vorhandene Kinddatensätze zum Ersetzen`);
+              `Schritt ${s.step}: vorhandene Kinddatensätze zum Ersetzen`,
+              /* mehrfachErwartet */ true);
           }
         }
       }
@@ -293,6 +297,11 @@ const AUFLOESUNG = (() => {
   function offeneEntscheidungen(aufl, entscheidungen) {
     const offen = [];
     for (const a of aufl.abfragen) {
+      // Eine Verkaufschance hat mehrere Positionen – das ist keine Frage,
+      // die jemand beantworten müsste, sondern der Normalfall. Vorher
+      // standen hier elf Entscheidungen, die niemand treffen kann und die
+      // nichts bewirken: gelöscht werden beim Ersetzen ohnehin alle.
+      if (a.mehrfachErwartet) continue;
       for (const m of a.mehrdeutig) {
         const k = `${a.entitySet}|${a.feld}|${m.wert}`;
         if (entscheidungen?.get(k)) continue;

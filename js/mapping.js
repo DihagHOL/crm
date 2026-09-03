@@ -190,6 +190,27 @@ const MAPPING = (() => {
            bei `dummy@dihag.com` genau das, was das Profil ausschliessen
            will: keine Sammeladresse, keine Verknüpfung (docs/06). */
         if (gesucht === null) {
+          /* Abgefragt und nicht vorhanden – und ohne ausdrückliche Regel
+             gilt: Feld leer lassen, Zeile schreiben.
+
+             Der bisherige Rückfallweg band auf `/tabelle(feld='wert')`.
+             Hat die Zieltabelle keinen Alternativschlüssel auf diesem Feld
+             – und die wenigsten haben einen –, weist Dataverse die GANZE
+             Zeile ab:
+
+               0x80060888: The key in the request URI is not valid for
+               resource 'Microsoft.Dynamics.CRM.cr570_technicalaudit_lookup'.
+
+             Ein Verweis, den es nicht gibt, kostete so 29 vollständige
+             Verkaufschancen. Jetzt kostet er ein Feld, und der Bericht sagt
+             welches. Pflichtfelder bleiben ein Fehler.                   */
+          if (!z.onLookupFail && !z.pflicht) {
+            warnungen.push({ zeile: zeile._zeile, spalte: z.sourceColumn,
+              feld: z.targetField, wert,
+              meldung: `„${wert}" gibt es in ${z.lookupEntitySet} nicht – das Feld `
+                + "bleibt leer, der Rest der Zeile wird geschrieben" });
+            continue;
+          }
           if (z.onLookupFail === "WarnAndSkipField") {
             warnungen.push({ zeile: zeile._zeile, spalte: z.sourceColumn,
               feld: z.targetField, wert,
@@ -197,7 +218,7 @@ const MAPPING = (() => {
                 + "der Rest der Zeile wird geschrieben" });
             continue;
           }
-          if (z.onLookupFail === "Fail") {
+          if (z.onLookupFail === "Fail" || z.pflicht) {
             fehler.push({ zeile: zeile._zeile, spalte: z.sourceColumn,
               feld: z.targetField, wert,
               meldung: `In ${z.lookupEntitySet} nicht gefunden` });
