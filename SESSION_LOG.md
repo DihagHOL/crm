@@ -1,5 +1,48 @@
 # Session-Log
 
+## 03.09.2026 — Selbst nachgesehen: beide Verweise geklärt
+
+Über die Azure CLI ging ein Dataverse-Token (`az account get-access-token
+--resource https://dihag-test.crm4.dynamics.com`) — für Graph taugt sie
+nicht, für Dataverse schon. `WhoAmI` antwortet, und damit liessen sich die
+offenen Fragen selbst beantworten statt sie weiterzureichen.
+
+**Technische Prüfung.** An der Verkaufschance gibt es beides:
+
+    dag_technicalaudit            Boolean, beschreibbar, auf 1552 von 4740 Chancen true
+    cr570_technicalaudit_lookup   Lookup auf eine Tabelle mit genau ZWEI Datensätzen: Yes und No
+
+Die Quellspalte führt `Ja`. Der Verweis passte nie — die Tabelle heisst
+**englisch**. Beide Felder sind gepflegt und stimmen in 1598 von 1616 Fällen
+überein; **18 widersprechen sich**. Das ist der Preis dafür, dieselbe Aussage
+zweimal zu führen und von Hand zu pflegen.
+
+Der Import schreibt jetzt beide aus derselben Quelle und beendet damit das
+Auseinanderlaufen: `dag_technicalaudit` über `bool:ja/nein`, der Verweis über
+eine Wertzuordnung `Ja → Yes`.
+
+**Produktgruppe.** `cr570_newcolumn` **ist** das Namensfeld — meine Vermutung
+mit `cr570_name` war falsch. Die 39 Datensätze heissen aber
+`50 Energieerzeugung`, mit vorangestellter Nummer, und die Quelle liefert nur
+`Energieerzeugung`. Die Wertzuordnung stellt die Nummer voran; sie ist aus
+der Tabelle **erzeugt**, nicht geraten.
+
+**Der Fund nebenbei: Wertzuordnungen haben nie funktioniert.** `MAPPING`
+sucht sie unter `mappingKey|feld`, `spListen` lieferte die Zuordnungen aber
+ohne `mappingKey` — `undefined|feld` trifft nie. Die ganze Liste
+`CRM_ValueMappings` war wirkungslos, und `-ProfilLaden` hat sie ausserdem gar
+nicht befüllt. Beides behoben.
+
+Dazu: Ein Wert **ohne** Zuordnung verwirft nicht mehr die Zeile, sondern
+warnt und wird unverändert versucht. Eine neue Produktgruppe ist kein Grund,
+die Verkaufschance nicht zu schreiben — und ob der Wert etwas trifft,
+entscheidet ohnehin gleich darauf der Verweis.
+
+263 automatische Prüfungen in neun Dateien.
+
+**Nötig vor dem nächsten Lauf:** `setup-crm.ps1 -ProfilLaden`. Es schreibt
+die geänderten Zuordnungen und erstmals die 43 Wertzuordnungen.
+
 ## 03.09.2026 — Feldsuche in der Zuordnung
 
 Die offene Frage lautet: Gibt es an der Verkaufschance ein Ja/Nein-Feld für

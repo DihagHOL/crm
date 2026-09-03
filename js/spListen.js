@@ -97,6 +97,11 @@ const SPLISTEN = (() => {
       const k = r.MappingKey;
       if (!k) continue;
       (zuordnungen[k] ||= []).push({
+        // Ohne den Schlüssel des Zuordnungssatzes findet `MAPPING.baue`
+        // die Wertzuordnungen nicht: es sucht unter `mappingKey|feld`, und
+        // `undefined|feld` trifft nie. Die ganze Liste CRM_ValueMappings
+        // war damit wirkungslos.
+        mappingKey: k,
         titel: r.Title || "",
         sourceColumn: r.SourceColumn || "",
         sourceSheet: r.SourceSheet || "",

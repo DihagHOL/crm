@@ -473,6 +473,34 @@ if ($ProfilLaden -and $ksite) {
                 Info "    $mk`: $n Zuordnung(en)"
             }
 
+            # ── Wertzuordnungen ─────────────────────────────────────────
+            # Quellwert -> Zielwert, bevor der Verweis aufgeloest wird.
+            # "Energieerzeugung" -> "50 Energieerzeugung", "Ja" -> "Yes".
+            # Ohne diesen Block blieb CRM_ValueMappings leer, obwohl das
+            # Profil die Zuordnungen mitbringt.
+            if ($prof.valueMappings) {
+                Zeilen-Loeschen "CRM_ValueMappings" "MappingKey" $keys
+                $w = 0
+                foreach ($mk in $prof.valueMappings.PSObject.Properties.Name) {
+                    foreach ($tf in $prof.valueMappings.$mk.PSObject.Properties.Name) {
+                        foreach ($sv in $prof.valueMappings.$mk.$tf.PSObject.Properties.Name) {
+                            Gx -Method POST -Uri "$g/sites/$sid/lists/CRM_ValueMappings/items" `
+                               -Body @{ fields = @{
+                                   Title       = "$mk / $tf"
+                                   MappingKey  = $mk
+                                   TargetField = $tf
+                                   SourceValue = $sv
+                                   TargetValue = "$($prof.valueMappings.$mk.$tf.$sv)"
+                                   IsDefault   = $false
+                                   Active      = $true
+                               } } | Out-Null
+                            $w++
+                        }
+                    }
+                }
+                Info "    CRM_ValueMappings: $w Wertzuordnung(en)"
+            }
+
             Write-Host ""
             Warn "  Inaktiv geschrieben, weil das Zielfeld fachlich offen ist:"
             foreach ($mk in $keys) {

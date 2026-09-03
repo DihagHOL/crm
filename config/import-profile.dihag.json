@@ -249,25 +249,39 @@
       },
       {
         "SourceColumn": "Technische Prüfung",
+        "TargetField": "dag_technicalaudit",
+        "TargetType": "Boolean",
+        "LookupEntitySet": null,
+        "LookupKeyField": null,
+        "Active": true,
+        "SortOrder": 80,
+        "$hinweis": "Geprueft am 03.09.2026 gegen die Umgebung: dag_technicalaudit ist ein Boolean an der Verkaufschance, beschreibbar, auf 1552 von 4740 Chancen true. Die Quellspalte fuehrt Ja/Nein - das passt, ein Verweis passte nicht.",
+        "OnLookupFail": null,
+        "Transform": "trim|bool:ja/nein"
+      },
+      {
+        "SourceColumn": "Technische Prüfung",
         "TargetField": "cr570_technicalaudit_lookup",
         "TargetType": "Lookup",
         "LookupEntitySet": "cr570_technicalaudit_lookups",
-        "LookupKeyField": "cr570_newcolumn|cr570_name",
+        "LookupKeyField": "cr570_newcolumn",
+        "OnLookupFail": "WarnAndSkipField",
+        "Transform": "trim",
         "Active": true,
-        "SortOrder": 80,
-        "$hinweis": "B7 geklaert: Zielfeld ist cr570_technicalaudit_lookup an der Verkaufschance, Schluessel cr570_newcolumn. Der Altflow fragt die Tabelle ab und verwirft das Ergebnis - hier landet es im CRM.",
-        "$offen": "Die Quellspalte fuehrt JA/NEIN (Lauf vom 03.09.2026, Zeile 2: \"Ja\"). Ein Ja/Nein-Wert gegen eine Verweistabelle passt nicht zusammen: entweder haelt die Tabelle Datensaetze \"Ja\" und \"Nein\", oder das Zielfeld ist falsch und gemeint ist ein Ja/Nein-Feld an der Verkaufschance. Zu klaeren. Bis dahin wird ueber beide Felder gesucht und das Feld bleibt leer, wenn nichts passt."
+        "SortOrder": 81,
+        "$hinweis": "Die Umgebung fuehrt dieselbe Aussage zweimal: als Boolean dag_technicalaudit und als Verweis auf eine Tabelle mit genau zwei Datensaetzen, Yes und No. Beide sind gepflegt (1616 Chancen mit Verweis) und stimmen in 1598 Faellen ueberein - 18 widersprechen sich. Der Import schreibt beide aus derselben Quelle und beendet damit das Auseinanderlaufen. Die Tabelle heisst Yes/No auf Englisch, die Quelle Ja/Nein - dafuer die Wertzuordnung."
       },
       {
         "SourceColumn": "Produktgruppe",
         "TargetField": "cr570_productlinie_lookup",
         "TargetType": "Lookup",
         "LookupEntitySet": "cr570_productline_lookups",
-        "LookupKeyField": "cr570_newcolumn|cr570_name",
+        "LookupKeyField": "cr570_newcolumn",
         "Active": true,
         "SortOrder": 90,
-        "$hinweis": "B7 geklaert. FALLE: Das Feld heisst cr570_productLINIE_lookup, die Zieltabelle aber cr570_productLINE_lookup. Nicht angleichen.",
-        "$offen": "Die Quellspalte fuehrt Klartext (\"Energieerzeugung\"). cr570_newcolumn findet nichts - vermutlich ist es nicht das Namensfeld der Tabelle. Deshalb zusaetzlich cr570_name. Die Gegenprobe im Pruefbericht (\"Was steht dort?\") zeigt, welches Feld die Werte traegt."
+        "$hinweis": "Geprueft am 03.09.2026: cr570_newcolumn ist das Namensfeld, die 39 Datensaetze heissen aber '50 Energieerzeugung' - mit vorangestellter Nummer. Die Quelle liefert nur den Namen. Die Wertzuordnung unten stellt die Nummer voran; sie ist aus der Tabelle erzeugt, nicht geraten.",
+        "OnLookupFail": "WarnAndSkipField",
+        "Transform": "trim"
       },
       {
         "SourceColumn": "Mitarbeiter",
@@ -455,7 +469,57 @@
       }
     ]
   },
-  "valueMappings": {},
+  "valueMappings": {
+    "OPPORTUNITY_STD": {
+      "cr570_technicalaudit_lookup": {
+        "Ja": "Yes",
+        "ja": "Yes",
+        "Nein": "No",
+        "nein": "No"
+      },
+      "cr570_productlinie_lookup": {
+        "Druck- u. Papiermaschinen": "10 Druck- u. Papiermaschinen",
+        "Holzbearbeitungsmaschinen": "11 Holzbearbeitungsmaschinen",
+        "Textilmaschinen": "12 Textilmaschinen",
+        "Verpackungsmaschinen": "13 Verpackungsmaschinen",
+        "Kunstoff- u. Wachsspritzmaschinen": "14 Kunstoff- u. Wachsspritzmaschinen",
+        "Nahrungs- /genussgütermaschinen": "15 Nahrungs- /genussgütermaschinen",
+        "Gießereimaschinen": "16 Gießereimaschinen",
+        "Armaturen": "17 Armaturen",
+        "Feinmechanik": "18 Feinmechanik",
+        "Werkzeuge- u. Maschinenteile": "19 Werkzeuge- u. Maschinenteile",
+        "Fahrzeugindustrie": "20 Fahrzeugindustrie",
+        "Sonderfahrzeugbau": "21 Sonderfahrzeugbau",
+        "Schienenfahrzeuge": "22 Schienenfahrzeuge",
+        "Luftfahrzeuge": "23 Luftfahrzeuge",
+        "Schiffbau": "24 Schiffbau",
+        "Baufahrzeuge": "25 Baufahrzeuge",
+        "Landmaschinen": "26 Landmaschinen",
+        "Fahrzeugtechnik": "27 Fahrzeugtechnik ",
+        "Minen Übertage": "30 Minen Übertage",
+        "Erdölförderung": "32 Erdölförderung",
+        "Hydraulik": "40 Hydraulik",
+        "Pumpenbau": "41 Pumpenbau",
+        "Hebezeuge": "42 Hebezeuge",
+        "Energieerzeugung": "50 Energieerzeugung",
+        "Windkraft": "51 Windkraft",
+        "Energieverteilung": "52 Energieverteilung",
+        "Hochöfen und Stahlwerke": "60 Hochöfen und Stahlwerke",
+        "Walzen": "61 Walzen",
+        "Kokillen": "62 Kokillen",
+        "Panzerkomponenten": "70 Panzerkomponenten",
+        "sonstige wehrtechnische Produkte": "71 sonstige wehrtechnische Produkte",
+        "Haushaltsgeräte": "90 Haushaltsgeräte",
+        "Medizintechnik": "91 Medizintechnik",
+        "Diverses": "92 Diverses",
+        "Platten": "93 Platten",
+        "Getriebe": "94 Getriebe",
+        "Umformtechnik": "95 Umformtechnik",
+        "Anlagentechnik": "96 Anlagentechnik",
+        "Oberbau": "97 Oberbau"
+      }
+    }
+  },
   "validations": {
     "normalizeHeaders": true,
     "$normalizeHeaders": "Kopfzeilen trimmen. \"Breite (mm) \" und \"Höhe (mm) \" haben Leerzeichen am Ende (Datenanalyse 2). Der Pruefbericht meldet, welche Kopfzeilen normalisiert wurden.",
@@ -548,5 +612,6 @@
     "timeout_or_5xx_on_POST": "NICHT blind wiederholen. Erst nachfragen ob der Datensatz existiert. Die Anfrage kann angekommen sein und nur die Antwort verloren gegangen (Review B5).",
     "400_403_404": "nicht wiederholen - Datenfehler, direkt in den Fehlerbericht"
   },
-  "$keyValuesNotInBody": "Schluesselwerte gehoeren NUR in die URL, nie zusaetzlich in den Rumpf. Microsoft dokumentiert das ausdruecklich. Felder mit IsKey=true werden beim Aufbau der Nutzlast ausgelassen (Review A1)."
+  "$keyValuesNotInBody": "Schluesselwerte gehoeren NUR in die URL, nie zusaetzlich in den Rumpf. Microsoft dokumentiert das ausdruecklich. Felder mit IsKey=true werden beim Aufbau der Nutzlast ausgelassen (Review A1).",
+  "$valueMappings": "Quellwert -> Zielwert, bevor der Verweis aufgeloest wird. Die Produktgruppen sind am 03.09.2026 aus cr570_productline_lookups erzeugt worden: Schluessel ist der Name ohne die fuehrende Nummer."
 }

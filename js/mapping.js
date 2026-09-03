@@ -129,8 +129,14 @@ const MAPPING = (() => {
         const abbild = wz.werte[wert];
         if (abbild !== undefined) wert = abbild;
         else if (wz.standard !== null && wz.standard !== undefined) wert = wz.standard;
-        else fehler.push({ zeile: zeile._zeile, spalte: z.sourceColumn, feld: z.targetField,
-          wert, meldung: `Wert „${wert}" ist in ${CRM_CONFIG.listen.werte} nicht zugeordnet` });
+        // Kein Abbild und kein Standard: den Wert lassen, wie er ist, und
+        // warnen. Ein harter Fehler hiesse, dass eine einzige neue
+        // Produktgruppe die ganze Zeile verwirft – dabei entscheidet gleich
+        // darauf ohnehin der Verweis, ob der Wert etwas trifft.
+        else warnungen.push({ zeile: zeile._zeile, spalte: z.sourceColumn,
+          feld: z.targetField, wert,
+          meldung: `Wert „${wert}" ist in ${CRM_CONFIG.listen.werte} nicht zugeordnet `
+            + "– er wird unverändert verwendet" });
       }
 
       // Pflicht

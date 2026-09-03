@@ -194,5 +194,38 @@ console.log("\nVerweis, den es nicht gibt");
     "ohne Auskunft wird ueber den Alternativschluessel gebunden");
 }
 
+console.log("\nWertzuordnungen");
+{
+  /* Die Liste CRM_ValueMappings war wirkungslos: MAPPING sucht unter
+     `mappingKey|feld`, spListen lieferte die Zuordnungen aber ohne
+     mappingKey - "undefined|feld" trifft nie. */
+  const zu = [{ aktiv: true, mappingKey: "OPP", sourceColumn: "Gruppe",
+    targetField: "cr570_productlinie_lookup", targetType: "Lookup",
+    lookupEntitySet: "cr570_productline_lookups", lookupKeyField: "cr570_newcolumn",
+    writePolicy: "Always" }];
+  const werte = { "OPP|cr570_productlinie_lookup": {
+    werte: { "Energieerzeugung": "50 Energieerzeugung" }, standard: null } };
+
+  const r = MAPPING.baue({ _zeile: 2, Gruppe: "Energieerzeugung" }, zu, { modus: "create", werte });
+  gleich(r.nutzlast["cr570_productlinie_lookup@odata.bind"],
+    "/cr570_productline_lookups(cr570_newcolumn='50%20Energieerzeugung')",
+    "der Quellwert wird vor dem Aufloesen uebersetzt - und die Adresse kodiert");
+}
+{
+  // Ein unbekannter Wert verwirft nicht die Zeile: eine neue Produktgruppe
+  // ist kein Grund, die Verkaufschance nicht zu schreiben.
+  const zu = [{ aktiv: true, mappingKey: "OPP", sourceColumn: "Gruppe",
+    targetField: "cr570_productlinie_lookup", targetType: "Lookup",
+    lookupEntitySet: "cr570_productline_lookups", lookupKeyField: "cr570_newcolumn",
+    writePolicy: "Always" }];
+  const werte = { "OPP|cr570_productlinie_lookup": { werte: { "A": "1 A" }, standard: null } };
+  const r = MAPPING.baue({ _zeile: 2, Gruppe: "Ganz neu" }, zu, { modus: "create", werte });
+  gleich(r.fehler.length, 0, "kein Fehler");
+  pruefe(r.warnungen.some(w => /nicht zugeordnet/.test(w.meldung)),
+    "sondern eine Warnung");
+  pruefe(String(r.nutzlast["cr570_productlinie_lookup@odata.bind"]).includes("Ganz%20neu"),
+    "und der Wert wird unveraendert versucht");
+}
+
 console.log(fehler ? `\n${fehler} Prüfung(en) fehlgeschlagen.\n` : "\nAlle Prüfungen bestanden.\n");
 process.exit(fehler ? 1 : 0);
