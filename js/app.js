@@ -229,6 +229,20 @@ const APP = (() => {
    *    Ohne das wird ein vorhandener Bericht nur wieder angezeigt: Ein
    *    Reiterwechsel darf keine sechs Dataverse-Abfragen auslösen, und die
    *    getroffenen Entscheidungen sollen stehen bleiben. */
+  /** Welche Felder ändern sich – nicht nur wie viele Zeilen.
+   *
+   *  „29 geändert" beantwortet die Frage nicht, die beim Besitzer zählt:
+   *  holt der Import die Chance vom Verbindungsbenutzer des Altflows
+   *  zurück, oder nimmt er sie einem Vertriebler weg? In der Zeilenbilanz
+   *  sieht beides gleich aus. */
+  function feldBilanz(z) {
+    const e = Object.entries(z.felder || {}).sort((a, b) => b[1] - a[1]);
+    if (!e.length) return "";
+    return `<tr><td></td><td colspan="10" class="feldbilanz">
+      <span class="leer">ändert sich:</span>
+      ${e.map(([f, n]) => `<code>${esc(f)}</code> ${n}`).join(" · ")}</td></tr>`;
+  }
+
   async function renderPruefung(neu = false) {
     if (!neu && _bericht && _bericht.datei === _datei) { renderBericht(); return; }
     if (!_mappe) {
@@ -335,6 +349,7 @@ const APP = (() => {
           </tr>
           ${z.strukturfehler ? `<tr class="problem"><td></td><td colspan="10">
              <span class="hinweis-text">${esc(z.strukturfehler)}</span></td></tr>` : ""}
+          ${feldBilanz(z)}
         `).join("")}</tbody>
       </table></div></div>
 

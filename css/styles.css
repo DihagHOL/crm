@@ -465,3 +465,8 @@ table.tbl td.zahl-zelle { text-align: right; white-space: nowrap; font-variant-n
 .doku pre code { background: none; border: 0; padding: 0; }
 .doku strong { color: var(--navy); }
 .doku table.tbl { font-size: 13.5px; }
+
+/* Feldbilanz unter einer Schrittzeile im Pruefbericht: WAS sich aendert,
+   nicht nur wie viele Zeilen. Beim Besitzer ist genau das die Frage. */
+td.feldbilanz { font-size: 12.5px; padding-top: 2px; padding-bottom: 8px; }
+td.feldbilanz code { margin-left: 2px; }

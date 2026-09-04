@@ -1,5 +1,49 @@
 # Session-Log
 
+## 04.09.2026 — Der Besitzer blieb Admin, weil er nie geschrieben wurde
+
+Lauf `de9e4ad0`: 87 Positionen angelegt, 0 Fehler — und **null
+`ownerid`-Warnungen**. Die Auflösung findet den Systembenutzer seit der
+Korrektur an der Vergleichsform also. Trotzdem stand überall Admin.
+
+Der Grund stand in der Schreibregel: `Mitarbeiter → ownerid` war
+`OnCreateOnly`, und Schritt 30 meldete **29 unverändert, 0 neu**. Die
+Chancen existieren alle bereits, das Feld wurde nie geschrieben.
+
+Gemessen, wem die 29 Chancen gehören:
+
+| | |
+|---|---|
+| **Admin DIHAG** — Verbindungsbenutzer des Altflows | **24** |
+| Marcus Kirsch, Andreas Kluge, Michael Mitto | 5 |
+
+Im Gesamtbestand (4740 Chancen) taucht Admin dagegen gar nicht auf: dort
+sind die Besitzer gepflegt. Die 24 sind also kein gewachsener Zustand,
+sondern das Erbe eines Flows, der als sein eigener Verbindungsbenutzer lief.
+
+`OnCreateOnly` schützte damit eine Hypothese — „ein Vertriebler könnte die
+Chance übernommen haben" — und ließ die Realität für immer stehen. Die
+übrigen Geschäftsfelder (`estimatedvalue`, `closeprobability`,
+`estimatedclosedate`) stehen ohnehin auf `Always`: die Datei entscheidet.
+`ownerid` war die Ausnahme, ohne dass das je begründet worden wäre.
+
+**Jetzt `Always` — und der Schutz aus B2 bleibt, als Sichtbarkeit statt als
+Verbot.** `MAPPING.baue()` gibt `geaendert` zurück, die Felder, die vom
+Bestand abweichen; der Prüfbericht zählt sie je Schritt und zeigt sie unter
+der Schrittzeile:
+
+    30  opportunities  Upsert  30  0  24  5  1
+        ändert sich: ownerid 24 · estimatedvalue 3
+
+Wer dort eine Umverteilung sieht, die er nicht will, bricht ab — statt sie
+in „29 geändert" nicht zu sehen.
+
+**Nebenbefund aus demselben Protokoll.** 29 Warnungen `pricelevelid` — also
+*jede* Chance. Die Preisliste aus der Datei existiert nicht; das ist keine
+Randerscheinung, sondern die Regel. Und 11 Warnungen `activestageid`, das
+sind die Statuswerte, die keine Stufe sind (Win/Loss) plus abweichende
+Schreibweisen.
+
 ## 03.09.2026 — Die Anleitung ins Werkzeug, und eine stille Entscheidung
 
 **Reiter „Anleitung".** Die Prozessbeschreibung lag nur als

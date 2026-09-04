@@ -116,6 +116,12 @@ const MAPPING = (() => {
     const modus = opt.modus || "create";
     const bestand = opt.bestand || null;
     const nutzlast = {}, schluessel = {}, fehler = [], warnungen = [];
+    /* Welche Felder weichen vom Bestand ab? „29 geändert" sagt nicht, WAS
+       sich ändert – und beim Besitzer ist genau das die Frage: nimmt der
+       Import einem Vertriebler die Chance weg oder holt er sie vom
+       Verbindungsbenutzer des Altflows zurück? Beides sieht in der
+       Zeilenbilanz gleich aus. */
+    const geaendert = [];
     const gesetzt = [];
     let abweichung = false;
 
@@ -279,7 +285,10 @@ const MAPPING = (() => {
         nutzlast[`${nav}@odata.bind`] = ziel;
         gesetzt.push(z.targetField);
         const bisher = bestand ? bestand[`_${z.targetField}_value`] : undefined;
-        if (!bestand || bisher !== (aufgeloest ?? wert)) abweichung = true;
+        if (!bestand || bisher !== (aufgeloest ?? wert)) {
+          abweichung = true;
+          if (bestand) geaendert.push(z.targetField);
+        }
         continue;
       }
 
@@ -300,10 +309,13 @@ const MAPPING = (() => {
 
       nutzlast[z.targetField] = wert;
       gesetzt.push(z.targetField);
-      if (!bestand || bestand[z.targetField] !== wert) abweichung = true;
+      if (!bestand || bestand[z.targetField] !== wert) {
+        abweichung = true;
+        if (bestand) geaendert.push(z.targetField);
+      }
     }
 
-    return { nutzlast, schluessel, felder: gesetzt, fehler, warnungen,
+    return { nutzlast, schluessel, felder: gesetzt, geaendert, fehler, warnungen,
              unveraendert: !!bestand && !abweichung };
   }
 

@@ -348,6 +348,44 @@ console.log("\nErsetzen: die Vorschau sagt, was weggeraeumt wird");
     "der Satz sagt es auch");
 }
 
+console.log("\nWelche Felder sich aendern, nicht nur wie viele Zeilen");
+{
+  /* "29 geaendert" beantwortet die Frage nicht, die beim Besitzer zaehlt:
+     holt der Import die Chance vom Verbindungsbenutzer des Altflows zurueck,
+     oder nimmt er sie einem Vertriebler weg? In der Zeilenbilanz sieht
+     beides gleich aus. Der Pruefbericht nennt deshalb die Felder. */
+  const m = { blaetter: [EXCEL.blattAus("Anfragen", [
+    ["Opp-ID", "Thema"],
+    [6440, "neuer Name"],       // name aendert sich
+    [6441, "alt"]               // unveraendert
+  ])] };
+  const zuo = { OPP: [
+    { aktiv: true, mappingKey: "OPP", sourceColumn: "Opp-ID",
+      targetField: "new_dagextopid", targetType: "Int", istSchluessel: true,
+      writePolicy: "Always" },
+    { aktiv: true, mappingKey: "OPP", sourceColumn: "Thema",
+      targetField: "name", targetType: "String", writePolicy: "Always" }
+  ] };
+  const a = { treffer: new Map([["opportunities|new_dagextopid", new Map([
+        ["6440", [{ new_dagextopid: 6440, name: "alt", statecode: 0,
+                    opportunityid: "aaaaaaaa-0000-0000-0000-000000000001" }]],
+        ["6441", [{ new_dagextopid: 6441, name: "alt", statecode: 0,
+                    opportunityid: "aaaaaaaa-0000-0000-0000-000000000002" }]]
+      ])]]),
+      abfragen: [], idFelder: new Map([["opportunities", "opportunityid"]]) };
+
+  const r = PRUEFUNG.lauf({ schritte: [schritt({ step: 30, mode: "Upsert",
+    entitySet: "opportunities", sourceSheet: "Anfragen", mappingKey: "OPP" })],
+    zuordnungen: zuo }, m, a);
+
+  gleich(r.schritte[0].aktualisiert, 1, "eine Zeile aendert sich");
+  gleich(r.schritte[0].unveraendert, 1, "die andere nicht");
+  gleich(r.schritte[0].felder, { name: 1 },
+    "und der Bericht nennt das Feld, nicht nur die Zahl");
+  pruefe(!("felder" in r.gesamt),
+    "die Feldbilanz wird nicht in die Gesamtsumme addiert");
+}
+
 console.log("\nUneindeutige Spalten aus einem anderen Blatt");
 {
   /* Status, Preisliste und Mitarbeiter stehen im Blatt Positionen, gehoeren

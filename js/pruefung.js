@@ -283,7 +283,7 @@ const PRUEFUNG = (() => {
 
           if (r.fehler.length) z.fehler++;
           else if (r.unveraendert) z.unveraendert++;
-          else z.aktualisiert++;
+          else { z.aktualisiert++; for (const f of r.geaendert) z.felder[f] = (z.felder[f] || 0) + 1; }
         }
 
         schritte.push(z);
@@ -413,7 +413,7 @@ const PRUEFUNG = (() => {
           if (key) entstehen.add(`${s.entitySet}|${key.targetField}|${schluesselWert}`);
         }
         else if (r.unveraendert) z.unveraendert++;
-        else z.aktualisiert++;
+        else { z.aktualisiert++; for (const f of r.geaendert) z.felder[f] = (z.felder[f] || 0) + 1; }
       }
 
       for (const k of Object.keys(gesamt)) gesamt[k] += z[k];
@@ -424,8 +424,12 @@ const PRUEFUNG = (() => {
              ausschluesse: alleAusschluesse };
   }
 
+  /* `felder` ist kein Zaehler, sondern eine Bilanz: Feldname -> wie oft
+     weicht er vom Bestand ab. Sie beantwortet die Frage, die „29 geändert"
+     offen laesst: WAS ändert sich? */
   const zaehler = () => ({ neu: 0, aktualisiert: 0, unveraendert: 0, uebersprungen: 0,
-                           ausgeschlossen: 0, geloescht: 0, fehler: 0, zeilen: 0 });
+                           ausgeschlossen: 0, geloescht: 0, fehler: 0, zeilen: 0,
+                           felder: {} });
 
   /** Ein Satz für die Oberfläche. */
   const zusammenfassung = g =>

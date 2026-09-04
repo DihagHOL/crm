@@ -421,6 +421,30 @@ einzigen** Mitarbeiter, und `ownerid` blieb in jeder Zeile leer.
 
 Phase 0 fragt jedes Feld ab, die Auflösung nimmt den ersten Treffer.
 
+### Welche Felder sich ändern, nicht nur wie viele Zeilen
+
+„29 geändert" ist keine Aussage über den Datenbestand. Beim Besitzer wurde
+das teuer: `Mitarbeiter → ownerid` stand auf `OnCreateOnly` — mit der
+Begründung, ein Import dürfe einem Vertriebler die Chance nicht wieder
+wegnehmen (Review B2). Der Lauf `de9e4ad0` zeigte, was die Regel wirklich
+bewirkt:
+
+| Besitzer der 29 Chancen des Laufs | |
+|---|---|
+| **Admin DIHAG** (Verbindungsbenutzer des Altflows) | **24** |
+| echte Vertriebler | 5 |
+
+Die Chancen existierten alle schon, also wurde `ownerid` **nie** geschrieben.
+Die Regel schützte eine Hypothese und ließ den realen Zustand für immer
+stehen — sichtbar wurde das nirgends, denn eine Zeile ohne Änderung meldet
+nichts.
+
+`MAPPING.baue()` gibt jetzt `geaendert` zurück: die Felder, die vom Bestand
+abweichen. Der Prüfbericht zählt sie je Schritt und zeigt sie unter der
+Schrittzeile. Damit steht `ownerid` namentlich da, mit Anzahl — und der
+Schutz aus B2 gilt weiter, nur als **Sichtbarkeit statt als Verbot**. Wer
+eine Umverteilung sieht, die er nicht will, bricht ab.
+
 ### Vergleichen wie die eigene Abfrage
 
 Dataverse vergleicht Zeichenketten **ohne Rücksicht auf Gross- und

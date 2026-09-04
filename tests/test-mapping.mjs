@@ -273,5 +273,45 @@ console.log("\nWertzuordnungen");
     "unzugeordneter Wert an einem Textfeld wird weiterhin gemeldet");
 }
 
+console.log("\nGeaenderte Felder werden benannt");
+{
+  /* Der Besitzer war der Anlass: WritePolicy stand auf OnCreateOnly, die
+     Chancen existierten alle bereits - also wurde ownerid nie geschrieben,
+     und der Bericht sagte nur "unveraendert". Jetzt nennt baue() die
+     Felder, die vom Bestand abweichen. */
+  const zu = [
+    { aktiv: true, sourceColumn: "Thema", targetField: "name",
+      targetType: "String", writePolicy: "Always" },
+    { aktiv: true, sourceColumn: "Mitarbeiter", targetField: "ownerid",
+      targetType: "Lookup", lookupEntitySet: "systemusers",
+      lookupKeyField: "internalemailaddress", writePolicy: "Always" },
+    { aktiv: true, sourceColumn: "Wahrscheinlichkeit", targetField: "closeprobability",
+      targetType: "Int", writePolicy: "Always" }
+  ];
+  const bestand = {
+    name: "alt",
+    _ownerid_value: "11111111-0000-0000-0000-000000000001",
+    closeprobability: 50
+  };
+  const zeile = { _zeile: 2, Thema: "alt", Mitarbeiter: "neu@dihag.com",
+                  Wahrscheinlichkeit: 50 };
+  const r = MAPPING.baue(zeile, zu, { modus: "update", bestand,
+    aufloesen: () => "22222222-0000-0000-0000-000000000002" });
+
+  gleich(r.geaendert, ["ownerid"], "nur der Besitzer weicht ab");
+  pruefe(!r.unveraendert, "und die Zeile gilt als geaendert");
+
+  // Nichts weicht ab: keine Feldnamen, keine Aenderung.
+  const gleichBleibend = MAPPING.baue(zeile, zu, { modus: "update", bestand,
+    aufloesen: () => bestand._ownerid_value });
+  gleich(gleichBleibend.geaendert, [], "steht derselbe Besitzer da, aendert sich nichts");
+  pruefe(gleichBleibend.unveraendert, "die Zeile bleibt unveraendert");
+
+  // Beim Anlegen ist alles neu - eine Liste "geaenderter" Felder waere sinnlos.
+  const angelegt = MAPPING.baue(zeile, zu, { modus: "create",
+    aufloesen: () => "22222222-0000-0000-0000-000000000002" });
+  gleich(angelegt.geaendert, [], "beim Anlegen bleibt die Liste leer");
+}
+
 console.log(fehler ? `\n${fehler} Prüfung(en) fehlgeschlagen.\n` : "\nAlle Prüfungen bestanden.\n");
 process.exit(fehler ? 1 : 0);
