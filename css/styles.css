@@ -431,3 +431,37 @@ table.tbl tr.bsp td { background: var(--border-2); }
 }
 .feldsuche table { margin-top: 10px; }
 table.tbl td.zahl-zelle { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+/* Die Prozessbeschreibung im Reiter "Anleitung". Sie kommt aus
+   docs/10-prozess.md und traegt deshalb keine eigenen Klassen - gestylt
+   wird ueber die Elemente, die der Darsteller erzeugt. Lesebreite statt
+   voller Kartenbreite: 265 Zeilen Flattersatz ueber 1200 Pixel liest
+   niemand zu Ende. */
+.doku { max-width: 78ch; line-height: 1.62; }
+.doku > :first-child { margin-top: 0; }
+.doku > :last-child { margin-bottom: 0; }
+.doku h2 {
+  margin: 30px 0 12px; font-size: 19px; color: var(--navy);
+  padding-bottom: 7px; border-bottom: 1px solid var(--border-2);
+}
+.doku h3 { margin: 24px 0 8px; font-size: 16px; color: var(--navy); }
+.doku h4 { margin: 20px 0 6px; font-size: 14.5px; color: var(--azur); }
+.doku p { margin: 0 0 12px; }
+.doku ul, .doku ol { margin: 0 0 12px; padding-left: 22px; }
+.doku li { margin-bottom: 5px; }
+.doku li > code, .doku p > code, .doku td > code {
+  background: #f2f6fa; border: 1px solid var(--border-2);
+  border-radius: 4px; padding: 1px 5px;
+}
+.doku hr { border: 0; border-top: 1px solid var(--border-2); margin: 26px 0; }
+.doku blockquote {
+  margin: 0 0 12px; padding: 8px 14px; color: var(--muted);
+  border-left: 3px solid var(--lichtblau); background: #f7fafd;
+}
+.doku pre {
+  background: #f7fafd; border: 1px solid var(--border-2); border-radius: 8px;
+  padding: 12px 14px; overflow-x: auto; margin: 0 0 12px;
+}
+.doku pre code { background: none; border: 0; padding: 0; }
+.doku strong { color: var(--navy); }
+.doku table.tbl { font-size: 13.5px; }

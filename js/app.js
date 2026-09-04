@@ -147,7 +147,8 @@ const APP = (() => {
     { id: "zuordnung", titel: "Zuordnung" },
     { id: "pruefung",  titel: "Prüflauf" },
     { id: "import",    titel: "Import" },
-    { id: "protokoll", titel: "Protokoll" }
+    { id: "protokoll", titel: "Protokoll" },
+    { id: "anleitung", titel: "Anleitung" }
   ];
 
   function renderSchritte() {
@@ -167,6 +168,45 @@ const APP = (() => {
     if (id === "pruefung") renderPruefung();
     if (id === "import") renderImport();
     if (id === "protokoll") renderProtokoll();
+    if (id === "anleitung") renderAnleitung();
+  }
+
+  /* ── Anleitung ─────────────────────────────────────────────────────────
+     Die Prozessbeschreibung lag bisher nur als `docs/10-prozess.md` im
+     Repository – also dort, wo die Fachabteilung nicht hinsieht. Wer den
+     Import ausführt, hat die App offen, nicht GitHub.
+
+     Gelesen wird die Datei zur Laufzeit. Eine zweite Fassung im Code wäre
+     nach dem ersten Rundschreiben veraltet, ohne dass es jemand merkt –
+     und Doku, die von der Wahrheit abweicht, ist schlimmer als keine.   */
+  let _doku = null;
+
+  async function renderAnleitung() {
+    $("main").innerHTML = `
+      <div class="page-head">
+        <h2>Anleitung</h2>
+        <p>Die vollständige Prozessbeschreibung, geschrieben für alle, die
+           den Import ausführen oder verantworten. Sie wird beim Öffnen frisch
+           aus <code>docs/10-prozess.md</code> geladen — hier steht also
+           derselbe Stand wie im Repository, nie eine Kopie davon.</p>
+      </div>
+      <div class="card doku" id="dokuText"><p class="hint">Wird geladen …</p></div>`;
+
+    if (_doku === null) {
+      try { _doku = await DOKU.laden(); }
+      catch (e) {
+        // Der Reiter darf nicht leer bleiben: wer hier nichts sieht, sucht
+        // den Fehler bei sich.
+        const z = $("dokuText");
+        if (z) z.innerHTML = `<p class="err">${esc(e.message)}</p>
+          <p class="hint">Die Beschreibung liegt im Repository unter
+             <code>docs/10-prozess.md</code>.</p>`;
+        return;
+      }
+    }
+    // Nach dem Warten kann der Reiter gewechselt sein.
+    const ziel = $("dokuText");
+    if (ziel) ziel.innerHTML = DOKU.zuHtml(_doku);
   }
 
   /* ── Schritt 5: Prüflauf ───────────────────────────────────────────────

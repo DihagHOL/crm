@@ -60,5 +60,8 @@ jobs:
       - name: Belegung im Ziel (Verweise als _feld_value)
         run: node tests/test-belegung.mjs
 
+      - name: Prozessbeschreibung im Reiter „Anleitung"
+        run: node tests/test-doku.mjs
+
       - name: Konfiguration, Ladereihenfolge und Doku auf Konsistenz prüfen
         run: node tests/test-konsistenz.mjs

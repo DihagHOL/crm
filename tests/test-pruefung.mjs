@@ -348,5 +348,41 @@ console.log("\nErsetzen: die Vorschau sagt, was weggeraeumt wird");
     "der Satz sagt es auch");
 }
 
+console.log("\nUneindeutige Spalten aus einem anderen Blatt");
+{
+  /* Status, Preisliste und Mitarbeiter stehen im Blatt Positionen, gehoeren
+     aber an die Verkaufschance. Der Import nimmt die erste passende Zeile -
+     und sagte nichts, wenn die zweite etwas anderes sagt. Damit entscheidet
+     die Zeilenreihenfolge einer Excel-Mappe ueber einen CRM-Wert. */
+  const m = { blaetter: [EXCEL.blattAus("Positionen", [
+    ["Opp-ID", "Status", "Preisliste"],
+    [6440, "Check Feasibility", "Standard"],
+    [6440, "Win",               "Standard"],   // Status uneindeutig
+    [6441, "Win",               "Standard"],
+    [6441, "Win",               ""],           // leer zaehlt nicht als Abweichung
+    [6442, "Win",               "Standard"]
+  ])] };
+  const zu = [
+    { aktiv: true, sourceColumn: "Status", sourceSheet: "Positionen",
+      sourceLookupBy: "Opp-ID", targetField: "activestageid" },
+    { aktiv: true, sourceColumn: "Preisliste", sourceSheet: "Positionen",
+      sourceLookupBy: "Opp-ID", targetField: "pricelevelid" },
+    // Ohne sourceSheet ist nichts zu vergleichen.
+    { aktiv: true, sourceColumn: "Status", targetField: "irgendwas" }
+  ];
+
+  const f = PRUEFUNG.zusatzKonflikte(m, zu);
+  gleich(f.length, 1, "nur die wirklich uneindeutige Spalte wird gemeldet");
+  gleich(f[0].spalte, "Status", "und zwar Status");
+  gleich(f[0].faelle.length, 1, "ein betroffener Schluessel");
+  gleich(f[0].faelle[0].schluessel, "6440", "6440 - dort widersprechen sich die Zeilen");
+  gleich(f[0].faelle[0].werte.sort(), ["Check Feasibility", "Win"],
+    "beide Werte stehen in der Meldung, nicht nur der gewaehlte");
+
+  const inaktiv = PRUEFUNG.zusatzKonflikte(m,
+    zu.map(x => ({ ...x, aktiv: false })));
+  gleich(inaktiv.length, 0, "inaktive Zuordnungen erzeugen keine Warnung");
+}
+
 console.log(fehler ? `\n${fehler} Prüfung(en) fehlgeschlagen.\n` : "\nAlle Prüfungen bestanden.\n");
 process.exit(fehler ? 1 : 0);

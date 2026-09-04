@@ -1,5 +1,44 @@
 # Session-Log
 
+## 03.09.2026 — Die Anleitung ins Werkzeug, und eine stille Entscheidung
+
+**Reiter „Anleitung".** Die Prozessbeschreibung lag nur als
+`docs/10-prozess.md` im Repository — dort, wo die Fachabteilung nicht
+hinsieht. Wer den Import ausführt, hat die App offen, nicht GitHub.
+
+Gelesen wird die Datei **zur Laufzeit**, nicht in den Code kopiert. Eine
+zweite Fassung wäre nach dem ersten Rundschreiben veraltet, ohne dass es
+jemand merkt — und Doku, die von der Wahrheit abweicht, ist schlimmer als
+keine. Dafür ein kleiner Markdown-Darsteller (`js/doku.js`), der genau so
+viel kann, wie die Datei benutzt: Überschriften, Listen, Tabellen,
+Trennlinien, Codeblöcke, drei Inline-Formen. Eine Bibliothek nachzuladen
+wäre eine Abhängigkeit für 265 Zeilen Text gewesen, dazu eine CSP-Frage.
+
+Gegen die echte Datei geprüft, im Browser: 6197 px, alle 15 Überschriften,
+7 Tabellen, **kein rohes Markdown**, kein waagerechter Überlauf.
+
+**Der eigentliche Fund des Durchgangs.** `zusatzZeileFn` nimmt für Spalten
+aus einem anderen Blatt die **erste passende Zeile** — still:
+
+```js
+if (v && !m.has(v)) m.set(v, r);
+```
+
+`Status`, `Preisliste` und `Mitarbeiter` stehen im Blatt `Positionen`,
+gehören aber an die Verkaufschance. Tragen zwei Positionen derselben Chance
+verschiedene Werte, entscheidet die **Zeilenreihenfolge einer Excel-Mappe**
+über einen CRM-Wert — und niemand erfährt es. Bei `Mitarbeiter` war das
+einmal von Hand geprüft (0 Konflikte bei 72 Chancen); die Datei kommt aber
+jede Woche neu, und `Status` mischt ohnehin zwei Konzepte.
+
+Der Prüflauf meldet es jetzt, mit beiden Werten und dem betroffenen
+Schlüssel. Kein Fehler — welcher Wert gilt, entscheidet die Datei, nicht die
+App. Aber wer importiert, muss es wissen.
+
+**Dazu zwei Wächter.** Der Konsistenztest prüft nun, dass jede Datei unter
+`js/` auch eingebunden ist und **jeder Reiter eine Darstellungsfunktion
+hat** — ein Reiter ohne wäre stumm und fiele erst dem Anwender auf.
+
 ## 03.09.2026 — Der Besitzer blieb leer, und niemand war schuld
 
 Vermutet war, der Mitarbeiter existiere nicht als Systembenutzer. Nachgesehen:

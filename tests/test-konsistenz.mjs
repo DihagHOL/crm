@@ -5,7 +5,7 @@
    oder wenn die Client-ID in js/config.js und in docs/01 auseinanderlaufen.
    Das macht dieser Test.                                                  */
 
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
@@ -56,6 +56,25 @@ pruefe(skripte.indexOf("js/graph.js") < skripte.indexOf("js/data.js"),
   "graph.js vor data.js");
 
 /* ── Doku gegen Konfiguration ──────────────────────────────────────── */
+
+/* Jede Datei unter js/ muss auch geladen werden. Eine, die niemand
+   einbindet, faellt sonst erst auf, wenn jemand ihren Reiter oeffnet. */
+const dateien = readdirSync(join(wurzel, "js")).filter(n => n.endsWith(".js")).sort();
+for (const d of dateien)
+  pruefe(skripte.includes("js/" + d), `js/${d} wird von index.html geladen`);
+
+/* ── Reiter: Beschriftung und Darstellung ──────────────────────────── */
+
+console.log("\nReiter");
+const app = lies("js/app.js");
+const schritteBlock = /const SCHRITTE = ([^;]+);/.exec(app);
+pruefe(!!schritteBlock, "SCHRITTE steht in app.js");
+const ids = [...schritteBlock[1].matchAll(/id:\s*"([^"]+)"/g)].map(m => m[1]);
+pruefe(ids.length >= 6, `${ids.length} Reiter gefunden`);
+// Ohne Regex: die Zeile in app.js lautet woertlich `if (id === "x") renderX();`
+for (const id of ids)
+  pruefe(app.includes(`id === "${id}") render`),
+    `Reiter „${id}" hat eine Darstellungsfunktion – sonst bleibt er stumm`);
 
 console.log("\nDokumentation");
 const doc01 = lies("docs/01-entra-app-registration.md");

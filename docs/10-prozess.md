@@ -184,6 +184,15 @@ Zum Schluss wird die Quelldatei in der Bibliothek als importiert markiert. Der
 Ordner dokumentiert sich damit selbst, und ein versehentlicher Doppelimport
 fällt vor dem Start auf statt danach.
 
+### Anleitung
+
+Der letzte Reiter zeigt genau diesen Text. Er wird beim Öffnen frisch aus
+`docs/10-prozess.md` geladen — was hier steht, ist also immer der Stand des
+Repositorys und nie eine Kopie, die daneben altert.
+
+Eine Beschreibung, die man nur findet, wenn man weiß, wo sie liegt, wird nicht
+gelesen. Deshalb steht sie dort, wo gearbeitet wird.
+
 ---
 
 ## 4. Was der Import mit den Daten macht

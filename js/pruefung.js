@@ -83,6 +83,47 @@ const PRUEFUNG = (() => {
    */
   /** Steht ein Wert der Zeile in `SkipOnValues` des Schrittes?
    *  @returns {{spalte:string, wert:*}|null} */
+  /** Spalten aus einem anderen Blatt, die je Verknüpfungswert uneindeutig
+   *  sind.
+   *
+   *  `Status`, `Preisliste` und `Mitarbeiter` stehen im Blatt `Positionen`,
+   *  gehören aber an die Verkaufschance. Der Import nimmt die erste
+   *  passende Zeile (`zusatzZeileFn` in lauf.js) — und sagte nichts, wenn
+   *  die zweite etwas anderes sagt. Bei `Mitarbeiter` wurde das einmal von
+   *  Hand geprüft, 0 Konflikte bei 72 Chancen; die Datei kommt aber jede
+   *  Woche neu, und `Status` mischt ohnehin zwei Konzepte.
+   *
+   *  Kein Fehler: welcher Wert gilt, entscheidet die Datei, nicht die App.
+   *  Aber wer importiert, muss es wissen — die Zeilenreihenfolge einer
+   *  Excel-Mappe ist keine fachliche Aussage.
+   *
+   *  @returns {{spalte:string, feld:string, blatt:string, ueber:string,
+   *             faelle:{schluessel:string, werte:string[]}[]}[]} */
+  function zusatzKonflikte(mappe, zuordnungen) {
+    const funde = [];
+    for (const z of zuordnungen) {
+      if (!z.aktiv || !z.sourceSheet || !z.sourceLookupBy || !z.sourceColumn) continue;
+      const b = EXCEL.blatt(mappe, z.sourceSheet);
+      if (!b) continue;
+
+      const jeSchluessel = new Map();
+      for (const r of b.zeilen) {
+        const k = String(r[z.sourceLookupBy] ?? "").trim();
+        if (!k || leer(r[z.sourceColumn])) continue;
+        if (!jeSchluessel.has(k)) jeSchluessel.set(k, new Set());
+        jeSchluessel.get(k).add(String(r[z.sourceColumn]).trim());
+      }
+
+      const faelle = [...jeSchluessel.entries()]
+        .filter(([, werte]) => werte.size > 1)
+        .map(([schluessel, werte]) => ({ schluessel, werte: [...werte] }));
+      if (faelle.length)
+        funde.push({ spalte: z.sourceColumn, feld: z.targetField || "",
+                     blatt: z.sourceSheet, ueber: z.sourceLookupBy, faelle });
+    }
+    return funde;
+  }
+
   function ausgelassen(s, zeile) {
     const regeln = s.skipOnValues;
     if (!regeln) return null;
@@ -129,6 +170,19 @@ const PRUEFUNG = (() => {
         continue;
       }
       z.zeilen = blatt.anzahl;
+
+      /* Spalten aus einem anderen Blatt: ist der Wert je Verknüpfung
+         überhaupt eindeutig? Siehe `zusatzKonflikte`. */
+      for (const kf of zusatzKonflikte(mappe, zu)) {
+        alleWarnungen.push({ schritt: s.step, spalte: kf.spalte, feld: kf.feld,
+          meldung: `Im Blatt „${kf.blatt}“ tragen mehrere Zeilen zu derselben `
+            + `${kf.ueber} verschiedene Werte in „${kf.spalte}“ `
+            + `(${kf.faelle.length} betroffen). Die App nimmt den Wert der `
+            + `ersten Zeile — welcher gemeint ist, entscheidet die Datei. `
+            + "Beispiele: "
+            + kf.faelle.slice(0, 5)
+                .map(f => `${f.schluessel} → ${f.werte.join(" / ")}`).join(" · ") });
+      }
 
       // Ein Alternativschlüssel, den es in Dataverse nicht gibt, macht
       // jede Zeile dieses Schrittes unschreibbar. Einmal melden, nicht
@@ -381,5 +435,5 @@ const PRUEFUNG = (() => {
     + (g.geloescht ? ` · ${g.geloescht} werden ersetzt` : "")
     + (g.fehler ? ` · ${g.fehler} mit Fehler` : "");
 
-  return { lauf, zusammenfassung, ausschluss, ausgelassen };
+  return { lauf, zusammenfassung, ausschluss, ausgelassen, zusatzKonflikte };
 })();
