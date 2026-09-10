@@ -162,19 +162,17 @@ wiederholbar, Vorhandenes wird nicht angefasst:
 
 ```powershell
 Install-Module Microsoft.Graph.Authentication -Scope CurrentUser
-Connect-MgGraph -Scopes "Sites.Manage.All","Sites.ReadWrite.All" -UseDeviceCode
 ./setup-crm.ps1 -NurPruefen     # erst ansehen, was fehlt
 ./setup-crm.ps1                 # dann anlegen
 ```
 
-Beides im **selben Fenster**: `pwsh ./setup-crm.ps1` startet einen neuen
-Prozess, und die Graph-Anmeldung lebt im Prozess, in dem `Connect-MgGraph`
-lief. Das Skript prüft das vorweg und sagt es, statt an vier Stellen einzeln
-zu scheitern.
+**Anmelden muss man sich nicht vorher.** Liegt keine Graph-Anmeldung vor,
+zeigt das Skript einen Gerätecode, man tippt ihn im Browser ein, und es läuft
+weiter. Wer schon angemeldet ist, wird nicht erneut gefragt.
 
-`-UseDeviceCode` ist Pflicht, nicht Geschmack: ohne den Schalter geht die
-Anmeldung ueber den Windows-Kontenmanager, und der bricht auf PowerShell 7.6
-mit `Method not found: ...WithLogging(...)` ab — ein Versionskonflikt im
+Der Gerätecode ist dabei kein Geschmack: über den Windows-Kontenmanager
+bricht die Anmeldung auf PowerShell 7.6 mit
+`Method not found: ...WithLogging(...)` ab — ein Versionskonflikt im
 Graph-Modul, kein fehlendes Recht. Siehe [docs/02](docs/02-sharepoint-setup.md).
 
 Vier Schritte: Statusspalten in der Quellbibliothek, Konfigurationssite

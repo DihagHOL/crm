@@ -389,15 +389,18 @@ Liegt im Wurzelverzeichnis und macht alles aus diesem Dokument in einem
 Durchlauf — Teil A und Teil B, dazu den Eintrag in `AppPermissions`:
 
 ```powershell
-Connect-MgGraph -Scopes "Sites.Manage.All","Sites.ReadWrite.All" -UseDeviceCode
 ./setup-crm.ps1 -NurPruefen     # zeigt nur, was fehlt
 ./setup-crm.ps1
 ```
 
-### Warum `-UseDeviceCode`
+Eine Anmeldung davor braucht es nicht: liegt keine vor, zeigt das Skript
+einen Gerätecode und läuft danach weiter. Wer schon angemeldet ist, wird
+nicht erneut gefragt.
 
-Ohne den Schalter meldet sich das Modul ueber den Windows-Kontenmanager
-(WAM) an. Auf PowerShell 7.6 endet das so:
+### Warum der Gerätecode
+
+Über den Windows-Kontenmanager (WAM) endet die Anmeldung auf PowerShell 7.6
+so:
 
 ```
 Connect-MgGraph: InteractiveBrowserCredential authentication failed:
@@ -409,7 +412,8 @@ Das liest sich wie ein Rechteproblem, ist aber keins. `Microsoft.Graph.
 Authentication` 2.39 ist fuer .NET 8 gebaut, PowerShell 7.6 laeuft auf
 .NET 10 — im WAM-Pfad treffen dabei zwei Fassungen von MSAL aufeinander.
 Der Geraetecode-Weg fasst WAM nicht an: PowerShell zeigt einen Code, man
-meldet sich im Browser an, und das Skript laeuft weiter wie gehabt.
+meldet sich im Browser an, und das Skript laeuft weiter wie gehabt. Das
+Skript waehlt ihn deshalb von sich aus, wenn es sich selbst anmeldet.
 
 Wer den Fehler trotzdem loswerden will: PowerShell 7.4 (LTS) nehmen oder
 auf eine Modulfassung warten, die fuer .NET 10 gebaut ist. Fuer die

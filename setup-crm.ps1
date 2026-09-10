@@ -10,13 +10,17 @@
 #
 #  VORAUSSETZUNG
 #      Install-Module Microsoft.Graph.Authentication -Scope CurrentUser
-#      Connect-MgGraph -Scopes "Sites.Manage.All","Sites.ReadWrite.All" -UseDeviceCode
-#      ./setup-crm.ps1
+#      ./setup-crm.ps1              (oder pwsh ./setup-crm.ps1, beides geht)
 #
-#  BEIDES IM SELBEN FENSTER. "pwsh ./setup-crm.ps1" startet einen neuen
-#  Prozess; die Graph-Anmeldung lebt aber im Prozess, in dem
-#  Connect-MgGraph lief, und der neue kennt sie nicht. Das Skript prueft
-#  das vorweg und sagt es, statt an vier Stellen einzeln zu scheitern.
+#  Das Skript meldet sich SELBST an, wenn keine Anmeldung vorliegt: es
+#  zeigt einen Geraetecode, man tippt ihn im Browser ein, und es laeuft
+#  weiter. Vorher musste man Connect-MgGraph davor setzen und beides im
+#  selben Fenster ausfuehren - eine Reihenfolge, die "pwsh ./setup-crm.ps1"
+#  unsichtbar bricht, weil ein neuer Prozess die Anmeldung des alten nicht
+#  kennt. Eine Regel, die man beim Tippen verletzt, ohne es zu merken, ist
+#  ein Fehler im Entwurf.
+#
+#  Wer schon angemeldet ist, wird nicht erneut gefragt.
 #
 #  -UseDeviceCode ist kein Beiwerk. Ohne den Schalter meldet sich das Modul
 #  ueber den Windows-Kontenmanager (WAM) an, und dieser Weg bricht auf
@@ -117,31 +121,54 @@ if ($NurPruefen) { Warn "Nur-Pruefen-Modus: es wird nichts angelegt." }
 # obwohl nur der Aufruf nicht durchkam. Ein falscher Befund ist schlimmer
 # als ein Fehler - man sucht an der falschen Stelle.
 if (-not $AccessToken) {
+    $noetig = @("Sites.ReadWrite.All", "Sites.Manage.All")
+    if ($SiteAnlegen) { $noetig += "Group.ReadWrite.All" }
+
     $ctx = $null
     try { $ctx = Get-MgContext } catch { }
 
+    # Nicht angemeldet? Dann meldet sich das Skript selbst an.
+    #
+    # Vorher stand hier eine Anleitung: erst Connect-MgGraph, dann das
+    # Skript, beides im selben Fenster. Das ist eine Reihenfolge, die man
+    # kennen muss - und "pwsh ./setup-crm.ps1" bricht sie unsichtbar, weil
+    # ein neuer Prozess die Anmeldung des alten nicht kennt. Eine Regel,
+    # die man beim Tippen verletzt, ohne es zu merken, ist ein Fehler im
+    # Entwurf, nicht beim Anwender.
     if (-not $ctx) {
-        Fehl "Keine Graph-Anmeldung in DIESER Sitzung."
-        Fehl ""
-        Fehl "  Connect-MgGraph -Scopes `"Sites.Manage.All`",`"Sites.ReadWrite.All`" -UseDeviceCode"
-        Fehl "  ./setup-crm.ps1 -ProfilLaden"
-        Fehl ""
-        Warn "Beides im SELBEN Fenster. `"pwsh ./setup-crm.ps1`" startet einen"
-        Warn "neuen Prozess - die Anmeldung lebt aber im Prozess, in dem"
-        Warn "Connect-MgGraph lief, und der neue kennt sie nicht."
-        Warn ""
-        Warn "-UseDeviceCode ist kein Beiwerk: der Windows-Kontenmanager bricht"
-        Warn "auf PowerShell 7.6 ab (siehe Kopf dieser Datei)."
-        Warn ""
-        Warn "Alternativ ohne das Graph-Modul, mit fertigem Token:"
-        Warn "  ./setup-crm.ps1 -ProfilLaden -AccessToken <token>"
-        exit 1
+        if (-not (Get-Command Connect-MgGraph -ErrorAction SilentlyContinue)) {
+            Fehl "Das Modul Microsoft.Graph.Authentication fehlt."
+            Fehl "  Install-Module Microsoft.Graph.Authentication -Scope CurrentUser"
+            Fehl ""
+            Warn "Alternativ ganz ohne das Modul, mit fertigem Token:"
+            Warn "  ./setup-crm.ps1 -ProfilLaden -AccessToken <token>"
+            exit 1
+        }
+
+        Warn "Keine Graph-Anmeldung - sie wird jetzt gestartet."
+        Warn "Gleich erscheint ein Geraetecode: Adresse im Browser oeffnen,"
+        Warn "Code eintippen. Danach laeuft das Skript von allein weiter."
+        Write-Host ""
+
+        # -UseDeviceCode umgeht den Windows-Kontenmanager. Ohne den Schalter
+        # bricht die Anmeldung auf PowerShell 7.6 ab (siehe Kopf der Datei).
+        try {
+            Connect-MgGraph -Scopes $noetig -UseDeviceCode -NoWelcome -ErrorAction Stop
+            $ctx = Get-MgContext
+        } catch {
+            Fehl "Anmeldung fehlgeschlagen: $($_.Exception.Message)"
+            Fehl ""
+            Warn "Alternativ ganz ohne das Modul, mit fertigem Token:"
+            Warn "  ./setup-crm.ps1 -ProfilLaden -AccessToken <token>"
+            exit 1
+        }
+        if (-not $ctx) { Fehl "Die Anmeldung ergab keinen Kontext - Abbruch."; exit 1 }
+        Write-Host ""
     }
 
     Info "Angemeldet als $($ctx.Account)"
 
     # Fehlende Scopes fallen sonst erst mitten im Lauf als 403 auf.
-    $noetig = @("Sites.ReadWrite.All", "Sites.Manage.All")
     $fehlt = @($noetig | Where-Object { $ctx.Scopes -notcontains $_ })
     if ($fehlt.Count -eq $noetig.Count) {
         Warn "  Keiner der erwarteten Scopes ist dabei ($($noetig -join ', '))."

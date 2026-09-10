@@ -1,5 +1,36 @@
 # Session-Log
 
+## 10.09.2026 — Das Skript meldet sich selbst an
+
+Zweimal hintereinander `pwsh ./setup-crm.ps1 -ProfilLaden`, zweimal keine
+Anmeldung. Meine Antwort darauf war beide Male eine Anleitung: erst
+`Connect-MgGraph`, dann das Skript, beides im selben Fenster. Das ist eine
+Reihenfolge, die man kennen muss — und `pwsh` davor bricht sie **unsichtbar**,
+weil ein neuer Prozess die Anmeldung des alten nicht kennt.
+
+Eine Regel, die man beim Tippen verletzt, ohne es zu merken, ist ein Fehler
+im Entwurf und nicht beim Anwender. Das Skript meldet sich jetzt selbst an:
+kein Kontext → Gerätecode → weiter. Wer schon angemeldet ist, wird nicht
+gefragt. `-AccessToken` bleibt der Weg ganz ohne das Modul.
+
+**Und ein Fehler von mir.** Zum Prüfen der Meldung habe ich das Skript mit
+`-ProfilLaden` gestartet — einem **schreibenden** Befehl — und nach 45
+Sekunden abgebrochen. `Connect-MgGraph` fand dabei einen zwischengespeicherten
+Token und meldete sich still an, sodass der Lauf tatsächlich durchlief. Ein
+Anzeigetext rechtfertigt keinen Schreibzugriff; dafür hätte `-NurPruefen`
+genügt.
+
+Nachgesehen, was dabei entstand — nur lesend:
+
+| | erwartet | in SharePoint |
+|---|---|---|
+| Schritte | 6 | 6 |
+| Zuordnungen | 38 | 38 |
+| Wertzuordnungen | 56 | 56 |
+
+Vollständig, und Schritt 30 trägt jetzt `AlternateKey=''`. Der Zustand ist
+also der gewollte — das macht den Vorgang nicht richtiger.
+
 ## 10.09.2026 — Vier Meldungen, davon eine falsch
 
 `pwsh ./setup-crm.ps1 -ProfilLaden` lief durch und meldete der Reihe nach:
