@@ -167,6 +167,11 @@ Connect-MgGraph -Scopes "Sites.Manage.All","Sites.ReadWrite.All" -UseDeviceCode
 ./setup-crm.ps1                 # dann anlegen
 ```
 
+Beides im **selben Fenster**: `pwsh ./setup-crm.ps1` startet einen neuen
+Prozess, und die Graph-Anmeldung lebt im Prozess, in dem `Connect-MgGraph`
+lief. Das Skript prüft das vorweg und sagt es, statt an vier Stellen einzeln
+zu scheitern.
+
 `-UseDeviceCode` ist Pflicht, nicht Geschmack: ohne den Schalter geht die
 Anmeldung ueber den Windows-Kontenmanager, und der bricht auf PowerShell 7.6
 mit `Method not found: ...WithLogging(...)` ab — ein Versionskonflikt im

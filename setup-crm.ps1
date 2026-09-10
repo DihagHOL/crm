@@ -13,6 +13,11 @@
 #      Connect-MgGraph -Scopes "Sites.Manage.All","Sites.ReadWrite.All" -UseDeviceCode
 #      ./setup-crm.ps1
 #
+#  BEIDES IM SELBEN FENSTER. "pwsh ./setup-crm.ps1" startet einen neuen
+#  Prozess; die Graph-Anmeldung lebt aber im Prozess, in dem
+#  Connect-MgGraph lief, und der neue kennt sie nicht. Das Skript prueft
+#  das vorweg und sagt es, statt an vier Stellen einzeln zu scheitern.
+#
 #  -UseDeviceCode ist kein Beiwerk. Ohne den Schalter meldet sich das Modul
 #  ueber den Windows-Kontenmanager (WAM) an, und dieser Weg bricht auf
 #  PowerShell 7.6 ab mit
@@ -105,6 +110,48 @@ function Fehl($t) { Write-Host $t -ForegroundColor Red }
 
 Write-Host "=== CRM-Schnittstelle - Einrichtung ===" -ForegroundColor Cyan
 if ($NurPruefen) { Warn "Nur-Pruefen-Modus: es wird nichts angelegt." }
+
+# ── Anmeldung, bevor irgendetwas anderes passiert ─────────────────────
+# Ohne diese Pruefung scheitert jeder Schritt einzeln, mit vier Meldungen,
+# von denen eine sogar falsch ist: Schritt 2 sagte "Site existiert nicht",
+# obwohl nur der Aufruf nicht durchkam. Ein falscher Befund ist schlimmer
+# als ein Fehler - man sucht an der falschen Stelle.
+if (-not $AccessToken) {
+    $ctx = $null
+    try { $ctx = Get-MgContext } catch { }
+
+    if (-not $ctx) {
+        Fehl "Keine Graph-Anmeldung in DIESER Sitzung."
+        Fehl ""
+        Fehl "  Connect-MgGraph -Scopes `"Sites.Manage.All`",`"Sites.ReadWrite.All`" -UseDeviceCode"
+        Fehl "  ./setup-crm.ps1 -ProfilLaden"
+        Fehl ""
+        Warn "Beides im SELBEN Fenster. `"pwsh ./setup-crm.ps1`" startet einen"
+        Warn "neuen Prozess - die Anmeldung lebt aber im Prozess, in dem"
+        Warn "Connect-MgGraph lief, und der neue kennt sie nicht."
+        Warn ""
+        Warn "-UseDeviceCode ist kein Beiwerk: der Windows-Kontenmanager bricht"
+        Warn "auf PowerShell 7.6 ab (siehe Kopf dieser Datei)."
+        Warn ""
+        Warn "Alternativ ohne das Graph-Modul, mit fertigem Token:"
+        Warn "  ./setup-crm.ps1 -ProfilLaden -AccessToken <token>"
+        exit 1
+    }
+
+    Info "Angemeldet als $($ctx.Account)"
+
+    # Fehlende Scopes fallen sonst erst mitten im Lauf als 403 auf.
+    $noetig = @("Sites.ReadWrite.All", "Sites.Manage.All")
+    $fehlt = @($noetig | Where-Object { $ctx.Scopes -notcontains $_ })
+    if ($fehlt.Count -eq $noetig.Count) {
+        Warn "  Keiner der erwarteten Scopes ist dabei ($($noetig -join ', '))."
+        Warn "  Vorhanden: $($ctx.Scopes -join ', ')"
+        Warn "  Schreibende Schritte werden vermutlich mit 403 scheitern."
+    } elseif ($fehlt) {
+        Warn "  Nicht dabei: $($fehlt -join ', ') - Vorhandenes reicht meist,"
+        Warn "  Group.ReadWrite.All braucht es nur fuer -SiteAnlegen."
+    }
+}
 
 # ── Spaltenanlage, gemeinsam genutzt ──────────────────────────────────
 # SharePoint friert den internen Namen beim Anlegen ein. Deshalb werden
@@ -202,6 +249,17 @@ try {
     $ksite = Gx -Uri "$g/sites/$KonfigSite"
     Info "  Site vorhanden: $($ksite.webUrl)"
 } catch {
+    # 404 heisst "gibt es nicht". Alles andere heisst etwas anderes - und
+    # als "existiert nicht" auszugeben, schickt den Leser in die falsche
+    # Richtung. Genau das ist am 10.09.2026 passiert.
+    $code = 0
+    try { $code = [int]$_.Exception.Response.StatusCode } catch { }
+    if ($code -and $code -ne 404) {
+        Fehl "  Site nicht abfragbar: HTTP $code - $($_.Exception.Message)"
+        Fehl "  Das ist KEIN Hinweis darauf, dass die Site fehlt."
+        Fehl "  Bei 403: dem angemeldeten Konto fehlt der Zugriff auf die Site."
+        exit 1
+    }
     Warn "  Site existiert nicht."
     if (-not $SiteAnlegen) {
         Warn "  Zwei Moeglichkeiten:"

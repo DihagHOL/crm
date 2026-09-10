@@ -1,5 +1,35 @@
 # Session-Log
 
+## 10.09.2026 — Vier Meldungen, davon eine falsch
+
+`pwsh ./setup-crm.ps1 -ProfilLaden` lief durch und meldete der Reihe nach:
+
+```
+[1] Schritt 1 fehlgeschlagen: Authentication needed. Please call Connect-MgGraph.
+[2] Site existiert nicht.                     ← falsch
+[3b] Importprofil nicht geladen - die Konfigurationssite fehlt.
+[4] AppPermissions nicht erreichbar: Authentication needed.
+```
+
+**Die Site existiert.** Schritt 2 fing jeden Fehler ab und schrieb „existiert
+nicht" — auch bei einem Anmeldefehler. Wer das liest, sucht an der falschen
+Stelle: er legt eine Site an, die es längst gibt. Ein falscher Befund ist
+schlimmer als ein Fehler, dasselbe Muster wie beim `$select` auf Verweise.
+
+Zwei Korrekturen:
+
+- **Die Anmeldung wird vorweg geprüft.** `Get-MgContext` kostet keinen
+  Aufruf. Fehlt sie, endet das Skript mit *einer* Meldung, die die beiden
+  Befehle nennt — und den eigentlichen Stolperstein: `pwsh ./setup-crm.ps1`
+  startet einen **neuen Prozess**, die Graph-Anmeldung lebt aber in dem, in
+  dem `Connect-MgGraph` lief. Fehlende Scopes werden gleich mitgemeldet,
+  sonst fallen sie erst mitten im Lauf als 403 auf.
+- **Schritt 2 unterscheidet.** Nur 404 heißt „gibt es nicht". Alles andere
+  bricht mit dem echten Status ab, mit dem ausdrücklichen Zusatz, dass das
+  *kein* Hinweis auf eine fehlende Site ist.
+
+Gegengeprüft ohne Anmeldung: eine Meldung, Exitcode 1, keine Folgefehler.
+
 ## 10.09.2026 — Das Skript findet sein Profil jetzt von überall
 
 `pwsh ./setup-crm.ps1 -ProfilLaden` aus dem übergeordneten Ordner: Datei
