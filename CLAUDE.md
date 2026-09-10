@@ -55,7 +55,7 @@ und JavaScript.
 4. Einlesen            Datei über Graph in den Arbeitsspeicher, SheetJS; Original bleibt liegen
 5. Zuordnen            Blatt -> Importprofil, Spalte -> Dataverse-Feld
 6. Prüflauf (Dry-Run)  Validierung, Lookup-Auflösung, Fehlerbericht, KEIN Schreibzugriff
-7. Import              Batch-Upsert über Alternativschlüssel, in Profil-Reihenfolge
+7. Import              Batch-Upsert in Profil-Reihenfolge (GUID, Schlüssel oder POST)
 8. Protokoll           Lauf + Fehler nach SharePoint, Bibliothekseintrag als importiert markieren
 ```
 
@@ -255,9 +255,23 @@ Upsert über Alternativschlüssel ist er gefahrlos.
 
 ### Upsert über Alternativschlüssel
 
-Der gesamte Import beruht darauf. Für jede Zieltabelle existiert ein
-Alternate Key auf einem Feld, das die Quelldaten mitbringen (siehe
+Wo es einen gibt, ist er der bequemste Weg: eine Adresse, und Dataverse
+entscheidet selbst zwischen Ändern und Anlegen (siehe
 `docs/03-dataverse-vorbereitung.md`).
+
+**Der Import beruht nicht darauf.** In dieser Umgebung hat keine der drei
+Zieltabellen einen — `contact` nie, und für `opportunity` wurde am
+10.09.2026 entschieden, keinen anzulegen: die Eindeutigkeit der Opp-ID ist
+eine fachliche Zusage. Phase 0 fragt ohnehin ab, was existiert, und
+adressiert Bekanntes über seine GUID; die Drei-Fälle-Regel unten deckt alle
+Lagen ab.
+
+Was ein Index nebenbei erledigte und jetzt die App tut: **zwei Zeilen mit
+derselben Kennung in einer Datei.** Über eine Schlüsseladresse hätten sie
+sich gegenseitig aktualisiert, als zwei `POST` tun sie das nicht — es
+entstünden zwei Datensätze in einem Lauf, genau der Fall, den der Altflow
+76-mal erzeugt hat. Prüflauf und Import lassen die Wiederholung deshalb aus
+und nennen die Zeile, in der die Kennung zuerst stand.
 
 ```
 PATCH /api/data/v9.2/accounts(dag_dihag_kdnr=10042)

@@ -1599,16 +1599,24 @@ const APP = (() => {
           if (istOffen(C.dataverseUrl))
             return { ok: false, text: "Übersprungen – dataverseUrl nicht gesetzt." };
 
-          // Die beiden Felder haben verschiedene Rollen, und nur eine davon
-          // verträgt keine Dubletten:
-          //
-          //   Schlüssel – darüber läuft der Upsert. Doppelte Werte machen
-          //     den Alternativschlüssel unanlegbar; ohne ihn gibt es keinen
-          //     Upsert. Das ist ein Fehler.
-          //   Verweis   – darüber wird nur gesucht. Doppelte Werte sind
-          //     eine Frage, keine Sackgasse: der Prüflauf legt die
-          //     Kandidaten vor, jemand entscheidet, die Entscheidung steht
-          //     im Protokoll (CLAUDE.md §8). Das ist ein Hinweis.
+          /* Die beiden Felder haben verschiedene Rollen, und nur eine davon
+             verträgt keine Dubletten:
+
+               Schlüssel – darüber entscheidet sich, ob eine Zeile ändert
+                 oder anlegt. Steht die Nummer zweimal im CRM, weiss die
+                 Auflösung nicht, welche gemeint ist, und die Zeile lässt
+                 sich nicht schreiben. Das ist ein Fehler.
+
+                 Seit dem 10.09.2026 trägt diese Prüfung mehr Gewicht:
+                 `opportunity` bekommt keinen Alternativschlüssel, die
+                 Eindeutigkeit der Opp-ID ist eine fachliche Zusage. Eine
+                 Zusage ohne Kontrolle ist eine Hoffnung — hier wird sie
+                 kontrolliert.
+
+               Verweis   – darüber wird nur gesucht. Doppelte Werte sind
+                 eine Frage, keine Sackgasse: der Prüflauf legt die
+                 Kandidaten vor, jemand entscheidet, die Entscheidung steht
+                 im Protokoll (CLAUDE.md §8). Das ist ein Hinweis.        */
           const felder = [
             { es: "opportunities", feld: "new_dagextopid", was: "Verkaufschancen",
               rolle: "schluessel" },
@@ -1634,9 +1642,10 @@ const APP = (() => {
                   + "Hindernis: der Prüflauf fragt bei jeder betroffenen Zeile "
                   + "nach, welches Konto gemeint ist, und schreibt erst danach."
                 : "")
-            + (sauber ? "" : "  Auf einem doppelten Schlüsselfeld lässt sich kein "
-              + "Alternativschlüssel aktivieren – ohne ihn gibt es keinen Upsert. "
-              + "Siehe docs/03 und docs/05.") };
+            + (sauber ? "" : "  Eine Nummer, die zweimal vergeben ist, lässt sich "
+              + "nicht eindeutig ansprechen: der Import weiss dann nicht, welche "
+              + "Chance gemeint ist, und schreibt die Zeile nicht. Bereinigen, "
+              + "siehe docs/03 und docs/05.") };
         }
       }
     ];

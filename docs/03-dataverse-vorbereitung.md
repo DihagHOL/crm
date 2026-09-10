@@ -21,6 +21,13 @@ Vorhanden ⇒ aktualisieren. Nicht vorhanden ⇒ anlegen. Der Lauf ist beliebig
 oft wiederholbar und liefert immer dasselbe Ergebnis. Genau das braucht man,
 wenn der erste Versuch nach 3.000 von 8.000 Zeilen abbricht.
 
+**Diese App ist trotzdem nicht darauf angewiesen.** Sie fragt in Phase 0 ab,
+was es schon gibt, und adressiert Bekanntes über seine GUID — ein
+Wiederholungslauf ändert also auch ohne Schlüssel, statt zu doppeln. Der
+Schlüssel nimmt ihr Arbeit ab und macht die Eindeutigkeit zur Zusage der
+Datenbank; er ist bequem und sicher, aber keine Voraussetzung. Wo er fehlt,
+steht unten, was stattdessen trägt.
+
 ### Anlegen
 
 Power Apps ▸ Tabellen ▸ *Verkaufschance* ▸ Schlüssel ▸ **Neuer Schlüssel**
@@ -74,14 +81,35 @@ entstandene Chancen, die nie aus Timeline kamen. Sie gehen den Import nichts
 an — ein Alternativschlüssel verträgt leere Werte, sie werden schlicht nicht
 indiziert.
 
-**Offen bleibt der Schlüssel selbst.** `opportunity` führt bis heute *keinen*
-Alternativschlüssel. Solange er fehlt, meldet der Prüflauf am Schritt 30
+### Entschieden am 10.09.2026: kein Alternativschlüssel
 
-> In opportunities gibt es keinen Alternativschlüssel auf `new_dagextopid`.
+`opportunity` bekommt **keinen**. Die Eindeutigkeit der Opp-ID ist eine
+fachliche Zusage des Prozesses; ein Datenbankindex wird dafür nicht angelegt.
+Befund B2 ist damit geschlossen — nicht gelöst, sondern entschieden.
 
-und blockiert ihn — mit Folgewirkung: ohne Schritt 30 entstehen keine neuen
-Chancen, und jede Position dazu scheitert an „In opportunities nicht
-gefunden". Eine Ursache, viele Zeilen.
+Im Profil steht deshalb `AlternateKey: null`. Der Import adressiert nach der
+Drei-Fälle-Regel (CLAUDE.md §7):
+
+| Lage | Weg |
+|---|---|
+| Phase 0 kennt die Chance | `PATCH /opportunities(<GUID>)` |
+| Phase 0 kennt sie nicht | `POST /opportunities`, `new_dagextopid` im Rumpf |
+
+Beides funktioniert ohne Index. **Was den Dublettenschutz trägt, seit er
+entfällt**, sind drei Stellen — keine davon ist die Datenbank:
+
+1. **Phase 0** fragt `new_dagextopid` vorab ab. Was es gibt, wird geändert,
+   nicht angelegt. Das ist der Normalfall und deckt Wiederholungsläufe ab.
+2. **Der Selbsttest** zählt doppelte Werte im CRM und meldet sie als Fehler,
+   nicht als Hinweis. Eine Zusage ohne Kontrolle ist eine Hoffnung.
+3. **Der Prüflauf** lässt eine Kennung aus, die in derselben Datei schon
+   weiter oben stand. Ohne Index wären daraus zwei Datensätze in einem Lauf
+   geworden — genau das, was der Altflow am 04.06.2026 76-mal erzeugt hat und
+   was danach von Hand bereinigt wurde.
+
+Punkt 3 ist der Teil, den der Index vorher nebenbei erledigte: zwei Zeilen
+mit derselben Schlüsseladresse hätten sich gegenseitig aktualisiert. Zwei
+`POST` tun das nicht.
 
 ### `account`: der Schlüssel geht noch nicht
 

@@ -1,5 +1,54 @@
 # Session-Log
 
+## 10.09.2026 — Kein Alternativschlüssel, und was ihn ersetzt
+
+**Die Meldung, mit der es anfing.** Der Prüflauf sperrte Schritt 30 mit
+„In opportunities gibt es keinen Alternativschlüssel auf `new_dagextopid`" —
+und darunter neun Positionsfehler „In opportunities nicht gefunden". Das
+sah nach zwei Problemen aus, war aber eines: ohne Schritt 30 entstehen keine
+neuen Chancen, also findet Schritt 40 die Elterndatensätze nicht. Die vier
+Opp-IDs (7414, 7438, 7440, 7442) existieren wirklich noch nicht, auch nicht
+unter einem `#`-Namen. Dass `7440` siebenmal auftauchte, sind sieben
+Positionen derselben Anfrage.
+
+**Entschieden: kein Schlüssel.** Die Eindeutigkeit der Opp-ID ist eine
+fachliche Zusage des Prozesses, kein Datenbankindex. Befund B2 ist damit
+geschlossen — nicht gelöst, entschieden. Im Profil steht `AlternateKey: null`,
+und die Drei-Fälle-Regel trägt: Bekanntes über die GUID, Unbekanntes per
+`POST` mit dem Schlüssel im Rumpf.
+
+**Was der Index nebenbei erledigte.** Zwei Zeilen mit derselben Opp-ID
+adressieren dieselbe Schlüsseladresse — die zweite ändert, was die erste
+anlegt. Als zwei `POST` tun sie das nicht. Und weil alle Zeilen aufgebaut
+werden, **bevor** der erste Stapel rausgeht, kann die zweite nicht sehen,
+dass die erste gerade anlegt: zwei Datensätze in einem Lauf. Genau das, was
+der Altflow am 04.06.2026 76-mal erzeugt hat und was danach von Hand
+bereinigt wurde.
+
+Prüflauf und Import lassen die Wiederholung jetzt aus und nennen die Zeile,
+in der die Kennung zuerst stand. Nur für Modi, die anlegen — bei
+`LookupOnly` sind mehrere Anfragen desselben Kunden der Normalfall, und dort
+zu warnen hieße, den häufigsten Fall zum Problem zu erklären.
+
+**Drei Stellen tragen den Schutz, keine davon ist die Datenbank:**
+
+| | |
+|---|---|
+| Phase 0 | fragt `new_dagextopid` vorab ab — Bestehendes wird geändert |
+| Selbsttest | zählt doppelte Werte im CRM, als **Fehler**, nicht als Hinweis |
+| Prüflauf | lässt eine Kennung aus, die in derselben Datei schon stand |
+
+Der Selbsttest wiegt seitdem schwerer, und seine Begründung stimmte nicht
+mehr — sie sprach vom nicht anlegbaren Index. Jetzt sagt sie, was wirklich
+passiert: eine zweimal vergebene Nummer lässt sich nicht eindeutig
+ansprechen, die Zeile wird nicht geschrieben. **Eine Zusage ohne Kontrolle
+ist eine Hoffnung.**
+
+**Nebenbei korrigiert.** `docs/03` eröffnete mit „ein Import ohne
+Alternativschlüssel macht aus 400 Konten 800". Für einen naiven Importer
+stimmt das; diese App fragt in Phase 0 ab, was existiert. Der Satz hätte der
+Entscheidung zwei Abschnitte weiter unten widersprochen.
+
 ## 04.09.2026 — Der Besitzer blieb Admin, weil er nie geschrieben wurde
 
 Lauf `de9e4ad0`: 87 Positionen angelegt, 0 Fehler — und **null

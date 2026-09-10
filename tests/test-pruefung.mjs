@@ -348,6 +348,31 @@ console.log("\nErsetzen: die Vorschau sagt, was weggeraeumt wird");
     "der Satz sagt es auch");
 }
 
+console.log("\nDie Vorschau rechnet dieselbe Dublettenregel");
+{
+  /* Kuendigte sie zwei Neuanlagen an, waehrend der Import nur eine
+     schreibt, waere die Zusage des Prueflaufs gebrochen. */
+  const m = { blaetter: [EXCEL.blattAus("Anfragen", [
+    ["Opp-ID"], [7440], [7440], [7441]
+  ])] };
+  const zuo = { OPP: [
+    { aktiv: true, mappingKey: "OPP", sourceColumn: "Opp-ID",
+      targetField: "new_dagextopid", targetType: "Int", istSchluessel: true,
+      writePolicy: "Always" }
+  ] };
+  const a = { treffer: new Map([["opportunities|new_dagextopid", new Map()]]),
+              abfragen: [], idFelder: new Map([["opportunities", "opportunityid"]]) };
+
+  const r = PRUEFUNG.lauf({ schritte: [schritt({ step: 30, mode: "Upsert",
+    entitySet: "opportunities", sourceSheet: "Anfragen", mappingKey: "OPP",
+    alternateKey: null })], zuordnungen: zuo }, m, a);
+
+  gleich(r.schritte[0].neu, 2, "zwei Neuanlagen angekuendigt, nicht drei");
+  gleich(r.schritte[0].uebersprungen, 1, "die Wiederholung wird ausgelassen");
+  pruefe(r.warnungen.some(w => /schon in Zeile 2/.test(w.meldung)),
+    "und der Bericht nennt die Zeile, in der die Kennung zuerst stand");
+}
+
 console.log("\nWelche Felder sich aendern, nicht nur wie viele Zeilen");
 {
   /* "29 geaendert" beantwortet die Frage nicht, die beim Besitzer zaehlt:

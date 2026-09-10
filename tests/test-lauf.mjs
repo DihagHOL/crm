@@ -557,5 +557,77 @@ console.log("\nEin Statuswert, den es als Stufe nicht gibt");
 }
 
 
+console.log("\nDieselbe Kennung zweimal in einer Datei");
+{
+  /* Mit Alternativschluessel war das harmlos: beide Zeilen adressieren
+     dieselbe Schluesseladresse. Ohne ihn wird aus jeder ein POST - zwei
+     Datensaetze in einem Lauf. Genau der Fall, den der Altflow 76-mal
+     erzeugt hat. Die Zeilen werden alle aufgebaut, bevor der erste Stapel
+     rausgeht; die zweite kann also nicht sehen, dass die erste anlegt. */
+  // Zwei Anfragen im Stapel, also zwei Antwortteile.
+  const { LAUF, EXCEL, gesendet } = baueLauf(() =>
+    antwort([{ status: 204 }, { status: 204 }]));
+  const mappe = { blaetter: [EXCEL.blattAus("Anfragen", [
+    ["Opp-ID", "Thema"],
+    [7440, "erste Zeile"],
+    [7440, "zweite Zeile mit derselben Nummer"],
+    [7441, "eine andere"]
+  ])] };
+  const zuordnungen = { OPP: [
+    { aktiv: true, sourceColumn: "Opp-ID", targetField: "new_dagextopid",
+      targetType: "Int", istSchluessel: true, writePolicy: "Always" },
+    { aktiv: true, sourceColumn: "Thema", targetField: "name",
+      targetType: "String", writePolicy: "Always" }
+  ] };
+  const profil = { name: "T", zuordnungen, schritte: [
+    { step: 30, entitySet: "opportunities", sourceSheet: "Anfragen",
+      mappingKey: "OPP", mode: "Upsert", alternateKey: null, aktiv: true }
+  ] };
+  // Phase 0 kennt keine der beiden - beide waeren Neuanlagen.
+  const aufl = { treffer: new Map([["opportunities|new_dagextopid", new Map()]]),
+                 abfragen: [], idFelder: new Map([["opportunities", "opportunityid"]]) };
+
+  const e = await LAUF.ausfuehren({ profil, mappe, aufl, werte: {}, entscheidungen: null });
+
+  gleich(e.gesamt.angelegt, 2, "zwei Datensaetze, nicht drei");
+  const aus = e.eintraege.filter(x => x.aktion === "uebersprungen");
+  gleich(aus.length, 1, "die Wiederholung wird ausgelassen");
+  gleich(aus[0].zeile, 3, "und zwar die zweite Zeile, nicht die erste");
+  pruefe(/schon in Zeile 2/.test(aus[0].meldung),
+    "die Meldung nennt die Zeile, in der die Kennung zuerst stand");
+
+  const koerper = gesendet.map(s => s.koerper).join("");
+  gleich((koerper.match(/"new_dagextopid":7440/g) || []).length, 1,
+    "7440 geht genau einmal raus");
+}
+
+console.log("\nBei LookupOnly ist die Wiederholung normal");
+{
+  /* Mehrere Anfragen desselben Kunden sind der Normalfall - Schritt 10
+     schlaegt nur nach und legt nichts an. Dort zu warnen hiesse, den
+     haeufigsten Fall zum Problem zu erklaeren. */
+  const { LAUF, EXCEL } = baueLauf(() => antwort([{ status: 204 }]));
+  const mappe = { blaetter: [EXCEL.blattAus("Anfragen", [
+    ["Firma"], [47000004], [47000004]
+  ])] };
+  const zuordnungen = { ACC: [
+    { aktiv: true, sourceColumn: "Firma", targetField: "dag_dihag_kdnr",
+      targetType: "Int", istSchluessel: true, writePolicy: "Always" }
+  ] };
+  const aufl = { treffer: new Map([["accounts|dag_dihag_kdnr", new Map([
+      ["47000004", [{ dag_dihag_kdnr: 47000004, statecode: 0,
+                      accountid: "aaaaaaaa-0000-0000-0000-000000000009" }]]
+    ])]]), abfragen: [], idFelder: new Map([["accounts", "accountid"]]) };
+
+  const e = await LAUF.ausfuehren({ profil: { name: "T", zuordnungen, schritte: [
+    { step: 10, entitySet: "accounts", sourceSheet: "Anfragen", mappingKey: "ACC",
+      mode: "LookupOnly", aktiv: true }] }, mappe, aufl, werte: {}, entscheidungen: null });
+
+  gleich(e.eintraege.filter(x => x.aktion === "unveraendert").length, 2,
+    "beide Zeilen loesen auf");
+  gleich(e.eintraege.filter(x => x.aktion === "uebersprungen").length, 0,
+    "keine wird als Dublette ausgelassen");
+}
+
 console.log(fehler ? `\n${fehler} Pruefung(en) fehlgeschlagen.` : "\nAlle Pruefungen bestanden.");
 process.exit(fehler ? 1 : 0);

@@ -209,6 +209,19 @@ const LAUF = (() => {
       const auftraege = [];
       const key = zu.find(z => z.aktiv && z.istSchluessel && z.targetField);
 
+      /* Dieselbe Kennung zweimal in derselben Datei.
+         Mit Alternativschlüssel war das harmlos: beide Zeilen adressieren
+         dieselbe Schlüsseladresse, die zweite ändert, was die erste anlegt.
+         Ohne ihn wird aus jeder ein POST — zwei Datensätze in einem Lauf,
+         genau das, was der Altflow 76-mal erzeugt hat und was hinterher
+         von Hand aufgeräumt wurde.
+
+         Die Zeilen werden vollständig aufgebaut, bevor der erste Stapel
+         rausgeht; die zweite Zeile kann also nicht sehen, dass die erste
+         gerade anlegt. Deshalb hier, beim Aufbauen. */
+      const angekuendigt = new Map();   // Vergleichsform → erste Zeile
+      const legtAn = ["Upsert", "Create", "CreateIfMissing"].includes(s.mode);
+
       for (const zeile of blatt.zeilen) {
         if (s.mode === "SetStage") {
           const a = stufenAuftrag(s, zu, zeile);
@@ -268,6 +281,20 @@ const LAUF = (() => {
               schluessel: sw, aktion: "unveraendert", meldung: "aufgelöst" });
           }
           continue;
+        }
+
+        if (legtAn && key && !bestand) {
+          const vk = AUFLOESUNG.vergleichbar(sw);
+          const zuerst = angekuendigt.get(vk);
+          if (zuerst !== undefined) {
+            notiere({ schritt: s.step, entitySet: s.entitySet, zeile: zeile._zeile,
+              schluessel: sw, aktion: "uebersprungen",
+              meldung: `${key.sourceColumn || key.targetField} „${sw}“ steht in `
+                + `dieser Datei schon in Zeile ${zuerst} – ein zweiter Datensatz `
+                + "dazu wäre eine Dublette" });
+            continue;
+          }
+          angekuendigt.set(vk, zeile._zeile);
         }
 
         if (s.skipIfClosed && bestand && Number(bestand.statecode) !== 0) {

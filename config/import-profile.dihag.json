@@ -53,11 +53,11 @@
       "SourceSheet": "Anfragen",
       "MappingKey": "OPPORTUNITY_STD",
       "Mode": "Upsert",
-      "AlternateKey": "new_dagextopid",
+      "AlternateKey": null,
       "BatchSize": 100,
       "StopOnError": false,
       "Active": true,
-      "$hinweis": "Upsert ueber Alternativschluessel. SkipIfClosed: geschlossene Chancen (statecode 1/2) sind schreibgeschuetzt, PATCH schlaegt fehl. Sie werden uebersprungen und gemeldet, NICHT automatisch wiedereroeffnet - das waere eine fachliche Entscheidung (Review A3). Schluesselfeld am 02.09.2026 in Dataverse gefunden: new_dagextopid (Integer). Bei 200 von 200 geprueften Chancen stimmt es exakt mit dem #NNNN-Praefix im Namen ueberein. ACHTUNG: 213 Chancen mit #-Namen haben es noch nicht - vor dem ersten Lauf nachpflegen, sonst legt der Import sie neu an.",
+      "$hinweis": "Upsert ohne Alternativschluessel - ENTSCHIEDEN am 10.09.2026: die Opp-ID ist fachlich eindeutig, ein Datenbankindex wird dafuer nicht angelegt (Befund B2 damit geschlossen). Adressiert wird nach der Drei-Faelle-Regel (CLAUDE.md): Phase 0 kennt die Chance -> PATCH ueber ihre GUID; kennt sie sie nicht -> POST, und new_dagextopid steht dann im Rumpf. Beides funktioniert ohne Index. Was den Dublettenschutz traegt, seit der Index entfaellt: (1) Phase 0 fragt new_dagextopid vorab ab, Bestehendes wird geaendert statt angelegt; (2) der Selbsttest zaehlt doppelte Werte im CRM und meldet sie als Fehler; (3) der Pruflauf weist doppelte Opp-IDs INNERHALB der Datei ab - ohne Index waeren daraus zwei Datensaetze in einem Lauf geworden, genau der Fall, den der Altflow 76-mal erzeugt hat. SkipIfClosed: geschlossene Chancen (statecode 1/2) sind schreibgeschuetzt, PATCH schlaegt fehl. Sie werden uebersprungen und gemeldet, NICHT automatisch wiedereroeffnet (Review A3). Schluesselfeld new_dagextopid (Integer), am 10.09.2026 nachgemessen: 1650 gesetzt, 0 doppelt, und alle 1646 Chancen mit #-Namen tragen es - die 213 Nachzupflegenden von damals sind erledigt.",
       "OnMissingKey": "Fail",
       "SkipIfClosed": true
     },

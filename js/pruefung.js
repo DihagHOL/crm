@@ -302,6 +302,12 @@ const PRUEFUNG = (() => {
 
       const key = zu.find(k => k.aktiv && k.istSchluessel && k.targetField);
 
+      /* Dieselbe Kennung zweimal in derselben Datei – siehe lauf.js.
+         Die Vorschau muss denselben Weg rechnen, sonst kündigt sie einen
+         Datensatz an, den der Import bewusst auslässt. */
+      const angekuendigt = new Map();
+      const legtAn = ["Upsert", "Create", "CreateIfMissing"].includes(s.mode);
+
       for (const zeile of blatt.zeilen) {
         // Hängt die Zeile an einer, die schon ausgeschlossen ist? Dann
         // entsteht hier nichts – und die Vorschau darf sie auch nicht als
@@ -384,6 +390,22 @@ const PRUEFUNG = (() => {
                 + "Folgeschritten übersprungen, der Lauf geht weiter (Review B3)." });
           } else z.unveraendert++;
           continue;
+        }
+
+        if (legtAn && key && !bestand) {
+          const vk = AUFLOESUNG.vergleichbar(schluesselWert);
+          const zuerst = angekuendigt.get(vk);
+          if (zuerst !== undefined) {
+            z.uebersprungen++;
+            alleWarnungen.push({ schritt: s.step, zeile: zeile._zeile,
+              spalte: key.sourceColumn, wert: schluesselWert, klartext: klartext(zeile),
+              meldung: `Dieselbe Kennung steht in dieser Datei schon in Zeile `
+                + `${zuerst}. Die Zeile wird ausgelassen – ein zweiter Datensatz `
+                + "dazu wäre eine Dublette. Welche der beiden gilt, entscheidet "
+                + "die Datei, nicht die App." });
+            continue;
+          }
+          angekuendigt.set(vk, zeile._zeile);
         }
 
         // Geschlossene Verkaufschancen sind schreibgeschützt (Review A3)
