@@ -55,17 +55,33 @@ Name ohne #-Präfix:                              0
 Damit ist Befund B2 lösbar: Alternativschlüssel auf `new_dagextopid`, und der
 `startswith`-Präfixvergleich entfällt.
 
-**Aber es hat eine Lücke.** Von 4.805 Verkaufschancen tragen 1.734 einen
-Namen mit `#`-Präfix, aber nur 1.525 haben `new_dagextopid` gesetzt — und
-seit dem **29.05.2026** wird es gar nicht mehr gefüllt.
+**Es hatte eine Lücke.** Von 4.805 Verkaufschancen trugen 1.734 einen Namen
+mit `#`-Präfix, aber nur 1.525 hatten `new_dagextopid` gesetzt — 213 wären
+beim Import nicht gefunden und neu angelegt worden, Dubletten für jede davon.
+
+**Erledigt.** Nachgemessen am 10.09.2026 gegen die Umgebung:
 
 ```
-Name beginnt mit #, aber new_dagextopid leer:  213
+Chancen gesamt:                   5059
+Name beginnt mit #:               1646
+davon new_dagextopid leer:           0     ← die Lücke ist geschlossen
+new_dagextopid gesetzt:           1650
+doppelte Werte darin:                0     ← der Schlüssel ist anlegbar
 ```
 
-Diese 213 müssen **vor dem ersten Lauf** nachgepflegt werden: Präfix aus
-`name` ziehen, als Zahl in `new_dagextopid` schreiben. Sonst findet der
-Import sie nicht und legt sie neu an — Dubletten für jede davon.
+Die restlichen 3.409 tragen weder `#` noch `new_dagextopid`: im CRM
+entstandene Chancen, die nie aus Timeline kamen. Sie gehen den Import nichts
+an — ein Alternativschlüssel verträgt leere Werte, sie werden schlicht nicht
+indiziert.
+
+**Offen bleibt der Schlüssel selbst.** `opportunity` führt bis heute *keinen*
+Alternativschlüssel. Solange er fehlt, meldet der Prüflauf am Schritt 30
+
+> In opportunities gibt es keinen Alternativschlüssel auf `new_dagextopid`.
+
+und blockiert ihn — mit Folgewirkung: ohne Schritt 30 entstehen keine neuen
+Chancen, und jede Position dazu scheitert an „In opportunities nicht
+gefunden". Eine Ursache, viele Zeilen.
 
 ### `account`: der Schlüssel geht noch nicht
 
