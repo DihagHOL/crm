@@ -383,8 +383,16 @@ if ($ksite) {
 # Klickarbeit mit Tippfehlerrisiko in genau den Feldnamen, auf die es ankommt.
 
 if ($ProfilLaden -and $ksite) {
-    Write-Host "`n[3b] Importprofil laden aus $ProfilDatei" -ForegroundColor Yellow
     $sid = $ksite.id
+
+    # Relativ zum SKRIPT, nicht zum aktuellen Verzeichnis. Wer aus dem
+    # uebergeordneten Ordner startet, bekam sonst "Datei nicht gefunden" -
+    # und der Pfad in der Meldung sah dabei voellig richtig aus.
+    if (-not [System.IO.Path]::IsPathRooted($ProfilDatei)) {
+        $kandidat = Join-Path $PSScriptRoot $ProfilDatei
+        if (Test-Path $kandidat) { $ProfilDatei = $kandidat }
+    }
+    Write-Host "`n[3b] Importprofil laden aus $ProfilDatei" -ForegroundColor Yellow
 
     if (-not (Test-Path $ProfilDatei)) {
         Fehl "  Datei nicht gefunden: $ProfilDatei"

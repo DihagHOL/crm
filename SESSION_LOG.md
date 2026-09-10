@@ -1,5 +1,18 @@
 # Session-Log
 
+## 10.09.2026 — Das Skript findet sein Profil jetzt von überall
+
+`pwsh ./setup-crm.ps1 -ProfilLaden` aus dem übergeordneten Ordner: Datei
+nicht gefunden. Der eigentliche Stolperstein steckte eine Ebene tiefer —
+`-ProfilDatei` ist relativ (`config/import-profile.dihag.json`) und wurde
+gegen das **aktuelle Verzeichnis** aufgelöst, nicht gegen den Ort des
+Skripts. Wer aus `Programming` statt aus `Programming/crm` startete, bekam
+„Datei nicht gefunden" mit einem Pfad, der dabei völlig richtig aussah.
+
+Jetzt wird ein relativer Pfad zuerst gegen `$PSScriptRoot` probiert. Ein
+absoluter Pfad bleibt unangetastet, und `-ProfilDatei` von Hand funktioniert
+weiter wie bisher.
+
 ## 10.09.2026 — Dieselbe Meldung, und warum sie wiederkam
 
 Der Prüflauf meldete nach der Änderung wortgleich dasselbe. Der Grund ist
