@@ -981,9 +981,20 @@ const APP = (() => {
       <div class="card">
         <h4>📋 ${esc(p.name || "kein Profil")}</h4>
         <p class="hint">${p.schritte.length} Schritte
+          ${p.geladenAm ? ` · zuletzt geladen ${esc(datum(p.geladenAm))}` : ""}
           ${p.profile.length > 1 ? ` · weitere Profile in der Liste: ${esc(p.profile.filter(x => x !== p.name).join(", "))}` : ""}
           ${_mappe ? ` · geprüft gegen <b>${esc(_datei.name)}</b>`
                    : ' · <b>keine Datei geladen</b> – die Quellspalten werden nicht geprüft'}</p>
+        ${/* Die Konfiguration steht in SharePoint, nicht im Repository. Wer
+              sie im Repository ändert und nicht hochlädt, sieht dieselbe
+              Meldung wieder und sucht den Fehler im Code. Der Zeitstempel
+              beantwortet die Frage „ist meine Änderung überhaupt hier
+              angekommen?" ohne einen einzigen Umweg. */""}
+        ${p.geladenAm && (Date.now() - Date.parse(p.geladenAm)) > 7 * 864e5
+          ? `<p class="hint">Die Konfiguration liegt seit
+             ${Math.floor((Date.now() - Date.parse(p.geladenAm)) / 864e5)} Tagen
+             unverändert in SharePoint. Änderungen im Repository wirken erst
+             nach <code>setup-crm.ps1 -ProfilLaden</code>.</p>` : ""}
         ${!_mappe ? '<p class="warn">Ohne geladene Datei prüft diese Seite nur die '
           + 'Zielfelder gegen Dataverse. Für die vollständige Prüfung erst unter '
           + '<b>Datei wählen</b> eine Mappe öffnen.</p>' : ""}

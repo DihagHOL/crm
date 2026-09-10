@@ -57,6 +57,14 @@ const SPLISTEN = (() => {
     const profile = [...new Set(pRows.map(r => r.Title).filter(Boolean))];
     const name = profilName || profile[0] || "";
 
+    /* Wann wurde die Konfiguration zuletzt hierher geladen?
+       `setup-crm.ps1 -ProfilLaden` löscht die Zeilen des Profils und legt
+       sie neu an – der jüngste Zeitstempel ist also der Zeitpunkt des
+       letzten Ladens. Ohne diese Angabe sieht eine Änderung im Repository
+       genauso aus wie eine, die nie hochgeladen wurde. */
+    const zeiten = [...pRows, ...mRows].map(r => r._geaendert).filter(Boolean).sort();
+    const geladenAm = zeiten.length ? zeiten[zeiten.length - 1] : null;
+
     const schritte = pRows
       .filter(r => r.Title === name)
       .map(r => ({
@@ -124,7 +132,7 @@ const SPLISTEN = (() => {
     for (const k of Object.keys(zuordnungen))
       zuordnungen[k].sort((a, b) => a.sortOrder - b.sortOrder);
 
-    return { name, profile, schritte, zuordnungen };
+    return { name, profile, schritte, zuordnungen, geladenAm };
   }
 
   /** Wertzuordnungen („Deutschland“ → 100000001). Fehlt die Liste, ist das

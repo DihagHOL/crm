@@ -252,7 +252,12 @@ const GRAPH = (() => {
     if (!lid) return null;
     if (expected) await fieldMap(sitePath, name, expected);
     const rows = await callAll(`/sites/${sid}/lists/${lid}/items?$expand=fields&$top=${top}`);
-    return rows.map(r => ({ id: r.id, ...normalize(sitePath, name, r.fields || {}) }));
+    /* `_geaendert` kommt mit, weil die Konfiguration in SharePoint steht und
+       nicht im Repository. Wer dort etwas ändert und die App befragt, sieht
+       sonst nicht, ob seine Änderung überhaupt angekommen ist – und sucht
+       den Fehler im Code. */
+    return rows.map(r => ({ id: r.id, _geaendert: r.lastModifiedDateTime || null,
+                            ...normalize(sitePath, name, r.fields || {}) }));
   }
 
   async function addItem(sitePath, name, fields) {

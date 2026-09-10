@@ -227,9 +227,22 @@ const AUFLOESUNG = (() => {
           const keys = await DV.schluessel(s.entitySet);
           const t = keys.find(x => x.felder.length === 1 && x.felder[0] === s.alternateKey);
           if (!t)
+            /* Zwei Wege hinaus, und lange stand nur einer da. Den Schlüssel
+               anzulegen ist der eine; ihn aus dem Profil zu nehmen der
+               andere – dann adressiert der Import über die GUID und legt
+               Unbekanntes per POST an, so wie bei `contact` seit jeher.
+
+               Der letzte Satz ist der wichtigste: die Konfiguration steht
+               in SharePoint, nicht im Repository. Wer sie dort ändert und
+               nicht hochlädt, sieht dieselbe Meldung wieder und sucht den
+               Fehler im Code. */
             meldung = `In ${s.entitySet} gibt es keinen Alternativschlüssel auf `
-              + `${s.alternateKey}. Ohne ihn lässt sich kein Upsert über diesen `
-              + "Wert adressieren – anzulegen nach docs/03.";
+              + `${s.alternateKey}. Zwei Wege: den Schlüssel in Dataverse `
+              + "anlegen (docs/03), oder AlternateKey im Profil leeren – dann "
+              + "adressiert der Import Bekanntes über seine GUID und legt "
+              + "Unbekanntes per POST an. Achtung: geändert wird die "
+              + "Konfiguration in SharePoint, nicht im Repository – erst "
+              + "„setup-crm.ps1 -ProfilLaden“ macht eine Änderung wirksam.";
           else if (t.status && t.status !== "Active")
             meldung = `Der Alternativschlüssel ${t.name} auf ${s.alternateKey} steht `
               + `auf „${t.status}“, nicht „Active“. Solange der Index nicht aktiv ist, `

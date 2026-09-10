@@ -1,5 +1,50 @@
 # Session-Log
 
+## 10.09.2026 — Dieselbe Meldung, und warum sie wiederkam
+
+Der Prüflauf meldete nach der Änderung wortgleich dasselbe. Der Grund ist
+nicht der Code: **die Konfiguration steht in SharePoint, nicht im
+Repository.** `AlternateKey: null` liegt in `config/import-profile.dihag.json`
+und wirkt erst nach `setup-crm.ps1 -ProfilLaden`. Eine Änderung im Repo sieht
+bis dahin genauso aus wie eine, die nie hochgeladen wurde.
+
+Das hat diese Runde gekostet, und es kann sich wiederholen. Deshalb zwei
+Dinge:
+
+- Die Zuordnung zeigt jetzt **wann die Konfiguration zuletzt geladen wurde**
+  (`_geaendert` der SharePoint-Zeilen, jüngster Zeitstempel). Liegt sie über
+  eine Woche zurück, steht der Hinweis dabei.
+- Die Meldung zum fehlenden Alternativschlüssel nennt **beide** Wege hinaus —
+  anlegen oder aus dem Profil nehmen — und sagt, wo die Konfiguration
+  wirklich liegt. Vorher stand dort nur „anzulegen nach docs/03", was seit
+  der Entscheidung schlicht falsch war.
+
+**Und ein Fund, der über den Anlass hinausgeht.** CLAUDE.md §13 führte:
+
+> Alternativschlüssel auf `new_dagextopid` — angelegt am 02.09.2026 als
+> `dag_TimelineOppId`, Index **Aktiv**. Probe:
+> `GET /opportunities(new_dagextopid=6440)` liefert die Chance.
+
+Am 10.09.2026 nachgesehen: `opportunity` führt **null** Schlüssel, und
+dieselbe Probe antwortet mit
+
+```
+400 – The key in the request URI is not valid for resource
+'Microsoft.Dynamics.CRM.opportunity'
+```
+
+Die dokumentierte Anpassung hat in dieser Umgebung nicht überlebt. Für den
+Import ist das folgenlos — es wird ohnehin keiner mehr gebraucht —, aber es
+heißt: **eine Anpassung, die dokumentiert ist, ist deshalb noch nicht
+vorhanden.** Die App prüft es zur Laufzeit, und genau deshalb fiel es auf.
+
+**Nebenbei aufgeräumt.** Mehrere Stellen in CLAUDE.md widersprachen dem
+Stand: Randbedingung 6 („jeder Schreibzugriff ist ein Upsert über einen
+Alternate Key"), `ownerid` als `OnCreateOnly` in §8, Schritt 50 als
+`CreateIfMissing` in §9, dazu die Punkte zu Preisliste und Status in §13.
+Die Datei ist laut eigenem Kopf die verbindliche Quelle — veraltete Einträge
+darin sind schlimmer als keine.
+
 ## 10.09.2026 — Kein Alternativschlüssel, und was ihn ersetzt
 
 **Die Meldung, mit der es anfing.** Der Prüflauf sperrte Schritt 30 mit

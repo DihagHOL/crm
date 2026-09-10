@@ -81,7 +81,7 @@ nicht startet oder Daten zerstört.
 | 3 | **Kein Build.** Repo-Wurzel = Pages-Wurzel, alle Pfade relativ. | Keine andere DIHAG-App hat eine Werkzeugkette. Ohne Bundler entfällt auch `base`. |
 | 4 | **Redirect-URI mit Schrägstrich am Ende.** `js/auth.js` leitet sie aus `location` ab und erzwingt ihn. | Entra vergleicht bytegleich. Damit ist `AADSTS50011` baulich ausgeschlossen, und dieselbe Auslieferung läuft unter beiden Adressen. |
 | 5 | **Schreibende Requests nur nach bestandenem Dry-Run.** | Ein Fehlimport in ein Produktiv-CRM ist manuell kaum rückholbar. |
-| 6 | **Jeder Schreibzugriff ist ein Upsert über einen Alternate Key**, nie ein blindes `POST`. | Wiederholbarkeit. Ein zweiter Lauf derselben Datei darf keine Dubletten erzeugen. |
+| 6 | **Kein Schreibzugriff ohne vorherige Auflösung.** Was Phase 0 kennt, wird über seine GUID geändert; nur wirklich Unbekanntes wird angelegt. | Wiederholbarkeit. Ein zweiter Lauf derselben Datei darf keine Dubletten erzeugen. Ein Alternativschlüssel erledigt das nebenbei — es gibt aber keinen an den Zieltabellen (§7), und die Regel gilt trotzdem. |
 | 7 | **429 wird immer über `Retry-After` behandelt**, nie mit festem Sleep, nie ignoriert. | Dataverse Service Protection Limits, siehe §7. |
 | 8 | **Kein `alert()`, kein `confirm()`, keine stillen `catch`-Blöcke.** | Fehler müssen im Protokoll landen, nicht im Nichts. |
 | 9 | **Tokens in `sessionStorage`, nicht `localStorage`.** | Siehe Sicherheitshinweis §11. |
@@ -573,10 +573,17 @@ Abgleich macht:
 | `OnCreateOnly` | nur bei Anlage — danach gehört das Feld dem CRM |
 | `OnlyIfEmpty` | nur schreiben, wenn im CRM leer |
 
-`ownerid` und `name` sind `OnCreateOnly`. Hat ein Vertriebler die Chance im
-CRM übernommen oder den Namen korrigiert, darf der nächste Import das nicht
-zurückdrehen. `estimatedvalue`, `estimatedclosedate` und `closeprobability`
-sind `Always` — das sind die Fachdaten aus der Quelle.
+`name` ist `OnCreateOnly`: hat jemand den Namen im CRM korrigiert, darf der
+nächste Import das nicht zurückdrehen. `estimatedvalue`,
+`estimatedclosedate` und `closeprobability` sind `Always` — Fachdaten aus der
+Quelle.
+
+`ownerid` **war** `OnCreateOnly` und ist seit dem 04.09.2026 `Always`. Warum,
+steht oben unter „Welche Felder sich ändern": die Chancen existierten alle
+schon, das Feld wurde nie geschrieben, und 24 von 29 blieben auf dem
+Verbindungsbenutzer des Altflows stehen. Der Schutz aus Review B2 gilt
+weiter, aber als Sichtbarkeit — der Prüfbericht nennt `ownerid` mit Anzahl,
+bevor etwas passiert.
 
 ---
 
@@ -600,7 +607,7 @@ Verkaufschance) und `Positionen` (je Zeile eine Angebotsposition, verknüpft
 | 20 | `contacts` | Upsert über `emailaddress1` | Anfragen | setzt **zusätzlich** `parentcustomerid` — der Altflow tut das nicht |
 | 30 | `opportunities` | Upsert | Anfragen | `parentaccountid` + `parentcontactid` liegen jetzt beide vor |
 | 40 | `opportunityproducts` | **ReplaceByParent** | Positionen | siehe unten |
-| 50 | `opportunitysalesprocesses` | CreateIfMissing | Anfragen | genau einer je Verkaufschance |
+| 50 | `opportunitysalesprocesses` | **SetStage** | Anfragen | setzt `activestageid` an der bestehenden Prozessinstanz; angelegt wird keine |
 
 Kontakte laufen **vor** den Verkaufschancen. Damit entfällt der Nachtrag von
 `parentcontactid`, den der Altflow über drei verschachtelte Bedingungen
@@ -864,12 +871,14 @@ scharf geschaltet werden.
 
 - [x] ~~`dataverseUrl`~~ — `https://dihag-test.crm4.dynamics.com`, eingetragen
       am 02.09.2026. Die Produktiv-URL wird erst beim Produktivgang gebraucht.
-- [ ] **Alternativschlüssel an `opportunity`** anlegen — das Feld ist
-      gefunden: **`new_dagextopid`** (Integer), passt bei 200 von 200
-      geprüften Chancen exakt zum `#NNNN` im Namen. Vorher aber
-      **213 Chancen nachpflegen**, die einen `#`-Namen tragen und das Feld
-      noch nicht gesetzt haben (seit 29.05.2026 wird es nicht mehr gefüllt).
-      Sonst legt der Import sie neu an. Details in `docs/03`.
+- [x] ~~**Alternativschlüssel an `opportunity`**~~ — **entschieden am
+      10.09.2026: es wird keiner angelegt.** Die Eindeutigkeit der Opp-ID ist
+      eine fachliche Zusage des Prozesses. Der Import adressiert Bekanntes
+      über die GUID und legt Unbekanntes per `POST` an; was der Index
+      nebenbei erledigte — zwei gleiche Kennungen in einer Datei — fangen
+      Prüflauf und Import jetzt selbst ab (§7). Die **213 nachzupflegenden
+      Chancen** sind erledigt: am 10.09.2026 nachgemessen tragen alle 1646
+      Chancen mit `#`-Namen ihr `new_dagextopid`, 1650 Werte, 0 doppelt.
 - [x] ~~`dag_dihag_kdnr`: 15 doppelte Nummern~~ — 8 bereinigt, **die
       restlichen 7 werden in der App entschieden**: Der Prüflauf listet jeden
       Mehrfachtreffer mit seinen Kandidaten auf, jemand wählt, und die Wahl
@@ -911,12 +920,18 @@ scharf geschaltet werden.
       `new_zeichnungsid`, alle drei **Textfelder**
 - [x] ~~ISO-Währungscode statt GUID~~ (B9) — die GUID des Altflows ist **EUR**
 - [x] ~~Was `Mitarbeiter` setzen soll~~ (B1) — `ownerid` an der Verkaufschance,
-      `OnCreateOnly`, aktiv im Profil
-- [x] ~~Preisliste~~ (A7) — bleibt außen vor. Die Vermutung, dass Positionen
-      ohne `pricelevelid` scheitern, gilt hier nicht: 59 von 60 geprüften
-      Positionen hängen an Chancen ohne Preisliste.
-- [x] ~~Status / Win-Loss~~ (A5) — Abschlüsse werden vorerst **nicht**
-      importiert, Schritt 60 bleibt inaktiv. Win/Loss laufen im CRM.
+      seit 04.09.2026 `Always` statt `OnCreateOnly` (§8), aktiv im Profil
+- [x] ~~Preisliste~~ (A7) — an der **Verkaufschance** zugeordnet
+      (`pricelevelid`), nicht an der Position: die hat gar kein solches Feld.
+      **Offen bleibt der Wert:** die Datei nennt
+      `Default Price List für Verkaufschancenprodukte`, diesen Namen gibt es
+      unter den 209 Preislisten nicht — im Lauf `de9e4ad0` betraf das jede
+      der 29 Chancen. Bis das geklärt ist, bleibt das Feld leer und der
+      Prüflauf warnt.
+- [x] ~~Status / Win-Loss~~ (A5) — die Spalte mischt zwei Konzepte. Die
+      **Phasen** gehen seit 03.09.2026 nach Schritt 50 (`SetStage`,
+      `activestageid`); die **Abschlüsse** werden weiterhin nicht importiert,
+      Schritt 60 bleibt inaktiv. Win/Loss laufen im CRM.
 
 **Nicht blockierend:**
 
@@ -936,10 +951,20 @@ scharf geschaltet werden.
       02.09.2026** mit `aufraeumen-b1.ps1`. 76 gelöscht, 0 Fehler, danach
       137 `new_dagextopid` nachgepflegt. Ergebnis: 1.662 Verkaufschancen mit
       Opp-ID, **1.662 verschiedene Werte, 0 Dubletten**.
-- [x] ~~Alternativschlüssel auf `new_dagextopid`~~ — angelegt am 02.09.2026
-      als `dag_TimelineOppId`, Index **Aktiv**. Probe:
-      `GET /opportunities(new_dagextopid=6440)` liefert die Chance.
-      **Befund B2 ist damit erledigt**, der `startswith`-Vergleich entfällt.
+- [!] **Der am 02.09.2026 angelegte Schlüssel `dag_TimelineOppId` ist
+      verschwunden.** Damals dokumentiert als Index *Aktiv*, Probe
+      `GET /opportunities(new_dagextopid=6440)` lieferte die Chance. Am
+      10.09.2026 nachgesehen: `opportunity` führt **null** Schlüssel, und
+      dieselbe Probe antwortet mit
+
+          400 – The key in the request URI is not valid for resource
+          'Microsoft.Dynamics.CRM.opportunity'
+
+      Nicht die App hat ihn entfernt — sie liest Metadaten nur. Ein
+      Lösungsimport oder eine Umgebungskopie ist die naheliegende Erklärung.
+      Für den Import ist es folgenlos (siehe Entscheidung oben), aber wer
+      sich auf diese Umgebung verlässt, sollte wissen, dass eine
+      dokumentierte Anpassung darin nicht überlebt hat.
 - [x] ~~Läuft der Altflow während der Entwicklung weiter?~~ **Nein, er ist
       abgeschaltet** (02.09.2026). Damit entstehen die Geisterdatensätze aus
       B1 nicht erneut, und ein Vergleichslauf ist eindeutig zuzuordnen.
