@@ -34,6 +34,17 @@ const LAUF = (() => {
   const kurzWarnung = w => ({ feld: w.feld || "", wert: w.wert ?? null, meldung: w.meldung });
   const warte = ms => new Promise(r => setTimeout(r, ms));
 
+  /** Kennung der Changeset-Gruppe eines Auftrags.
+   *
+   *  Je Elterndatensatz ein Changeset – auch wenn nur sein Schlüssel
+   *  bekannt ist. Die Formel steht hier einmal, weil sie an zwei Stellen
+   *  gebraucht wird: beim Schneiden der Stapel und beim Auswerten der
+   *  Antwort. Zwei Fassungen liefen sonst auseinander, und die Auswertung
+   *  fände die Gruppe nicht wieder, die sie selbst gebildet hat. */
+  const elternKennung = a => a.elternId ? String(a.elternId)
+    : a.elternSchluessel != null ? "schluessel:" + a.elternSchluessel
+    : String(a.sw);
+
   /**
    * @param {object} k Kontext: profil, mappe, aufl, werte, entscheidungen
    * @param {object} [opt] onFortschritt, onEintrag, signal (AbortSignal)
@@ -339,6 +350,21 @@ const LAUF = (() => {
             const eid = k.aufl.idFelder?.get(ez.lookupEntitySet);
             auftrag.elternSchluessel = ew;
             auftrag.elternId = et.records[0] && eid ? et.records[0][eid] : null;
+
+            /* Geschlossene Verkaufschance: Dataverse weist schon das
+               Löschen ab (0x80040228), und weil Löschen und Anlegen ein
+               Changeset sind, fällt die ganze Gruppe — die neuen
+               Positionen bekommen dann nicht einmal eine Antwort. Das
+               Profil sagt seit jeher `SkipIfParentClosed`; gelesen hat es
+               nur nie jemand. */
+            if (s.skipIfParentClosed && et.records[0]
+                && Number(et.records[0].statecode) !== 0) {
+              notiere({ schritt: s.step, entitySet: s.entitySet, zeile: zeile._zeile,
+                schluessel: sw, aktion: "uebersprungen",
+                meldung: `${ez.lookupEntitySet} zu „${ew}“ ist geschlossen – `
+                  + "ihre Positionen bleiben unverändert" });
+              continue;
+            }
             // Ohne GUID geht es weiter, WENN der Elterndatensatz in diesem
             // Lauf entstanden ist: dann gibt es keine alten Kinder zu
             // löschen, und die Bindung läuft ohnehin über den
@@ -365,12 +391,9 @@ const LAUF = (() => {
         // denselben Batch, aber ein Changeset darf nie geteilt werden.
         const proEltern = new Map();
         for (const a of auftraege) {
-          // Je Elterndatensatz ein Changeset – auch wenn nur sein
-          // Schlüssel bekannt ist. Alle GUID-losen in einen Topf zu werfen
-          // hiesse: eine kaputte Position rollt fremde mit zurück.
-          const p = a.elternId ? String(a.elternId)
-                  : a.elternSchluessel != null ? "schluessel:" + a.elternSchluessel
-                  : String(a.sw);
+          // Alle GUID-losen in einen Topf zu werfen hiesse: eine kaputte
+          // Position rollt fremde mit zurück.
+          const p = elternKennung(a);
           if (!proEltern.has(p)) proEltern.set(p, []);
           proEltern.get(p).push(a);
         }
@@ -517,6 +540,26 @@ const LAUF = (() => {
 
     const teilAntworten = BATCH.lese(text);
     const eintraege = [];
+
+    /* Ein Changeset ist eine Transaktion. Scheitert ein Teil, antwortet
+       Dataverse mit EINEM Fehlerteil für die ganze Gruppe – die übrigen
+       Requests bekommen gar keine Antwort. Für sie stand bisher nur
+       „Keine Antwort im Batch": wahr, aber unbrauchbar. Wer das liest,
+       sucht einen Netzwerkfehler, während drei Zeilen weiter oben die
+       Ursache steht.
+
+       Deshalb vorab: in welcher Gruppe ist etwas schiefgegangen? */
+    const gruppeGescheitert = new Map();   // Elterndatensatz → Grund
+    if (istChangeset) {
+      for (let n = 0; n < zuordnung.length; n++) {
+        const z = zuordnung[n];
+        const a = teilAntworten[n];
+        if (a && !BATCH.erfolg(a.status) && z.eltern !== undefined
+            && !gruppeGescheitert.has(z.eltern))
+          gruppeGescheitert.set(z.eltern, BATCH.fehlertext(a));
+      }
+    }
+
     for (let n = 0; n < zuordnung.length; n++) {
       const z = zuordnung[n];
       if (z.art === "delete") {
@@ -532,7 +575,14 @@ const LAUF = (() => {
       }
       if (!z.auftrag) continue;
       const a = teilAntworten[n];
-      if (!a) { eintraege.push(protokoll(z, s, 0, "Keine Antwort im Batch")); continue; }
+      if (!a) {
+        const grund = z.auftrag ? gruppeGescheitert.get(elternKennung(z.auftrag)) : null;
+        eintraege.push(protokoll(z, s, 0, grund
+          ? "Das Changeset dieser Verkaufschance ist gescheitert, deshalb "
+            + "wurde die Position nicht geschrieben. Ursache: " + grund
+          : "Keine Antwort im Batch"));
+        continue;
+      }
       eintraege.push(BATCH.erfolg(a.status)
         ? protokoll(z, s, a.status, null, a.ort)
         : protokoll(z, s, a.status, BATCH.fehlertext(a)));

@@ -629,5 +629,120 @@ console.log("\nBei LookupOnly ist die Wiederholung normal");
     "keine wird als Dublette ausgelassen");
 }
 
+console.log("\nGeschlossene Verkaufschance: Positionen bleiben liegen");
+{
+  /* Aus dem Lauf vom 10.09.2026, drei Fehlerzeilen mit einer Ursache:
+
+       400 0x80040228 Entitaet kann nicht geloescht werden, da
+                      Verkaufschance bereits geschlossen ist
+       Zeile 63       Keine Antwort im Batch
+       Zeile 64       Keine Antwort im Batch
+
+     Dataverse weist schon das Loeschen ab. Loeschen und Anlegen sind ein
+     Changeset, also faellt die ganze Gruppe - die neuen Positionen
+     bekommen nicht einmal eine Antwort. Das Profil sagt seit jeher
+     SkipIfParentClosed; gelesen hat es nur nie jemand. */
+  const { LAUF, EXCEL, gesendet } = baueLauf(() => antwort([{ status: 204 }]));
+  const mappe = { blaetter: [EXCEL.blattAus("Positionen", [
+    ["Opp-ID", "Position"],
+    [6440, "zur offenen Chance"],
+    [6441, "zur geschlossenen"],
+    [6441, "zur geschlossenen, zweite"]
+  ])] };
+  const zuordnungen = { POS: [
+    { aktiv: true, sourceColumn: "Opp-ID", targetField: "opportunityid",
+      targetType: "Lookup", lookupEntitySet: "opportunities",
+      lookupKeyField: "new_dagextopid", writePolicy: "Always" },
+    { aktiv: true, sourceColumn: "Position", targetField: "name",
+      targetType: "String", writePolicy: "Always" }
+  ] };
+  const profil = { name: "T", zuordnungen, schritte: [
+    { step: 40, entitySet: "opportunityproducts", sourceSheet: "Positionen",
+      mappingKey: "POS", mode: "ReplaceByParent", parentField: "opportunityid",
+      skipIfParentClosed: true, aktiv: true }
+  ] };
+  const OFFEN = "aaaaaaaa-0000-0000-0000-000000000001";
+  const ZU    = "aaaaaaaa-0000-0000-0000-000000000002";
+  const aufl = {
+    treffer: new Map([
+      ["opportunities|new_dagextopid", new Map([
+        ["6440", [{ new_dagextopid: 6440, opportunityid: OFFEN, statecode: 0 }]],
+        ["6441", [{ new_dagextopid: 6441, opportunityid: ZU,    statecode: 1 }]]
+      ])],
+      ["opportunityproducts|_opportunityid_value", new Map([
+        [ZU, [{ opportunityproductid: "alt-1" }]]
+      ])]
+    ]),
+    abfragen: [],
+    idFelder: new Map([["opportunities", "opportunityid"],
+                       ["opportunityproducts", "opportunityproductid"]])
+  };
+
+  const e = await LAUF.ausfuehren({ profil, mappe, aufl, werte: {}, entscheidungen: null });
+
+  const aus = e.eintraege.filter(x => x.aktion === "uebersprungen");
+  gleich(aus.length, 2, "beide Positionen der geschlossenen Chance bleiben liegen");
+  pruefe(/geschlossen/.test(aus[0].meldung),
+    "und das Protokoll nennt den Grund, nicht nur die Zeile");
+  gleich(e.eintraege.filter(x => x.aktion === "fehlgeschlagen").length, 0,
+    "kein Fehler - es wird gar nicht erst versucht");
+  gleich(e.gesamt.angelegt, 1, "die Position der offenen Chance entsteht");
+
+  const koerper = gesendet.map(x => x.koerper).join("");
+  pruefe(!koerper.includes("alt-1"),
+    "die alte Position der geschlossenen Chance wird nicht geloescht");
+}
+
+console.log("\nEin gescheitertes Changeset nennt seine Ursache");
+{
+  /* "Keine Antwort im Batch" ist wahr und unbrauchbar: wer das liest,
+     sucht einen Netzwerkfehler, waehrend die Ursache drei Zeilen weiter
+     oben steht. Dataverse antwortet bei einem gescheiterten Changeset mit
+     EINEM Fehlerteil fuer die ganze Gruppe. */
+  const { LAUF, EXCEL } = baueLauf(() => antwort([
+    { status: 400, koerper: { error: { code: "0x80040228",
+        message: "Entitaet kann nicht geloescht werden, da Verkaufschance "
+               + "bereits geschlossen ist" } } }
+  ]));
+  const mappe = { blaetter: [EXCEL.blattAus("Positionen", [
+    ["Opp-ID", "Position"], [6441, "erste"], [6441, "zweite"]
+  ])] };
+  const zuordnungen = { POS: [
+    { aktiv: true, sourceColumn: "Opp-ID", targetField: "opportunityid",
+      targetType: "Lookup", lookupEntitySet: "opportunities",
+      lookupKeyField: "new_dagextopid", writePolicy: "Always" },
+    { aktiv: true, sourceColumn: "Position", targetField: "name",
+      targetType: "String", writePolicy: "Always" }
+  ] };
+  const ZU = "aaaaaaaa-0000-0000-0000-000000000002";
+  // Ohne skipIfParentClosed laeuft es in genau den Fehler von damals.
+  const profil = { name: "T", zuordnungen, schritte: [
+    { step: 40, entitySet: "opportunityproducts", sourceSheet: "Positionen",
+      mappingKey: "POS", mode: "ReplaceByParent", parentField: "opportunityid",
+      aktiv: true }
+  ] };
+  const aufl = {
+    treffer: new Map([
+      ["opportunities|new_dagextopid", new Map([
+        ["6441", [{ new_dagextopid: 6441, opportunityid: ZU, statecode: 1 }]]
+      ])],
+      ["opportunityproducts|_opportunityid_value", new Map([
+        [ZU, [{ opportunityproductid: "alt-1" }]]
+      ])]
+    ]),
+    abfragen: [],
+    idFelder: new Map([["opportunities", "opportunityid"],
+                       ["opportunityproducts", "opportunityproductid"]])
+  };
+
+  const e = await LAUF.ausfuehren({ profil, mappe, aufl, werte: {}, entscheidungen: null });
+  const ohneAntwort = e.eintraege.filter(x => /Changeset|Keine Antwort/.test(x.meldung || ""));
+  pruefe(ohneAntwort.length > 0, "die Positionen ohne Antwort sind protokolliert");
+  pruefe(ohneAntwort.every(x => /Changeset dieser Verkaufschance/.test(x.meldung)),
+    "und die Meldung sagt, dass das Changeset gescheitert ist");
+  pruefe(ohneAntwort.some(x => /0x80040228|geschlossen/.test(x.meldung)),
+    "samt der eigentlichen Ursache");
+}
+
 console.log(fehler ? `\n${fehler} Pruefung(en) fehlgeschlagen.` : "\nAlle Pruefungen bestanden.");
 process.exit(fehler ? 1 : 0);

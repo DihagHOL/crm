@@ -639,6 +639,26 @@ Der Altflow macht es umgekehrt: löschen, 60 Sekunden warten, neu anlegen.
 Bricht er dazwischen ab, sind die Positionen weg. Das ist der einzige Ort im
 Projekt, an dem ein Changeset zwingend ist — sonst gilt §7.
 
+**`SkipIfParentClosed`: geschlossene Chancen werden ausgelassen.** Dataverse
+weist schon das Löschen ab:
+
+```
+400 0x80040228 – Entität kann nicht gelöscht werden, da Verkaufschance
+                 bereits geschlossen ist
+```
+
+Und weil Löschen und Anlegen ein Changeset sind, fällt die **ganze Gruppe**.
+Die neuen Positionen bekommen dann nicht einmal eine Antwort — im Lauf vom
+10.09.2026 waren das drei Fehlerzeilen mit einer Ursache. Phase 0 liest den
+`statecode` des Elterndatensatzes mit, Prüflauf und Import lassen die Zeile
+aus und sagen warum.
+
+**Ein gescheitertes Changeset nennt seine Ursache.** Für die Requests ohne
+Antwortteil stand vorher nur „Keine Antwort im Batch": wahr, aber
+unbrauchbar — wer das liest, sucht einen Netzwerkfehler, während die Ursache
+drei Zeilen weiter oben steht. Jetzt zeigt die Auswertung auf den Fehler der
+eigenen Gruppe.
+
 ### Modus `SetStage` — die Vertriebsphase
 
 Die Phase ist **kein Feld an der Verkaufschance.** Sie ist die aktive Stufe

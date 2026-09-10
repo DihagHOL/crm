@@ -19,7 +19,8 @@ const SPLISTEN = (() => {
   const SPALTEN_PROFIL = [
     "Title", "Step", "EntitySet", "SourceSheet", "MappingKey", "Mode",
     "OnMissingKey", "AlternateKey", "ParentField", "ReplaceScope",
-    "BatchSize", "StopOnError", "SkipIfClosed", "SkipOnValues", "Active"
+    "BatchSize", "StopOnError", "SkipIfClosed", "SkipIfParentClosed",
+    "SkipOnValues", "Active"
   ];
 
   const SPALTEN_MAPPING = [
@@ -80,6 +81,7 @@ const SPLISTEN = (() => {
         batchSize: zahl(r.BatchSize) ?? C.batchSize,
         stopOnError: r.StopOnError === true,
         skipIfClosed: r.SkipIfClosed === true,
+        skipIfParentClosed: r.SkipIfParentClosed === true,
         // Zeilen, die dieser Schritt auslassen soll, als JSON in einer
         // Spalte: {"Kontaktemail":["dummy@dihag.com"]}. Steht dort Unsinn,
         // wird das gemeldet statt still ignoriert – ein stillschweigend

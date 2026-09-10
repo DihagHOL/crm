@@ -361,6 +361,10 @@ if ($ksite) {
         @{ name = "SecondPassFields"; kind = "text"    },
         @{ name = "StopOnError";      kind = "boolean" },
         @{ name = "SkipIfClosed";     kind = "boolean" },   # Review A3
+        # Positionen einer geschlossenen Chance lassen sich nicht ersetzen:
+        # Dataverse weist schon das Loeschen ab (0x80040228), und weil
+        # Loeschen und Anlegen ein Changeset sind, faellt die ganze Gruppe.
+        @{ name = "SkipIfParentClosed"; kind = "boolean" },
         # Zeilen, die dieser Schritt auslassen soll - als JSON, etwa
         # {"Kontaktemail":["dummy@dihag.com"]}. Die Sammeladresse soll
         # keinen Kontakt erzeugen (docs/06); ohne diese Spalte legt der
@@ -521,6 +525,7 @@ if ($ProfilLaden -and $ksite) {
                     BatchSize    = W $s "BatchSize" 100
                     StopOnError  = [bool](W $s "StopOnError" $false)
                     SkipIfClosed = [bool](W $s "SkipIfClosed" $false)
+                    SkipIfParentClosed = [bool](W $s "SkipIfParentClosed" $false)
                     Active       = [bool](W $s "Active" $true)
                 }
                 # Optionale Felder nur senden, wenn sie einen Wert haben.

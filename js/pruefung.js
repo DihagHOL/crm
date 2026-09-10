@@ -295,10 +295,13 @@ const PRUEFUNG = (() => {
          Bericht „87 neu" und sonst nichts – und wer die Datei ein zweites
          Mal importiert, wundert sich zu Recht, warum nichts „unverändert"
          ist. Die alten Kinddatensätze hat Phase 0 bereits abgefragt. */
-      if (s.mode === "ReplaceByParent" && s.parentField) {
-        const alt = aufl.treffer?.get(`${s.entitySet}|_${s.parentField}_value`);
-        if (alt) for (const rs of alt.values()) z.geloescht += rs.length;
-      }
+      /* Gezählt wird erst NACH der Zeilenschleife, und nur für die
+         Elterndatensätze, die auch wirklich ersetzt werden. Vorher wurden
+         alle abgefragten gezählt — bei einer übersprungenen geschlossenen
+         Chance kündigte die Vorschau damit Löschungen an, die nie
+         stattfinden. */
+      const ersetzteEltern = new Set();
+      let elternIdFeld = null;
 
       const key = zu.find(k => k.aktiv && k.istSchluessel && k.targetField);
 
@@ -418,6 +421,38 @@ const PRUEFUNG = (() => {
           continue;
         }
 
+        /* Ersetzen an einer geschlossenen Verkaufschance geht nicht:
+           Dataverse weist schon das Löschen ab (0x80040228), und da
+           Löschen und Anlegen ein Changeset sind, fällt die ganze Gruppe.
+           Der Import überspringt solche Zeilen – die Vorschau muss es
+           genauso rechnen. */
+        if (s.mode === "ReplaceByParent" && s.parentField) {
+          const ez = zu.find(x => x.aktiv && x.targetField === s.parentField
+                                  && x.targetType === "Lookup");
+          if (ez?.lookupEntitySet && ez.lookupKeyField) {
+            const ew = TRANSFORMS.anwenden(zeile[ez.sourceColumn], ez.transform).wert;
+            const et = AUFLOESUNG.finde(aufl, ez.lookupEntitySet, ez.lookupKeyField,
+                                        ew, entscheidungen);
+            const p = et.records[0];
+            const eid = aufl.idFelder?.get(ez.lookupEntitySet);
+            /* Vor dem Auslassen merken: sonst bliebe `elternIdFeld` null,
+               wenn ALLE Zeilen ausgelassen werden, und die Zählung fiele
+               auf die Gesamtzahl zurück — sie kündigte dann genau die
+               Löschungen an, die dieser Zweig gerade verhindert. */
+            if (eid) elternIdFeld = eid;
+            if (s.skipIfParentClosed && p && Number(p.statecode) !== 0) {
+              z.uebersprungen++;
+              alleWarnungen.push({ schritt: s.step, zeile: zeile._zeile,
+                spalte: ez.sourceColumn, wert: ew, klartext: klartext(zeile),
+                meldung: `${ez.lookupEntitySet} zu „${ew}“ ist geschlossen – `
+                  + "ihre Positionen bleiben unverändert, sie lassen sich nicht "
+                  + "ersetzen" });
+              continue;
+            }
+            if (p && eid && p[eid]) ersetzteEltern.add(AUFLOESUNG.vergleichbar(p[eid]));
+          }
+        }
+
         const r = MAPPING.baue(zeile, zu, {
           modus: bestand ? "update" : "create",
           bestand, werte, zusatzZeile,
@@ -436,6 +471,22 @@ const PRUEFUNG = (() => {
         }
         else if (r.unveraendert) z.unveraendert++;
         else { z.aktualisiert++; for (const f of r.geaendert) z.felder[f] = (z.felder[f] || 0) + 1; }
+      }
+
+      if (s.mode === "ReplaceByParent" && s.parentField) {
+        const alt = aufl.treffer?.get(`${s.entitySet}|_${s.parentField}_value`);
+        if (alt && elternIdFeld) {
+          // Nur die Elterndatensätze, die auch wirklich ersetzt werden.
+          for (const [guid, rs] of alt.entries())
+            if (ersetzteEltern.has(AUFLOESUNG.vergleichbar(guid))) z.geloescht += rs.length;
+        } else if (alt) {
+          /* Ohne Primärschlüsselfeld lässt sich nicht zuordnen, welche
+             Kinder an welchem Elterndatensatz hängen. Dann lieber die
+             Gesamtzahl als eine Null, die „es wird nichts gelöscht"
+             behauptet — zu viel angekündigt ist ärgerlich, zu wenig
+             angekündigt ist eine falsche Zusage. */
+          for (const rs of alt.values()) z.geloescht += rs.length;
+        }
       }
 
       for (const k of Object.keys(gesamt)) gesamt[k] += z[k];

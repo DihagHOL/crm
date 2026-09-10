@@ -1,5 +1,51 @@
 # Session-Log
 
+## 10.09.2026 — Drei Fehlerzeilen, eine Ursache, eine Attrappe
+
+Der erste Import nach der Einrichtung: 87 Positionen, drei Fehler.
+
+```
+400  0x80040228  Entitaet kann nicht geloescht werden, da Verkaufschance
+                 bereits geschlossen ist
+     Zeile 63    Keine Antwort im Batch
+     Zeile 64    Keine Antwort im Batch
+```
+
+Eine Ursache. Dataverse weist schon das **Löschen** ab; Löschen und Anlegen
+sind ein Changeset, also fällt die ganze Gruppe — und die beiden neuen
+Positionen bekommen nicht einmal eine Antwort.
+
+**Das Profil sagt das seit jeher.** Schritt 40 trägt `SkipIfParentClosed:
+true`. Nachgesehen, wer das liest:
+
+```
+$ grep -r SkipIfParentClosed .
+config/import-profile.dihag.json:77:      "SkipIfParentClosed": true
+```
+
+Ein einziger Treffer — keine Spalte in `CRM_ImportProfiles`, kein Leser in
+`spListen.js`, keine Zeile in `lauf.js`. Eine Regel, die dasteht und nichts
+tut. Dasselbe Muster wie bei `SetStage`, nur diesmal von einem echten Fehler
+aufgedeckt statt von einer Frage.
+
+Jetzt vollständig: Spalte, Leser, Phase 0 liest den `statecode` des
+Elterndatensatzes mit, Prüflauf und Import lassen die Zeile aus und sagen
+warum.
+
+**Und die Vorschau zählte falsch.** Die Löschungen wurden pauschal über alle
+abgefragten Elterndatensätze summiert. Bei einer übersprungenen geschlossenen
+Chance hätte sie damit Löschungen angekündigt, die nie stattfinden — die
+einzige Zusage, die ein Prüflauf gibt. Gezählt wird jetzt nur, was wirklich
+ersetzt wird; lässt sich das nicht zuordnen, bleibt die Gesamtzahl. **Zu viel
+angekündigt ist ärgerlich, zu wenig angekündigt ist eine falsche Zusage.**
+
+**„Keine Antwort im Batch"** war wahr und unbrauchbar. Wer das liest, sucht
+einen Netzwerkfehler, während die Ursache drei Zeilen weiter oben steht. Die
+Auswertung merkt sich jetzt je Changeset-Gruppe, was schiefging, und zeigt
+darauf. Dabei fiel auf, dass die Gruppenkennung an zwei Stellen berechnet
+wurde — zwei Fassungen derselben Formel, die auseinanderlaufen können. Jetzt
+eine Funktion.
+
 ## 10.09.2026 — „(Rolle: )" — und die Rolle war da
 
 Die Einrichtung lief sauber durch, eine Zeile stach heraus:

@@ -348,6 +348,47 @@ console.log("\nErsetzen: die Vorschau sagt, was weggeraeumt wird");
     "der Satz sagt es auch");
 }
 
+console.log("\nGeschlossene Chance: die Vorschau rechnet wie der Import");
+{
+  /* Kuendigte sie Loeschungen an, die nie stattfinden, waere die Zusage
+     des Prueflaufs gebrochen - und das ist seine einzige Aufgabe. */
+  const m = { blaetter: [EXCEL.blattAus("Positionen", [
+    ["Opp-ID", "Thema", "Umsatz"], [6440, "Position", 1]
+  ])] };
+  const ZU = "p-zu";
+  const a = {
+    treffer: new Map([
+      ["opportunities|new_dagextopid", new Map([
+        ["6440", [{ new_dagextopid: 6440, opportunityid: ZU, statecode: 1 }]]
+      ])],
+      ["opportunityproducts|_opportunityid_value", new Map([
+        [ZU, [{ x: 1 }, { x: 2 }]]
+      ])]
+    ]),
+    abfragen: [], idFelder: new Map([["opportunities", "opportunityid"]])
+  };
+  // Eigene Zuordnung: der Ersetzungsschritt braucht den Elternverweis,
+  // ueber den die Chance ueberhaupt gefunden wird.
+  const zuPos = { POS: [
+    { aktiv: true, sourceColumn: "Opp-ID", targetField: "opportunityid",
+      targetType: "Lookup", lookupEntitySet: "opportunities",
+      lookupKeyField: "new_dagextopid", pflicht: true, writePolicy: "Always" },
+    { aktiv: true, sourceColumn: "Thema", targetField: "name",
+      targetType: "String", writePolicy: "Always" }
+  ] };
+  const s = schritt({ step: 40, entitySet: "opportunityproducts",
+    sourceSheet: "Positionen", mappingKey: "POS", mode: "ReplaceByParent",
+    parentField: "opportunityid", alternateKey: "", skipIfParentClosed: true });
+  const r = PRUEFUNG.lauf({ schritte: [s], zuordnungen: zuPos }, m, a);
+
+  gleich(r.schritte[0].uebersprungen, 1, "die Zeile wird ausgelassen");
+  gleich(r.schritte[0].neu, 0, "es entsteht nichts");
+  gleich(r.schritte[0].geloescht, 0,
+    "und es werden keine Loeschungen angekuendigt, die nie stattfinden");
+  pruefe(r.warnungen.some(w => /geschlossen/.test(w.meldung)),
+    "der Bericht nennt den Grund");
+}
+
 console.log("\nDie Vorschau rechnet dieselbe Dublettenregel");
 {
   /* Kuendigte sie zwei Neuanlagen an, waehrend der Import nur eine

@@ -291,8 +291,16 @@ const AUFLOESUNG = (() => {
           if (abbild !== undefined) return abbild;
           return wz?.standard ?? v;
         });
+        /* Beim Elternverweis eines Ersetzungsschrittes zählt auch der
+           Zustand: Positionen einer geschlossenen Verkaufschance lassen
+           sich nicht ersetzen. Meist liegt `statecode` ohnehin schon vor,
+           weil ein früherer Schritt dieselbe Tabelle über denselben
+           Schlüssel abgefragt hat — verlassen kann man sich darauf nicht,
+           denn dieser Schritt kann inaktiv sein. */
+        const brauchtZustand = s.skipIfParentClosed && z.targetField === s.parentField;
         for (const feld of schluesselFelder(z))
-          await frage(z.lookupEntitySet, feld, gesucht, feld,
+          await frage(z.lookupEntitySet, feld, gesucht,
+            brauchtZustand ? `${feld},statecode` : feld,
             `Schritt ${s.step}: Verweis ${z.targetField}`);
       }
 
