@@ -1,5 +1,36 @@
 # Session-Log
 
+## 10.09.2026 — „(Rolle: )" — und die Rolle war da
+
+Die Einrichtung lief sauber durch, eine Zeile stach heraus:
+
+```
+[4] Eintrag fuer administrator@dihag.com / crm vorhanden (Rolle: ).
+```
+
+Die Liste sagt etwas anderes: `App=*`, `Role='admin'`. Der leere Wert kam
+aus dem Skript.
+
+`Invoke-MgGraphRequest` liefert die Einträge als **Hashtables**. Bei genau
+einem Treffer gibt `Where-Object` diese eine Hashtable zurück, kein Array —
+und `[0]` ist bei einer Hashtable ein **Schlüssel**, kein Index:
+
+```powershell
+$h = @{ Role = "admin" }
+$h.Role       # admin
+$h[0].Role    #        <- leer: Schluessel 0 gibt es nicht
+@($h)[0].Role # admin
+```
+
+Kosmetik im Ergebnis, aber nicht in der Wirkung: ein Bericht, der den
+Bestand falsch wiedergibt, schickt den Leser Rechte nachtragen, die er
+längst hat. Dasselbe Muster wie „Site existiert nicht" zwei Einträge weiter
+oben — nur diesmal von der anderen Seite: dort wurde ein Fehler zur
+Tatsache, hier eine Tatsache zum Nichts.
+
+Diesmal mit `-NurPruefen` gegengeprüft, also ohne Schreibzugriff:
+`(Rolle: admin)`.
+
 ## 10.09.2026 — Das Skript meldet sich selbst an
 
 Zweimal hintereinander `pwsh ./setup-crm.ps1 -ProfilLaden`, zweimal keine

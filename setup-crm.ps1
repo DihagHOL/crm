@@ -629,7 +629,14 @@ try {
         $_.fields.UserEmail -eq $HauptAdmin -and ($_.fields.App -eq $AppKey -or $_.fields.App -eq "*")
     }
     if ($treffer) {
-        Info "  Eintrag fuer $HauptAdmin / $AppKey vorhanden (Rolle: $($treffer[0].fields.Role))."
+        # @(...) ist hier nicht Zierde: Graph liefert die Eintraege als
+        # Hashtables, und bei einer Hashtable ist [0] ein SCHLUESSEL, kein
+        # Index. Bei genau einem Treffer gab $treffer[0] deshalb $null, und
+        # die Meldung zeigte "(Rolle: )" - obwohl in der Liste "admin"
+        # stand. Ein Bericht, der den Bestand falsch wiedergibt, schickt den
+        # Leser die Rechte nachtragen, die er laengst hat.
+        $eintrag = @($treffer)[0]
+        Info "  Eintrag fuer $HauptAdmin / $AppKey vorhanden (Rolle: $($eintrag.fields.Role))."
     } elseif ($NurPruefen) {
         Warn "  Eintrag fuer $HauptAdmin / $AppKey FEHLT"
     } else {
