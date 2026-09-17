@@ -380,10 +380,10 @@
         "SourceColumn": "MTZ absolut",
         "TargetField": "new_dag_mtzabsolut",
         "TargetType": "Money",
-        "Transform": "decimal:de|empty2null",
+        "Transform": "decimal:de|mal:Stückzahl|empty2null",
         "SortOrder": 80,
         "WritePolicy": "Always",
-        "$hinweis": "Geprueft am 03.09.2026 gegen die Umgebung: new_dag_materialteuerungszuschlagmtzabsolut traegt 4 Werte von 5000 Positionen - und die 4 stammen aus unserem eigenen Lauf. Gepflegt wird new_dag_mtzabsolut (Money), 2340 von 5000. Der Import schrieb also in ein Feld, das es gibt, das Werte annimmt und das niemand ansieht. Genau deshalb prueft die Zuordnung jetzt auch die Belegung im Ziel, nicht nur die Zeilen."
+        "$hinweis": "Geprueft am 03.09.2026 gegen die Umgebung: new_dag_materialteuerungszuschlagmtzabsolut traegt 4 Werte von 5000 Positionen - und die 4 stammen aus unserem eigenen Lauf. Gepflegt wird new_dag_mtzabsolut (Money), 2340 von 5000. Der Import schrieb also in ein Feld, das es gibt, das Werte annimmt und das niemand ansieht. Genau deshalb prueft die Zuordnung jetzt auch die Belegung im Ziel, nicht nur die Zeilen. ZWEITER BEFUND am 17.09.2026: die Spalte heisst 'absolut', ist aber ein STUECKWERT - und das Zielfeld fuehrt den Zeilenbetrag. Altbestand: 14480 EUR bei 400 Stueck sind 36,20 je Stueck, 3000 bei 100 sind 30,00, durchweg runde Stueckwerte; der Import schrieb 5,01 EUR bei 4300 Stueck. Deshalb mal:Stueckzahl. Das berechnete Feld new_mtztotalproductitem (MTZ Gesamtprodukt Artikel) uebernimmt den Wert 1:1 und quantity steht ueberall auf 0 - multipliziert wird also nirgends sonst. Fehlt die Stueckzahl, bleibt das Feld leer statt still falsch."
       },
       {
         "SourceColumn": "Breite (mm)",
@@ -442,10 +442,10 @@
         "SourceColumn": "sonstige Zuschläge",
         "TargetField": "new_dag_sonstigezuschlge",
         "TargetType": "Money",
-        "Transform": "decimal:de|empty2null",
+        "Transform": "decimal:de|mal:Stückzahl|empty2null",
         "Active": true,
         "SortOrder": 85,
-        "$hinweis": "206/206 befuellt, vom Altflow nie gelesen. Zielfeld gefunden: new_dag_sonstigezuschlge (Money, beschreibbar)."
+        "$hinweis": "206/206 befuellt, vom Altflow nie gelesen. Zielfeld gefunden: new_dag_sonstigezuschlge (Money, beschreibbar). Am 17.09.2026 wie bei MTZ: die Spalte ist ein Stueckwert, das Zielfeld fuehrt den Zeilenbetrag (Altbestand 10980 EUR bei 400 Stueck = 27,45 je Stueck; der Import schrieb 23,79 bei 5500 Stueck). Deshalb mal:Stueckzahl."
       }
     ],
     "SALESPROCESS_STD": [

@@ -75,8 +75,32 @@ const TRANSFORMS = (() => {
     "date:auto":  v => datum(v)
   };
 
-  /** Umwandlung mit Argument, z. B. `truncate:100` oder `bool:ja/nein`. */
-  function mitArgument(name, arg) {
+  /** Umwandlung mit Argument, z. B. `truncate:100` oder `bool:ja/nein`.
+   *  @param {object} [zeile] die Quellzeile – nur `mal:` braucht sie. */
+  function mitArgument(name, arg, zeile) {
+    /* `mal:Stückzahl` – mit einer ZWEITEN Spalte derselben Zeile
+       multiplizieren.
+
+       Anlass: „MTZ absolut" und „sonstige Zuschläge" stehen in der Datei je
+       Stück, die Zielfelder im CRM führen aber den Zeilenbetrag. Der
+       Altbestand zeigt es: 14480 € MTZ bei 400 Stück sind 36,20 € je Stück,
+       3000 bei 100 sind 30,00 – durchweg runde Stückwerte. Der erste Import
+       schrieb 5,01 € bei 4300 Stück, den Stückwert, und das CRM rechnete
+       damit weiter, als wäre es der Betrag.
+
+       Fehlt der Faktor, gibt es kein Ergebnis (null): ein Stückwert als
+       Zeilenbetrag wäre still falsch, ein leeres Feld fällt auf. */
+    if (name === "mal") {
+      return v => {
+        if (leer(v)) return v;
+        const a = dezimalDE(v);
+        const faktor = dezimalDE(zeile ? zeile[arg] : undefined);
+        if (!Number.isFinite(a) || !Number.isFinite(faktor)) return null;
+        // Vier Nachkommastellen: mehr führt Dataverse bei Money nicht,
+        // und 6,66 × 130 ergibt sonst 865,8000000000001.
+        return Math.round(a * faktor * 10000) / 10000;
+      };
+    }
     if (name === "truncate") {
       const n = Number(arg);
       return v => (leer(v) || !Number.isFinite(n)) ? v : text(v).slice(0, n);
@@ -115,7 +139,7 @@ const TRANSFORMS = (() => {
    *  @returns {{wert:*, unbekannt:string[]}} `unbekannt` nennt Regeln, die es
    *    nicht gibt – ein Tippfehler in der Zuordnung soll auffallen und nicht
    *    stillschweigend nichts tun. */
-  function anwenden(wert, kette) {
+  function anwenden(wert, kette, zeile) {
     const unbekannt = [];
     if (!kette) return { wert, unbekannt };
     for (const roh of String(kette).split("|")) {
@@ -123,7 +147,7 @@ const TRANSFORMS = (() => {
       if (!name) continue;
       if (REGELN[name]) { wert = REGELN[name](wert); continue; }
       const [basis, ...rest] = name.split(":");
-      const f = mitArgument(basis, rest.join(":"));
+      const f = mitArgument(basis, rest.join(":"), zeile);
       if (f) wert = f(wert);
       else unbekannt.push(name);
     }
@@ -132,7 +156,8 @@ const TRANSFORMS = (() => {
 
   /** Alle bekannten Regelnamen – für die Prüfung der Konfiguration. */
   const bekannt = () => [...Object.keys(REGELN),
-    "truncate:n", "bool:ja/nein", "phone:DE", "date:TT.MM.JJJJ", "decimal:de"];
+    "truncate:n", "bool:ja/nein", "phone:DE", "date:TT.MM.JJJJ", "decimal:de",
+    "mal:Spalte"];
 
   return { anwenden, bekannt, dezimalDE, datum };
 })();

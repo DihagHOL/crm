@@ -1,5 +1,47 @@
 # Session-Log
 
+## 17.09.2026 — Zwei Anfragen „fehlen", und MTZ war ein Stückwert
+
+Lauf `1744380e`: 108 angelegt, 32 geändert, 0 Fehler. Zwei Rückmeldungen.
+
+**„7446 und 5482 fehlen ganz."** Beide existieren — nachgesehen im CRM.
+
+- **7446** wurde in diesem Lauf angelegt, mit einer Position. Aber der
+  Besitzer ist *Admin DIHAG*: `erik.bier@schmie-guss.de` gibt es nicht als
+  Systembenutzer, kein Treffer auf „Bier". Das Protokoll sagt das
+  (`ownerid: In systemusers nicht gefunden`), die Zeile wurde trotzdem
+  geschrieben. Wer nach „meine Chancen" filtert, sieht sie nicht.
+- **5482** ist im CRM seit dem 25.02.2026 **als verloren geschlossen**.
+  Timeline führt sie als **Win**. Die App fasst geschlossene Chancen nicht
+  an (Review A3) — richtig — aber das Protokoll sagte nur „geschlossen".
+  Ein Widerspruch zwischen zwei Systemen verdient mehr als ein Wort: die
+  Meldung nennt jetzt *gewonnen* oder *verloren* und rät zum Nachsehen.
+
+**„MTZ Gesamt mit Menge multiplizieren."** Der Altbestand entscheidet:
+
+| | `new_dag_mtzabsolut` | Stückzahl | je Stück |
+|---|---|---|---|
+| Altflow | 14480 € | 400 | 36,20 |
+| Altflow | 17725 € | 500 | 35,45 |
+| Altflow | 3000 € | 100 | 30,00 |
+| **Import** | **5,01 €** | **4300** | — |
+
+Durchweg runde Stückwerte im Altbestand. Die Spalte heißt „MTZ absolut",
+ist aber ein Stückwert; das Zielfeld führt den Zeilenbetrag. Das berechnete
+`new_mtztotalproductitem` übernimmt 1:1, `quantity` steht überall auf 0 —
+multipliziert wird nirgends sonst. **Dasselbe bei `sonstige Zuschläge`**
+(10980 € bei 400 Stück = 27,45; Import 23,79 € bei 5500 Stück) — nicht
+gemeldet, aber identisch.
+
+Neu: `mal:Spalte` in der Umwandlungskette. Die Quellzeile geht seitdem in
+`TRANSFORMS.anwenden` mit — bei Spalten aus einem anderen Blatt die dortige.
+Fehlt der Faktor, bleibt das Feld leer statt still falsch.
+
+**Nebenbefund, nicht angefasst.** Alle heute importierten Positionen tragen
+`Einzelpreis = 0`, während der Altbestand Preise führt (282,49 €, 181,90 €).
+Steht in der Datei wirklich 0 — etwa weil die Anfragen noch in
+„Check Feasibility" sind —, ist das richtig so. Sonst nicht.
+
 ## 10.09.2026 — Drei Fehlerzeilen, eine Ursache, eine Attrappe
 
 Der erste Import nach der Einrichtung: 87 Positionen, drei Fehler.

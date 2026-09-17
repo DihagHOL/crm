@@ -124,6 +124,21 @@ const PRUEFUNG = (() => {
     return funde;
   }
 
+  /** Zustand einer Verkaufschance in Worten.
+   *
+   *  „Geschlossen" reicht nicht: eine als VERLOREN geschlossene Chance, die
+   *  die Datei als „Win" führt, ist ein Widerspruch zwischen zwei Systemen —
+   *  und genau den soll der Bericht zeigen, nicht hinter einem Wort
+   *  verstecken. Opp 5482 am 17.09.2026: im CRM seit Februar verloren, in
+   *  Timeline gewonnen. */
+  function zustand(statecode) {
+    const n = Number(statecode);
+    if (n === 0) return "offen";
+    if (n === 1) return "als GEWONNEN geschlossen";
+    if (n === 2) return "als VERLOREN geschlossen";
+    return `geschlossen (statecode ${statecode})`;
+  }
+
   function ausgelassen(s, zeile) {
     const regeln = s.skipOnValues;
     if (!regeln) return null;
@@ -416,8 +431,11 @@ const PRUEFUNG = (() => {
           z.uebersprungen++;
           alleWarnungen.push({ schritt: s.step, zeile: zeile._zeile,
             wert: schluesselWert, klartext: klartext(zeile),
-            meldung: "Verkaufschance ist geschlossen und damit schreibgeschützt – "
-              + "wird übersprungen, nicht automatisch wiedereröffnet" });
+            meldung: `Verkaufschance ist im CRM ${zustand(bestand.statecode)} und damit `
+              + "schreibgeschützt – wird übersprungen, nicht automatisch "
+              + "wiedereröffnet. Steht sie in der Datei noch als offen oder "
+              + "anders abgeschlossen, widersprechen sich die Systeme: im CRM "
+              + "prüfen." });
           continue;
         }
 
@@ -512,5 +530,5 @@ const PRUEFUNG = (() => {
     + (g.geloescht ? ` · ${g.geloescht} werden ersetzt` : "")
     + (g.fehler ? ` · ${g.fehler} mit Fehler` : "");
 
-  return { lauf, zusammenfassung, ausschluss, ausgelassen, zusatzKonflikte };
+  return { lauf, zusammenfassung, ausschluss, ausgelassen, zusatzKonflikte, zustand };
 })();

@@ -131,9 +131,9 @@ const MAPPING = (() => {
 
       // Quellwert – ggf. aus einem anderen Blatt (z. B. Mitarbeiter steht
       // im Blatt Positionen, gehört aber an die Verkaufschance).
-      let roh;
+      let roh, quelle = zeile;
       if (z.sourceColumn) {
-        const quelle = (z.sourceSheet && opt.zusatzZeile)
+        quelle = (z.sourceSheet && opt.zusatzZeile)
           ? opt.zusatzZeile(z.sourceSheet, z.sourceLookupBy, zeile)
           : zeile;
         roh = quelle ? quelle[z.sourceColumn] : undefined;
@@ -142,8 +142,10 @@ const MAPPING = (() => {
       }
       if (leer(roh) && !leer(z.defaultValue)) roh = z.defaultValue;
 
-      // Umwandlungskette
-      const t = TRANSFORMS.anwenden(roh, z.transform);
+      // Umwandlungskette. Die Quellzeile geht mit, weil `mal:Spalte` eine
+      // zweite Spalte derselben Zeile braucht – bei Spalten aus einem
+      // anderen Blatt ist das die dortige Zeile, nicht die des Schrittes.
+      const t = TRANSFORMS.anwenden(roh, z.transform, quelle || undefined);
       for (const u of t.unbekannt)
         warnungen.push({ zeile: zeile._zeile, spalte: z.sourceColumn, feld: z.targetField,
           meldung: `Unbekannte Umwandlung „${u}" – wird übergangen. Tippfehler in der Zuordnung?` });

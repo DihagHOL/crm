@@ -311,7 +311,7 @@ const LAUF = (() => {
         if (s.skipIfClosed && bestand && Number(bestand.statecode) !== 0) {
           notiere({ schritt: s.step, entitySet: s.entitySet, zeile: zeile._zeile,
             schluessel: sw, aktion: "uebersprungen",
-            meldung: "geschlossen und damit schreibgeschützt" });
+            meldung: `im CRM ${PRUEFUNG.zustand(bestand.statecode)} und damit schreibgeschützt` });
           continue;
         }
 

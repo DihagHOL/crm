@@ -72,5 +72,36 @@ console.log("\nUnbekannte Regeln fallen auf");
   gleich(r.unbekannt, [], "saubere Kette meldet nichts");
 }
 
+console.log("\nmal:Spalte - mit einer zweiten Spalte multiplizieren");
+{
+  /* MTZ absolut und sonstige Zuschlaege stehen in der Datei je Stueck,
+     die Zielfelder fuehren den Zeilenbetrag. Altbestand: 14480 EUR bei 400
+     Stueck = 36,20 je Stueck. Der erste Import schrieb 5,01 EUR bei 4300
+     Stueck - den Stueckwert - und das CRM rechnete damit weiter. */
+  const zeile = { "MTZ absolut": "5,01", "Stückzahl": 4300 };
+  gleich(T.anwenden("5,01", "decimal:de|mal:Stückzahl", zeile).wert, 21543,
+    "5,01 je Stueck mal 4300 Stueck");
+  gleich(T.anwenden("6,66", "decimal:de|mal:Stückzahl", { "Stückzahl": 130 }).wert, 865.8,
+    "6,66 mal 130 ist 865,80 - nicht 865,8000000000001");
+  gleich(T.anwenden("36,20", "decimal:de|mal:Stückzahl", { "Stückzahl": "400" }).wert, 14480,
+    "die Stueckzahl darf als Text kommen");
+  gleich(T.anwenden("36,20", "decimal:de|mal:Stückzahl", { "Stückzahl": "1.000" }).wert, 36200,
+    "und mit Tausenderpunkt");
+
+  // Fehlt der Faktor, gibt es kein Ergebnis: ein Stueckwert als
+  // Zeilenbetrag waere still falsch, ein leeres Feld faellt auf.
+  gleich(T.anwenden("5,01", "decimal:de|mal:Stückzahl", { }).wert, null,
+    "ohne Stueckzahl bleibt das Feld leer");
+  gleich(T.anwenden("5,01", "decimal:de|mal:Stückzahl", { "Stückzahl": "" }).wert, null,
+    "leere Stueckzahl ebenso");
+  gleich(T.anwenden("5,01", "decimal:de|mal:Stückzahl").wert, null,
+    "ohne Zeile ebenso");
+  gleich(T.anwenden("5,01", "decimal:de|mal:Stückzahl", { "Stückzahl": 0 }).wert, 0,
+    "null Stueck sind null Euro - das ist ein Wert, kein Fehlen");
+  gleich(T.anwenden("", "decimal:de|mal:Stückzahl|empty2null", { "Stückzahl": 4300 }).wert, null,
+    "ein leerer MTZ bleibt leer");
+  pruefe(T.bekannt().includes("mal:Spalte"), "die Regel ist als bekannt gelistet");
+}
+
 console.log(fehler ? `\n${fehler} Prüfung(en) fehlgeschlagen.\n` : "\nAlle Prüfungen bestanden.\n");
 process.exit(fehler ? 1 : 0);

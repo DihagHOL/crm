@@ -562,6 +562,28 @@ die Oberfläche ihre Zelle nicht.
 Merksatz: **ein stiller falscher Befund ist schlimmer als ein Fehler.** Eine
 Prüfung, die im Zweifel schweigt, wiegt nur in Sicherheit.
 
+### Stückwert oder Zeilenbetrag — `mal:Spalte`
+
+Eine Spalte, die „absolut" heißt, kann trotzdem ein Stückwert sein. Der
+Altbestand entscheidet, nicht der Name:
+
+| | `new_dag_mtzabsolut` | Stückzahl | je Stück |
+|---|---|---|---|
+| Altflow | 14480 € | 400 | 36,20 |
+| Altflow | 3000 € | 100 | 30,00 |
+| **erster Import** | **5,01 €** | **4300** | — |
+
+Der Altflow schrieb den Zeilenbetrag, die Datei liefert den Stückwert, und
+der erste Import schrieb ihn unmultipliziert. Das berechnete Feld
+`new_mtztotalproductitem` übernimmt den Wert 1:1, `quantity` steht überall
+auf 0 — multipliziert wird also nirgends sonst. Dasselbe bei `sonstige
+Zuschläge` (10980 € bei 400 Stück = 27,45 je Stück).
+
+`mal:Stückzahl` in der Umwandlungskette multipliziert mit einer zweiten
+Spalte **derselben Zeile** — bei Spalten aus einem anderen Blatt mit der
+dortigen. Fehlt der Faktor, gibt es kein Ergebnis: ein Stückwert als
+Zeilenbetrag wäre still falsch, ein leeres Feld fällt auf.
+
 ### Schreibrichtlinie je Feld
 
 Aus der Auflösung folgt die Unterscheidung, die den Import erst zu einem

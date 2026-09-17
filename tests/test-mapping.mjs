@@ -313,5 +313,29 @@ console.log("\nGeaenderte Felder werden benannt");
   gleich(angelegt.geaendert, [], "beim Anlegen bleibt die Liste leer");
 }
 
+console.log("\nDie Umwandlung sieht die ganze Zeile");
+{
+  /* mal:Spalte braucht eine zweite Spalte derselben Zeile. Bei Spalten aus
+     einem anderen Blatt ist das die DORTIGE Zeile - sonst suchte die
+     Multiplikation die Stueckzahl im falschen Blatt. */
+  const zu = [
+    { aktiv: true, sourceColumn: "MTZ absolut", targetField: "new_dag_mtzabsolut",
+      targetType: "Money", transform: "decimal:de|mal:Stückzahl|empty2null",
+      writePolicy: "Always" }
+  ];
+  const r = MAPPING.baue({ _zeile: 2, "MTZ absolut": "5,01", "Stückzahl": 4300 }, zu,
+    { modus: "create" });
+  gleich(r.nutzlast.new_dag_mtzabsolut, 21543, "aus der eigenen Zeile multipliziert");
+
+  // Aus einem anderen Blatt: die Zeile dort traegt die Stueckzahl.
+  const zuFremd = [{ ...zu[0], sourceSheet: "Positionen", sourceLookupBy: "Opp-ID" }];
+  const rF = MAPPING.baue({ _zeile: 2, "Opp-ID": 6440 }, zuFremd, {
+    modus: "create",
+    zusatzZeile: () => ({ "Opp-ID": 6440, "MTZ absolut": "36,20", "Stückzahl": 400 })
+  });
+  gleich(rF.nutzlast.new_dag_mtzabsolut, 14480,
+    "bei einer Spalte aus einem anderen Blatt zaehlt die dortige Stueckzahl");
+}
+
 console.log(fehler ? `\n${fehler} Prüfung(en) fehlgeschlagen.\n` : "\nAlle Prüfungen bestanden.\n");
 process.exit(fehler ? 1 : 0);
