@@ -378,12 +378,21 @@
       },
       {
         "SourceColumn": "MTZ absolut",
-        "TargetField": "new_dag_mtzabsolut",
+        "TargetField": "cr570_mtzunit",
         "TargetType": "Money",
-        "Transform": "decimal:de|mal:Stückzahl|empty2null",
+        "Transform": "decimal:de|empty2null",
         "SortOrder": 80,
         "WritePolicy": "Always",
-        "$hinweis": "Geprueft am 03.09.2026 gegen die Umgebung: new_dag_materialteuerungszuschlagmtzabsolut traegt 4 Werte von 5000 Positionen - und die 4 stammen aus unserem eigenen Lauf. Gepflegt wird new_dag_mtzabsolut (Money), 2340 von 5000. Der Import schrieb also in ein Feld, das es gibt, das Werte annimmt und das niemand ansieht. Genau deshalb prueft die Zuordnung jetzt auch die Belegung im Ziel, nicht nur die Zeilen. ZWEITER BEFUND am 17.09.2026: die Spalte heisst 'absolut', ist aber ein STUECKWERT - und das Zielfeld fuehrt den Zeilenbetrag. Altbestand: 14480 EUR bei 400 Stueck sind 36,20 je Stueck, 3000 bei 100 sind 30,00, durchweg runde Stueckwerte; der Import schrieb 5,01 EUR bei 4300 Stueck. Deshalb mal:Stueckzahl. Das berechnete Feld new_mtztotalproductitem (MTZ Gesamtprodukt Artikel) uebernimmt den Wert 1:1 und quantity steht ueberall auf 0 - multipliziert wird also nirgends sonst. Fehlt die Stueckzahl, bleibt das Feld leer statt still falsch."
+        "$hinweis": "STUECKWERT, und das CRM rechnet selbst (18.09.2026). Die Spalte heisst 'absolut', fuehrt aber den Betrag je Stueck: Altbestand 14480 EUR bei 400 Stueck = 36,20, 3000 bei 100 = 30,00. Das CRM hat dafuer ein eigenes Feld, cr570_mtzunit 'MTZ / Stueck' (1999 Positionen gepflegt), und das berechnete new_mtztotalproductitem 'MTZ Gesamt' multipliziert es laut Formel mit dag_numberofpieces - sofern cr570_surchargeofentity auf Unit steht (naechste Zeile). Die Chance summiert das per Rollup in new_mtzsummeprodukte. Deshalb schreibt der Import den Stueckwert unveraendert und multipliziert NICHT mehr (der Umweg ueber mal:Stueckzahl nach new_dag_mtzabsolut vom 17.09. ist zurueckgenommen: der Wert waere im CRM ein zweiter, stiller Betrag gewesen, der bei einer Stueckzahl-Aenderung im CRM stehen bleibt). new_dag_mtzabsolut 'MTZ' bleibt leer - die Formel greift nur darauf zurueck, wenn der Stueckwert fehlt. Historie: bis 03.09.2026 schrieb der Import nach new_dag_materialteuerungszuschlagmtzabsolut, ein Feld mit 4 Werten von 5000, das niemand ansieht."
+      },
+      {
+        "SourceColumn": null,
+        "TargetField": "cr570_surchargeofentity",
+        "TargetType": "OptionSet",
+        "DefaultValue": "739170001",
+        "SortOrder": 82,
+        "WritePolicy": "Always",
+        "$hinweis": "Festwert Unit (739170001) - der Schalter, den die berechneten Felder MTZ Gesamt und Summe sonstiger Preisaufschlaege lesen: Unit heisst Stueckzahl x Stueckwert, Kg hiesse Gewicht x Stueckzahl x Stueckwert. Die Datei kennt nur Stueckwerte, also immer Unit. OHNE diesen Wert greift kein Zweig der Formel, sobald ein Stueckwert gefuellt ist, und MTZ Gesamt bleibt leer. Bestand am 18.09.2026: 2504 Positionen Unit, 331 Kg."
       },
       {
         "SourceColumn": "Breite (mm)",
@@ -440,12 +449,13 @@
       },
       {
         "SourceColumn": "sonstige Zuschläge",
-        "TargetField": "new_dag_sonstigezuschlge",
+        "TargetField": "cr570_otherpricesurchargesunit",
         "TargetType": "Money",
-        "Transform": "decimal:de|mal:Stückzahl|empty2null",
+        "Transform": "decimal:de|empty2null",
         "Active": true,
         "SortOrder": 85,
-        "$hinweis": "206/206 befuellt, vom Altflow nie gelesen. Zielfeld gefunden: new_dag_sonstigezuschlge (Money, beschreibbar). Am 17.09.2026 wie bei MTZ: die Spalte ist ein Stueckwert, das Zielfeld fuehrt den Zeilenbetrag (Altbestand 10980 EUR bei 400 Stueck = 27,45 je Stueck; der Import schrieb 23,79 bei 5500 Stueck). Deshalb mal:Stueckzahl."
+        "WritePolicy": "Always",
+        "$hinweis": "206/206 befuellt, vom Altflow nie gelesen. Stueckwert wie MTZ (Altbestand 10980 EUR bei 400 Stueck = 27,45). Zielfeld ist das Stueckfeld cr570_otherpricesurchargesunit 'Sonstige Preisaufschlaege / Einheit' (1480 Positionen gepflegt); das berechnete new_totalofotherpricesurcharges multipliziert mit dag_numberofpieces, wenn cr570_surchargeofentity = Unit, und die Chance summiert per Rollup in new_dag_summesonstigezuschlgeprodukte. new_dag_sonstigezuschlge 'Sonstige Zuschlaege' (Betragsfeld) bleibt leer - seit 18.09.2026, vorher stand dort der Stueckwert mal Stueckzahl."
       }
     ],
     "SALESPROCESS_STD": [

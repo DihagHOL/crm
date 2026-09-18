@@ -65,6 +65,13 @@ const MAPPING = (() => {
       case "Boolean":
         if (typeof wert === "boolean") return { wert, fehler: null };
         return { wert: null, fehler: `„${wert}" ist kein Ja/Nein-Wert` };
+      case "OptionSet": {
+        // Auswahlwerte gehen als ganze Zahl über die API. "739170001" als
+        // Text wäre ein Typfehler, 739170001 ist der Wert.
+        const n = Number(wert);
+        return Number.isInteger(n) ? { wert: n, fehler: null }
+          : { wert: null, fehler: `„${wert}" ist kein Auswahlwert (ganze Zahl erwartet)` };
+      }
       case "DateTime": {
         const s = String(wert);
         return /^\d{4}-\d{2}-\d{2}/.test(s)

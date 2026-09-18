@@ -562,27 +562,49 @@ die Oberfläche ihre Zelle nicht.
 Merksatz: **ein stiller falscher Befund ist schlimmer als ein Fehler.** Eine
 Prüfung, die im Zweifel schweigt, wiegt nur in Sicherheit.
 
-### Stückwert oder Zeilenbetrag — `mal:Spalte`
+### Stückwert — und das CRM rechnet selbst
 
 Eine Spalte, die „absolut" heißt, kann trotzdem ein Stückwert sein. Der
-Altbestand entscheidet, nicht der Name:
+Altbestand entscheidet, nicht der Name: 14480 € MTZ bei 400 Stück sind
+36,20 je Stück, 3000 bei 100 sind 30,00 — durchweg runde Stückwerte. Der
+erste Import schrieb 5,01 € bei 4300 Stück, den Stückwert, als Betrag.
 
-| | `new_dag_mtzabsolut` | Stückzahl | je Stück |
-|---|---|---|---|
-| Altflow | 14480 € | 400 | 36,20 |
-| Altflow | 3000 € | 100 | 30,00 |
-| **erster Import** | **5,01 €** | **4300** | — |
+Der erste Reflex (17.09.) war, im Import zu multiplizieren (`mal:Stückzahl`
+nach `new_dag_mtzabsolut`). Der zweite Blick in die Metadaten zeigte, dass
+das CRM diese Rechnung längst selbst führt. `new_mtztotalproductitem`
+(„MTZ Gesamt") ist ein berechnetes Feld:
 
-Der Altflow schrieb den Zeilenbetrag, die Datei liefert den Stückwert, und
-der erste Import schrieb ihn unmultipliziert. Das berechnete Feld
-`new_mtztotalproductitem` übernimmt den Wert 1:1, `quantity` steht überall
-auf 0 — multipliziert wird also nirgends sonst. Dasselbe bei `sonstige
-Zuschläge` (10980 € bei 400 Stück = 27,45 je Stück).
+```
+WENN  cr570_mtzunit leer  UND  new_dag_mtzabsolut gefüllt        → new_dag_mtzabsolut
+SONST WENN  cr570_surchargeofentity = Unit  UND  cr570_mtzunit    → dag_numberofpieces × cr570_mtzunit
+SONST WENN  cr570_surchargeofentity = Kg    UND  cr570_mtzunit    → dag_weightkg × dag_numberofpieces × cr570_mtzunit
+```
 
-`mal:Stückzahl` in der Umwandlungskette multipliziert mit einer zweiten
-Spalte **derselben Zeile** — bei Spalten aus einem anderen Blatt mit der
-dortigen. Fehlt der Faktor, gibt es kein Ergebnis: ein Stückwert als
-Zeilenbetrag wäre still falsch, ein leeres Feld fällt auf.
+Dieselbe Formel hat `new_totalofotherpricesurcharges` mit
+`cr570_otherpricesurchargesunit` / `new_dag_sonstigezuschlge`. An der Chance
+summiert ein Rollup (`new_mtzsummeprodukte`, „MTZ Gesamt" in der Übersicht)
+die Positionswerte.
+
+Daraus folgt die Zuordnung: der Stückwert aus der Datei geht **unverändert**
+nach `cr570_mtzunit` („MTZ / Stück") bzw. `cr570_otherpricesurchargesunit`,
+und `cr570_surchargeofentity` bekommt den Festwert `Unit` (739170001) — ohne
+ihn greift kein Zweig, sobald ein Stückwert steht, und „MTZ Gesamt" bleibt
+leer. Die Betragsfelder `new_dag_mtzabsolut` / `new_dag_sonstigezuschlge`
+bleiben leer: sie sind der Rückfall der Formel für Positionen ohne
+Stückwert. Ein zweiter, im Import errechneter Betrag wäre eine zweite
+Wahrheit, die bei einer Stückzahl-Änderung im CRM stehen bliebe.
+
+Der Festwert ist ein `OptionSet`-Ziel ohne Quellspalte (`DefaultValue`).
+`typisieren` schickt Auswahlwerte als ganze Zahl — `"739170001"` als Text
+wäre ein Typfehler. 2504 Bestandspositionen stehen auf Unit, 331 auf Kg;
+die Datei kennt nur Stückwerte.
+
+`mal:Spalte` bleibt als Umwandlung erhalten (mit einer zweiten Spalte
+derselben Zeile multiplizieren, bei Fremdblättern mit der dortigen), wird
+im Profil aber nicht mehr gebraucht. Merksatz: **bevor der Import rechnet,
+in den Metadaten nachsehen, ob das Ziel schon rechnet.** Berechnete Felder
+(`SourceType 1`) tragen ihre Formel als XAML in `FormulaDefinition`; die
+Operatoren und Attribute lassen sich daraus lesen.
 
 ### Schreibrichtlinie je Feld
 

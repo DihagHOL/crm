@@ -89,7 +89,13 @@ const TRANSFORMS = (() => {
        damit weiter, als wäre es der Betrag.
 
        Fehlt der Faktor, gibt es kein Ergebnis (null): ein Stückwert als
-       Zeilenbetrag wäre still falsch, ein leeres Feld fällt auf. */
+       Zeilenbetrag wäre still falsch, ein leeres Feld fällt auf.
+
+       Im Profil seit dem 18.09.2026 ungenutzt: das CRM führt die
+       Multiplikation selbst (berechnetes Feld aus cr570_mtzunit ×
+       dag_numberofpieces), der Stückwert geht unverändert dorthin.
+       Die Regel bleibt für den nächsten Fall, in dem das Ziel nicht
+       rechnet – vorher in den Metadaten nachsehen, ob es das tut. */
     if (name === "mal") {
       return v => {
         if (leer(v)) return v;

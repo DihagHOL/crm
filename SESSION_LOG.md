@@ -1,5 +1,54 @@
 # Session-Log
 
+## 18.09.2026 — Das CRM rechnet selbst: MTZ als Stückwert, nicht als Betrag
+
+Bildschirmfoto von #7214: fünfzehn Positionen, Stückzahl 100, `MTZ` 8,98 €,
+`MTZ Gesamt` 8,98 €. „In der Position ist noch nicht mit Stückzahl
+multipliziert." Zwei Befunde.
+
+**Der Lauf um 09:06 lief mit dem alten Profil.** Alle Werte sind exakt die
+Stückwerte der Datei, nicht multipliziert und nicht leer — die Umwandlung
+`mal:Stückzahl` vom Vortag hat nie gegriffen. Sie wäre entweder als Betrag
+(898) oder, ohne Faktor, als leeres Feld angekommen. Also: Profil nicht
+hochgeladen, oder noch das JavaScript vom Vortag im Browser.
+
+**Und sie hätte gar nicht greifen sollen.** Der zweite Blick galt den
+Metadaten, diesmal mit der Formel. `new_mtztotalproductitem` („MTZ Gesamt")
+ist berechnet, und die Formel steht als XAML in `FormulaDefinition`:
+
+```
+WENN  MTZ/Stück leer  UND  MTZ absolut gefüllt   → MTZ absolut
+SONST WENN  Zuschlag der Entität = Unit  UND  MTZ/Stück  → Stückzahl × MTZ/Stück
+SONST WENN  Zuschlag der Entität = Kg    UND  MTZ/Stück  → Gewicht × Stückzahl × MTZ/Stück
+```
+
+Das CRM hat also längst ein Stückwertfeld — `cr570_mtzunit`, 1999
+Positionen gepflegt — und multipliziert selbst mit `dag_numberofpieces`.
+Dasselbe für die sonstigen Zuschläge (`cr570_otherpricesurchargesunit` →
+`new_totalofotherpricesurcharges`). Die Chance summiert per Rollup
+(`new_mtzsummeprodukte` — das „MTZ Gesamt" in der Übersicht).
+
+Die gestrige Lösung hätte funktioniert und wäre trotzdem falsch gewesen: ein
+im Import errechneter Betrag in `new_dag_mtzabsolut`, dem Rückfallfeld der
+Formel, der bei einer Stückzahl-Änderung im CRM stehen bleibt. Jetzt geht
+der Stückwert unverändert nach `MTZ / Stück`, `Zuschlag der Entität` bekommt
+den Festwert `Unit` — ohne ihn greift kein Zweig, und „MTZ Gesamt" bliebe
+leer —, und der Import rechnet nichts mehr.
+
+Dafür fehlte ein Baustein: `typisieren` kannte `OptionSet` nicht und hätte
+`"739170001"` als Text geschickt, ein Typfehler. Jetzt ganze Zahl oder
+Beanstandung. `mal:Spalte` bleibt als Umwandlung erhalten, ungenutzt.
+
+Nach 7214 gerechnet: Position 1 wird 100 × 8,98 = 898,00 € MTZ Gesamt statt
+8,98 €, die Chance entsprechend die Summe über alle fünfzehn.
+
+**Nebenbefund erledigt:** Einzelpreis ist in diesem Lauf gefüllt (52,70 €),
+die Notiz vom 17.09. gilt für diese Datei nicht mehr.
+
+**Offen wie gestern:** `-ProfilLaden`, dann Import — und vorher die Seite
+neu laden, damit das JavaScript von heute läuft. 7446 (Erik Bier fehlt als
+Systembenutzer), 5482 (CRM verloren, Timeline Win).
+
 ## 17.09.2026 — Zwei Anfragen „fehlen", und MTZ war ein Stückwert
 
 Lauf `1744380e`: 108 angelegt, 32 geändert, 0 Fehler. Zwei Rückmeldungen.

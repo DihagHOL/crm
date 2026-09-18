@@ -337,5 +337,31 @@ console.log("\nDie Umwandlung sieht die ganze Zeile");
     "bei einer Spalte aus einem anderen Blatt zaehlt die dortige Stueckzahl");
 }
 
+console.log("\nAuswahlwert als Festwert (OptionSet)");
+{
+  /* cr570_surchargeofentity = Unit ist der Schalter, den die berechneten
+     Felder MTZ Gesamt und Summe sonstiger Preisaufschläge lesen. Er hat
+     keine Quellspalte, nur einen Festwert – und der muss als ZAHL
+     ankommen: "739170001" als Text wäre ein Typfehler in Dataverse. */
+  const zu = [
+    z({ sourceColumn: null, targetField: "cr570_surchargeofentity",
+        targetType: "OptionSet", defaultValue: "739170001" }),
+    z({ sourceColumn: "MTZ absolut", targetField: "cr570_mtzunit",
+        targetType: "Money", transform: "decimal:de|empty2null" })
+  ];
+  const r = MAPPING.baue({ _zeile: 2, "MTZ absolut": "8,98", "Stückzahl": 100 }, zu,
+    { modus: "create" });
+  gleich(r.nutzlast.cr570_surchargeofentity, 739170001, "Festwert geht als ganze Zahl in den Rumpf");
+  gleich(r.nutzlast.cr570_mtzunit, 8.98, "der Stückwert bleibt der Stückwert – das CRM multipliziert");
+  pruefe(!("new_dag_mtzabsolut" in r.nutzlast), "das Betragsfeld wird nicht angefasst");
+
+  const kaputt = MAPPING.baue({ _zeile: 3 }, [
+    z({ sourceColumn: null, targetField: "cr570_surchargeofentity",
+        targetType: "OptionSet", defaultValue: "Unit" })
+  ], { modus: "create" });
+  pruefe(kaputt.fehler.length === 1 && /Auswahlwert/.test(kaputt.fehler[0].meldung),
+    "ein Etikett statt der Zahl wird beanstandet, nicht still als Text gesendet");
+}
+
 console.log(fehler ? `\n${fehler} Prüfung(en) fehlgeschlagen.\n` : "\nAlle Prüfungen bestanden.\n");
 process.exit(fehler ? 1 : 0);
