@@ -42,6 +42,13 @@ Beanstandung. `mal:Spalte` bleibt als Umwandlung erhalten, ungenutzt.
 Nach 7214 gerechnet: Position 1 wird 100 × 8,98 = 898,00 € MTZ Gesamt statt
 8,98 €, die Chance entsprechend die Summe über alle fünfzehn.
 
+**Bestätigt nach dem Import:** 7214 zeigt 898,00 € MTZ Gesamt, 6.843,00 €
+Gesamtpreis, gewichteter Forecast 469,61 → 754,16 €. Die Spalte `MTZ` ist
+leer — und das ist Hauspraxis: 1990 handgepflegte Positionen führen
+`MTZ / Stück` und lassen `MTZ` leer, nur 9 haben beides (2024,
+widersprüchlich). Die Ansicht „Einzelpositionen" zeigt `MTZ / Stück` nicht;
+das ist eine CRM-Ansicht, kein Importthema.
+
 **Nebenbefund erledigt:** Einzelpreis ist in diesem Lauf gefüllt (52,70 €),
 die Notiz vom 17.09. gilt für diese Datei nicht mehr.
 
