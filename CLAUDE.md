@@ -931,6 +931,13 @@ eine Automatik, die prüft und berichtet, aber nichts schreibt.
 Randbedingung 1 (kein Secret im Repository) bleibt unberührt: das Secret
 liegt in den GitHub-Secrets, und die SPA-Registrierung bekommt keins.
 
+Eine Folge davon ist die einzige echte Rollensperre der App: **Freigeben
+und Einstellen verlangen `editor`.** Überall sonst reicht die Rolle
+`viewer` zum Ansehen, und das Schreiben scheitert notfalls an Dataverse —
+der Sicherheitsrahmen liegt in M365. Eine Freigabe schreibt aber nicht mit
+den Rechten des Freigebenden, sondern mit denen des Anwendungsbenutzers.
+Ohne die Sperre wäre „nur zusehen“ plötzlich „schreiben lassen“.
+
 ---
 
 ## 11. Sicherheit

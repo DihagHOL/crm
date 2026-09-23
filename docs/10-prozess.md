@@ -260,8 +260,9 @@ es nichts zu fragen gibt. Danach kommt ein Bericht per Mail.
 Die vorletzte Zeile ist die Hausregel: ein deaktivierter Altbestand neben
 dem Datensatz, mit dem gearbeitet wird, ist keine Frage.
 
-**Freigeben.** Im Reiter **Automatik** steht jede wartende Datei mit ihren
-offenen Fragen. Auswählen, *Freigeben* — der nächste Lauf importiert mit
+**Freigeben.** Dafür braucht es die Rolle `editor` — eine Freigabe lässt
+die Automatik schreiben, also an den eigenen CRM-Rechten vorbei. Im Reiter
+**Automatik** steht jede wartende Datei mit ihren offenen Fragen. Auswählen, *Freigeben* — der nächste Lauf importiert mit
 dieser Auswahl. *Ablehnen* lässt die Datei liegen; dann gehört sie in die
 Hand dessen, der die Daten klären kann.
 

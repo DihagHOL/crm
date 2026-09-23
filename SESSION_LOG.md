@@ -71,6 +71,14 @@ bleibt im CRM: was der Anwendungsbenutzer darf, entscheidet seine
 Sicherheitsrolle. Randbedingung 1 bleibt unberührt — das Secret liegt in
 den GitHub-Secrets, die SPA bekommt keins.
 
+### Die einzige echte Rollensperre
+
+Überall sonst gilt: die App schreibt mit den CRM-Rechten des Angemeldeten,
+und wer dort nichts darf, kann auch hier nichts (§11.3). Eine Freigabe ist
+anders — sie lässt den Anwendungsbenutzer schreiben, an den eigenen
+Rechten vorbei. Ohne Sperre wäre „nur zusehen" plötzlich „schreiben
+lassen". Freigeben und Einstellen verlangen deshalb `editor`.
+
 **Offen bei Denis:** App-Registrierung, Anwendungsbenutzer in der
 Umgebung, drei Secrets, `setup-crm.ps1`, dann Probelauf (trocken) und
 `Aktiv = ja`. Schritt für Schritt in `docs/11-automatik.md`.

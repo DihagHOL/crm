@@ -221,6 +221,19 @@ const APP = (() => {
     renderEinstellungen();
   }
 
+  /* Freigeben und Einstellen bleiben der Rolle `editor` vorbehalten.
+     Begründung, die nur für die Automatik gilt: sonst schreibt die App mit
+     den CRM-Rechten des Angemeldeten (§11.3), und wer dort nichts darf,
+     kann auch hier nichts. Eine Freigabe löst den Import aber unter dem
+     ANWENDUNGSBENUTZER aus — an den eigenen Rechten vorbei. Damit wäre
+     „nur zusehen" plötzlich „schreiben lassen". */
+  const darfSteuern = () => DATA.darf("editor");
+
+  const nurLesenHinweis = () => `<p class="hint">Ihre Rolle ist
+    <b>${esc(DATA.ctx.role)}</b> — ansehen ja, freigeben nein. Eine Freigabe
+    lässt den Anwendungsbenutzer schreiben, also an den eigenen CRM-Rechten
+    vorbei; deshalb braucht sie <code>editor</code>.</p>`;
+
   /** Offene Fragen aus einem automatischen Lauf.
    *
    *  Dieselbe Auswahl wie im Prüflauf, nur zeitversetzt: der Cron hat sie
@@ -260,11 +273,14 @@ const APP = (() => {
              um Fehler in der Datei. Freigeben hiesse: trotzdem importieren,
              soweit es geht.</p>`}
           <div class="row" style="margin-top:12px">
-            <button class="btn" data-frei="${esc(v.id)}">Freigeben</button>
-            <button class="btn sec" data-ab="${esc(v.id)}">Ablehnen</button>
+            <button class="btn" data-frei="${esc(v.id)}"
+              ${darfSteuern() ? "" : "disabled"}>Freigeben</button>
+            <button class="btn sec" data-ab="${esc(v.id)}"
+              ${darfSteuern() ? "" : "disabled"}>Ablehnen</button>
             ${v.FileUrl ? `<a class="btn ghost sm" href="${esc(v.FileUrl)}"
                target="_blank" rel="noopener">Datei ansehen</a>` : ""}
           </div>
+          ${darfSteuern() ? "" : nurLesenHinweis()}
           <p class="hint" id="auMeld-${esc(v.id)}"></p>
         </div>`; }).join("")
       : '<div class="card"><p class="ok">Nichts offen.</p></div>'}
@@ -286,6 +302,8 @@ const APP = (() => {
   async function entscheiden(id, status, knopf) {
     const karte = knopf.closest("[data-vorgang]");
     const meld = $(`auMeld-${id}`);
+    // Ein abgeschalteter Knopf ist Bequemlichkeit, keine Sicherung.
+    if (!darfSteuern()) { meld.innerHTML = nurLesenHinweis(); return; }
     const auswahl = {};
     let fehlend = 0;
     for (const sel of karte.querySelectorAll("select[data-frage]")) {
@@ -357,10 +375,15 @@ const APP = (() => {
           <tbody>${Object.keys(AUTOMATIK.STANDARD).map(zeile).join("")}</tbody>
         </table></div>
         <div class="row" style="margin-top:12px">
-          <button class="btn" id="auSpeichern">Einstellungen speichern</button>
+          <button class="btn" id="auSpeichern"
+            ${darfSteuern() ? "" : "disabled"}>Einstellungen speichern</button>
         </div>
         <p class="hint" id="auEinstMeld"></p>
+        ${darfSteuern() ? "" : nurLesenHinweis()}
       </div>`;
+
+    for (const feld of $("auEinst").querySelectorAll("input[data-einst]"))
+      feld.disabled = !darfSteuern();
 
     $("auSpeichern").onclick = async () => {
       const knopf = $("auSpeichern"), meld = $("auEinstMeld");

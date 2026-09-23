@@ -171,6 +171,20 @@ selben Bildschirm.
 
 ---
 
+## Wer freigeben darf
+
+**Rolle `editor`.** Sonst nur ansehen — und das ist der einzige Ort in der
+App, an dem die Rolle wirklich etwas sperrt. Überall sonst gilt der Satz
+aus CLAUDE.md §11.3: die App schreibt mit den CRM-Rechten des
+Angemeldeten, wer dort nichts darf, kann auch hier nichts.
+
+Eine Freigabe ist anders. Sie lässt den **Anwendungsbenutzer** schreiben,
+also an den eigenen Rechten vorbei — ohne die Sperre wäre „nur zusehen“
+plötzlich „schreiben lassen“. Dasselbe gilt für die Einstellungen: wer den
+Takt stellen kann, stellt den Import.
+
+---
+
 ## Betrieb
 
 **Nichts passiert.** Reiter Automatik öffnen: die erste Zeile nennt den
