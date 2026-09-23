@@ -175,5 +175,41 @@ console.log("\nEntscheidungen aus einem freigegebenen Vorgang");
   gleich(A.entscheidungenAus(null).size, 0, "und ein fehlender Vorgang auch nicht");
 }
 
+console.log("\nStichtag — der Quellordner ist ein Archiv, kein Eingang");
+{
+  /* Am 23.09.2026 lagen im Ordner 71 Mappen zurück bis Mai 2025, 66 davon
+     ohne Importvermerk. Ohne Stichtag hätte der erste eingeschaltete Lauf
+     begonnen, sechzehn Monate Altbestand nachzuimportieren — jede Datei
+     mit dem Stand von damals über dem Stand von heute. */
+  const { AUTOMATIK: A } = ladeAlles();
+  const S = { ...A.STANDARD, AbDatum: "2026-09-23" };
+
+  pruefe(!A.nachStichtag("2026-08-13T10:00:00Z", S), "eine Mappe von August bleibt liegen");
+  pruefe(A.nachStichtag("2026-09-23T05:00:00Z", S), "eine von heute wird genommen");
+  pruefe(A.nachStichtag("2026-09-24T05:00:00Z", S), "eine von morgen erst recht");
+  pruefe(A.nachStichtag("2025-05-01T00:00:00Z", A.STANDARD),
+    "ohne Stichtag zählt jede — wer den Altbestand will, soll ihn bekommen");
+  pruefe(A.nachStichtag("2025-05-01T00:00:00Z", { ...S, AbDatum: "übermorgen" }),
+    "ein unlesbarer Stichtag sperrt nicht aus, sonst bliebe alles liegen");
+  pruefe(A.nachStichtag("", S),
+    "ohne Änderungsdatum wird geprüft statt stillschweigend übersprungen");
+}
+
+console.log("\nDerselbe Grund steht einmal da, nicht fünfmal");
+{
+  /* „Blatt ‚Anfragen‘ gibt es in der Datei nicht" meldet jeder Schritt
+     einzeln. Im echten Probelauf standen fünf gleiche Sätze in einer
+     Zeile — lesbar ist das nicht. */
+  const { AUTOMATIK: A } = ladeAlles();
+  const t = A.torschluss(
+    { fehler: [], warnungen: [], schritte: [
+      { strukturfehler: "Blatt „Anfragen“ gibt es in der Datei nicht." },
+      { strukturfehler: "Blatt „Anfragen“ gibt es in der Datei nicht." },
+      { strukturfehler: "Blatt „Positionen“ gibt es in der Datei nicht." }] },
+    { abfragen: [], treffer: new Map() }, new Map(), A.STANDARD);
+  gleich(t.gruende.length, 2, "aus drei Meldungen werden zwei Gründe");
+  pruefe(!t.frei, "und angehalten wird trotzdem");
+}
+
 console.log(fehler ? `\n${fehler} Prüfung(en) fehlgeschlagen.\n` : "\nAlle Prüfungen bestanden.\n");
 process.exit(fehler ? 1 : 0);

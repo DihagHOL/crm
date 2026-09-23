@@ -519,6 +519,12 @@ if ($ksite) {
         VonUhr              = @("6",    "Fruehestens ab dieser vollen Stunde (deutsche Zeit).")
         BisUhr              = @("18",   "Letzte Stunde, in der ein Lauf beginnen darf.")
         Wochentage          = @("Mo-Fr","'Mo-Fr', 'taeglich' oder eine Liste wie 'Mo,Mi,Fr'.")
+        # Stichtag = Tag der Einrichtung. Der Quellordner ist ein ARCHIV:
+        # am 23.09.2026 lagen dort 71 Mappen zurueck bis Mai 2025, 66 ohne
+        # Importvermerk. Ohne Stichtag arbeitet der erste eingeschaltete
+        # Lauf sechzehn Monate Altbestand nach.
+        AbDatum             = @((Get-Date).ToString('yyyy-MM-dd'),
+                                "Stichtag JJJJ-MM-TT. Aeltere Mappen bleiben liegen. Leer = alle.")
         MaxDateien          = @("3",    "Hoechstzahl Dateien je Lauf.")
         WarnungenBlockieren = @("nein", "ja | nein - erzwingen Warnungen eine Freigabe?")
         Empfaenger          = @("administrator@dihag.com", "Wer den Bericht bekommt.")

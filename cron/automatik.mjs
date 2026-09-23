@@ -215,13 +215,25 @@ async function markieren(datei, felder) {
     if (v.Status === AUTOMATIK.FREI.frei && !offeneFreigabe.has(v.FileId))
       offeneFreigabe.set(v.FileId, v);
 
-  const anstehend = dateien.filter(d =>
+  const unbearbeitet = dateien.filter(d =>
     !d.status || d.status === "Neu" || offeneFreigabe.has(d.id));
+
+  /* Der Quellordner ist ein Archiv, kein Eingang. Ohne Stichtag würde der
+     erste eingeschaltete Lauf den gesamten Altbestand nachimportieren. */
+  const anstehend = unbearbeitet.filter(d =>
+    offeneFreigabe.has(d.id) || AUTOMATIK.nachStichtag(d.geaendert, e));
+  const zuAlt = unbearbeitet.length - anstehend.length;
+
+  /* Älteste zuerst: kommen zwei Mappen zur selben Anfrage, soll die
+     jüngere den letzten Stand schreiben – nicht die ältere. `SPFILES.liste`
+     sortiert neueste zuerst. */
+  anstehend.sort((a, b) => String(a.geaendert).localeCompare(String(b.geaendert)));
 
   const grenze = AUTOMATIK.zahl(e.MaxDateien, 3);
   const arbeit = anstehend.slice(0, grenze);
   sagen(`${dateien.length} Mappe(n) im Ordner, ${anstehend.length} anstehend, `
-    + `${arbeit.length} in diesem Lauf.`);
+    + `${arbeit.length} in diesem Lauf.`
+    + (zuAlt ? ` ${zuAlt} liegen vor dem Stichtag ${e.AbDatum} und bleiben liegen.` : ""));
 
   const abschnitte = [];
 

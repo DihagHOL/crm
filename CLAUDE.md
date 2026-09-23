@@ -904,6 +904,23 @@ Nein. Ein Cron, der still nichts tut, ist von einem kaputten Cron nicht zu
 unterscheiden — und genau danach wird gefragt, wenn eine Datei
 liegenbleibt.
 
+### Der Quellordner ist ein Archiv, kein Eingang
+
+Beim ersten Probelauf lagen dort **71 Mappen zurück bis Mai 2025, 66 ohne
+Importvermerk** — die Statusspalten kamen erst mit dieser App, und was
+vorher dort lag, gilt deshalb als „Neu“ (docs/02, Teil A). Eingeschaltet
+hätte die Automatik begonnen, sechzehn Monate Altbestand nachzuimportieren,
+jede Datei mit dem Stand von damals über dem Stand von heute.
+
+Deshalb `AbDatum`: ein Stichtag, den `setup-crm.ps1` auf den Tag der
+Einrichtung setzt. Ältere Mappen bleiben liegen, leer heisst weiterhin
+„alle“ — wer den Altbestand doch will, soll ihn bekommen, ohne im Code zu
+suchen.
+
+Und: **die älteste zuerst.** Liegen mehrere Mappen zur selben Anfrage, soll
+die jüngere den letzten Stand schreiben. `SPFILES.liste()` sortiert
+neueste zuerst — für die Anzeige richtig, für die Abarbeitung falsch herum.
+
 ### Das Tor: was einen Menschen stutzen liesse, hält an
 
 `AUTOMATIK.torschluss()` lässt genau dann durch, wenn der Prüflauf nichts

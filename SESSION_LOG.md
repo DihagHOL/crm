@@ -101,10 +101,38 @@ drei ohne Präfix.
 `403 accessDenied` ohne Angabe der Site erscheint. Der Lauf fängt sie jetzt
 ab und nennt die Ursache.
 
-**Offen bei Denis:** Dynamics-CRM-Berechtigung ergänzen, Site-Freigabe für
-`/teams/crm-integration`, Anwendungsbenutzer anlegen, `CLIENT_SECRET`
-setzen, `setup-crm.ps1`, Probelauf (trocken), `Aktiv = ja`. Schritt für
-Schritt in `docs/11-automatik.md`.
+### Der erste echte Probelauf
+
+Mit dem Haus-Cron und trockenem Lauf: Graph-Token, **Dataverse-Token**,
+71 Mappen gelesen, Profil geladen, drei Dateien geprüft, Bericht
+verschickt — 26 Sekunden. Drei Befunde.
+
+**Die Dynamics-CRM-Berechtigung braucht es nicht.** Fast jede Anleitung
+verlangt sie; die App hat sie nicht und bekommt trotzdem ein
+Dataverse-Token. Bei Client-Credentials zählt allein der
+Anwendungsbenutzer. Steht jetzt so in `docs/11`, damit es niemand ein
+zweites Mal ausprobiert.
+
+**Der Quellordner ist ein Archiv.** 71 Mappen zurück bis Mai 2025, **66
+ohne Importvermerk** — die Statusspalten kamen erst mit dieser App.
+Eingeschaltet hätte die Automatik angefangen, sechzehn Monate Altbestand
+nachzuimportieren, jede Datei mit dem Stand von damals über dem Stand von
+heute. Neu deshalb `AbDatum`, vom Einrichtungsskript auf den Tag der
+Einrichtung gesetzt; für die bestehende Liste am 23.09.2026 nachgetragen.
+Dazu: abgearbeitet wird **älteste zuerst** — liegen zwei Mappen zur selben
+Anfrage, soll die jüngere zuletzt schreiben.
+
+**Fünfmal derselbe Satz.** `OppID-FirmaMapping.xlsx` ist keine
+Timeline-Mappe; jeder der fünf Schritte meldete einzeln „Blatt ‚Anfragen‘
+gibt es in der Datei nicht". Im Bericht steht der Grund jetzt einmal.
+
+Vorher übrigens das erwartbare Stolpern: `AADSTS7000215` — im Secret-Feld
+stand die Geheimnis-ID statt des Werts. Die Meldung, die der Lauf dafür
+mitbringt, hat gehalten.
+
+**Offen bei Denis:** Site-Freigabe für
+`/teams/crm-integration` prüfen (der Lauf schrieb noch nichts), dann
+`Aktiv = ja`. Alles andere steht.
 
 ## 18.09.2026 — Das CRM rechnet selbst: MTZ als Stückwert, nicht als Betrag
 

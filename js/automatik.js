@@ -41,6 +41,7 @@ const AUTOMATIK = (() => {
     VonUhr:              "6",
     BisUhr:              "18",
     Wochentage:          "Mo-Fr",
+    AbDatum:             "",
     MaxDateien:          "3",
     WarnungenBlockieren: "nein",
     Empfaenger:          "administrator@dihag.com",
@@ -56,6 +57,9 @@ const AUTOMATIK = (() => {
     VonUhr:              "Frühestens ab dieser vollen Stunde (deutsche Zeit).",
     BisUhr:              "Letzte Stunde, in der ein Lauf beginnen darf.",
     Wochentage:          "„Mo-Fr“, „täglich“ oder eine Liste wie „Mo,Mi,Fr“.",
+    AbDatum:             "Stichtag JJJJ-MM-TT. Ältere Mappen bleiben liegen — sonst "
+                       + "arbeitet die Automatik den ganzen Altbestand des Ordners durch. "
+                       + "Leer heisst: alle.",
     MaxDateien:          "Wie viele Dateien höchstens in EINEM Lauf verarbeitet werden.",
     WarnungenBlockieren: "ja | nein — sollen Warnungen (z. B. „Besitzer nicht gefunden“) "
                        + "eine Freigabe erzwingen statt nur im Bericht zu stehen?",
@@ -170,6 +174,29 @@ const AUTOMATIK = (() => {
       + `Takt ${takt} min – Lauf ist fällig.` };
   }
 
+  /** Liegt die Datei am oder nach dem Stichtag?
+   *
+   *  Der Quellordner ist ein ARCHIV, kein Eingang: am 23.09.2026 lagen dort
+   *  71 Mappen zurück bis Mai 2025, 66 davon ohne Importvermerk. Ohne
+   *  Stichtag hätte der erste eingeschaltete Lauf begonnen, sechzehn
+   *  Monate Altbestand nachzuimportieren – drei Dateien je Stunde, jede
+   *  mit dem Stand von damals über dem Stand von heute.
+   *
+   *  Leerer Stichtag heisst bewusst „alle“: wer den Altbestand doch
+   *  einspielen will, soll das können, ohne im Code zu suchen.
+   *
+   *  @param {string} geaendert ISO-Zeitstempel der Datei
+   *  @returns {boolean} */
+  function nachStichtag(geaendert, werte = STANDARD) {
+    const roh = String(werte.AbDatum || "").trim();
+    if (!roh) return true;
+    const grenze = Date.parse(roh.length <= 10 ? roh + "T00:00:00Z" : roh);
+    if (!Number.isFinite(grenze)) return true;   // unlesbar? dann keine Grenze
+    const wann = Date.parse(geaendert || "");
+    if (!Number.isFinite(wann)) return true;     // ohne Datum lieber prüfen
+    return wann >= grenze;
+  }
+
   /* ── Darf ohne Rückfrage importiert werden? ───────────────────────── */
 
   /** Das Tor zwischen Prüflauf und Import.
@@ -181,7 +208,12 @@ const AUTOMATIK = (() => {
    *
    *  @returns {{frei:boolean, gruende:string[], offen:object[]}} */
   function torschluss(bericht, aufl, entscheidungen, werte = STANDARD) {
-    const gruende = [];
+    const roh = [];
+    /* Derselbe Satz fünfmal ist keine fünffache Auskunft. „Blatt
+       ‚Anfragen‘ gibt es nicht" meldet jeder Schritt einzeln – im Bericht
+       steht er einmal. */
+    const gruende = { push: t => { if (!roh.includes(t)) roh.push(t); },
+                      get length() { return roh.length; } };
     const offen = AUFLOESUNG.offeneEntscheidungen(aufl, entscheidungen);
 
     if (offen.length)
@@ -200,7 +232,7 @@ const AUTOMATIK = (() => {
       gruende.push(`${bericht.warnungen.length} Warnung(en) – laut Einstellung `
         + "WarnungenBlockieren erzwingt das eine Freigabe.");
 
-    return { frei: !gruende.length, gruende, offen };
+    return { frei: !roh.length, gruende: roh, offen };
   }
 
   /** Gibt es überhaupt etwas zu tun? Eine Datei ohne Änderung wird trotzdem
@@ -344,7 +376,7 @@ const AUTOMATIK = (() => {
     return true;
   }
 
-  return { STANDARD, ERKLAERUNG, FREI, istJa, zahl,
+  return { STANDARD, ERKLAERUNG, FREI, istJa, zahl, nachStichtag,
            einstellungen, einstellungSetzen, faellig, deutscheZeit, tagErlaubt,
            torschluss, hatArbeit, warnungsGruppen,
            freigaben, freigabeAnlegen, freigabeEntscheiden, entscheidungenAus,

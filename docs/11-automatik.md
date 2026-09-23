@@ -37,7 +37,8 @@ Alles im Reiter **Automatik** einstellbar:
 | `TaktMinuten` | `60` | Mindestabstand zwischen zwei Läufen. |
 | `VonUhr` / `BisUhr` | `6` / `18` | Zeitfenster in **deutscher** Zeit, Sommerzeit inbegriffen. |
 | `Wochentage` | `Mo-Fr` | Auch `täglich` oder `Mo,Mi,Fr`. |
-| `MaxDateien` | `3` | Höchstzahl Mappen je Lauf. Schützt vor einem Ordner voller Altbestand. |
+| `AbDatum` | Tag der Einrichtung | **Stichtag.** Ältere Mappen bleiben liegen. Leer = alle. |
+| `MaxDateien` | `3` | Höchstzahl Mappen je Lauf. |
 | `WarnungenBlockieren` | `nein` | Sollen Warnungen eine Freigabe erzwingen? |
 | `Empfaenger` | `administrator@dihag.com` | Mehrere durch Semikolon. |
 | `Absender` | `administrator@dihag.com` | Postfach für den Versand. |
@@ -64,14 +65,15 @@ meiste schon mit. Geprüft am 23.09.2026 gegen den Tenant:
 
 Bleiben drei Schritte statt fünf.
 
-### 1. Dynamics CRM als Berechtigung ergänzen
+### 1. Dynamics CRM als Berechtigung — **nicht nötig**
 
-Entra ID → App-Registrierungen → **DIHAG Cron-Job** → API-Berechtigungen →
-Berechtigung hinzufügen → **Dynamics CRM** → `user_impersonation` →
-Administratorzustimmung erteilen.
+Fast jede Anleitung zu Server-zu-Server-Zugriff auf Dataverse verlangt, der
+Registrierung die Berechtigung *Dynamics CRM → user_impersonation*
+hinzuzufügen. Am 23.09.2026 gegen die Umgebung geprüft: **die App hat sie
+nicht, und der Lauf bekommt trotzdem ein Dataverse-Token.** Bei
+Client-Credentials zählt allein der Anwendungsbenutzer (Schritt 3).
 
-Das ist die Registrierungsseite. Sie allein öffnet die Umgebung noch nicht
-— das tut erst Schritt 3.
+Steht hier, damit es niemand ein zweites Mal ausprobiert.
 
 ### 2. Schreibrecht auf die Konfigurationssite
 
@@ -165,6 +167,12 @@ Actions → *Automatischer Import* → **Run workflow**, mit
 
 Sieht das gut aus: im Reiter **Automatik** `Aktiv` auf `ja`.
 
+> **Vorher den Stichtag ansehen.** Der Quellordner ist ein Archiv, kein
+> Eingang: am 23.09.2026 lagen dort 71 Mappen zurück bis Mai 2025, 66 davon
+> ohne Importvermerk. Ohne `AbDatum` beginnt der erste eingeschaltete Lauf,
+> sechzehn Monate Altbestand nachzuimportieren — drei Dateien je Stunde,
+> jede mit dem Stand von damals über dem Stand von heute.
+
 ### Wenn es doch eine eigene Registrierung sein soll
 
 Spricht etwas dagegen, dass derselbe Dienst ZAPP-Mails verschickt und ins
@@ -232,6 +240,13 @@ Takt stellen kann, stellt den Import.
 Grund („Ausgeschaltet", „Sa steht nicht im Plan", „Letzter Lauf vor 12 min,
 Takt sind 60"). Ein Lauf, der nichts tut, sagt immer warum — in Actions
 steht derselbe Satz als erste Zeile.
+
+**Der Altbestand soll doch importiert werden.** `AbDatum` zurücksetzen
+oder leeren — aber mit Bedacht: die Automatik arbeitet sich dann von der
+ältesten Mappe zur jüngsten vor, `MaxDateien` je Lauf. Das ist die richtige
+Reihenfolge (die jüngere Mappe schreibt zuletzt), dauert aber bei 66 Dateien
+und Takt 60 rund zweiundzwanzig Stunden. Für einen einmaligen Nachzug ist
+der Weg über die Oberfläche der ehrlichere.
 
 **Eine Datei soll sofort laufen.** In `CRM_Automatik` das Feld
 `LetzterLauf` leeren, dann Actions → Run workflow. Oder in der Bibliothek
