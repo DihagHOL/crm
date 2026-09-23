@@ -1,5 +1,80 @@
 # Session-Log
 
+## 23.09.2026 — Die Automatik, und wer bei zwei Treffern gewinnt
+
+„Eine Automatik, die für jede neue Excel-Datei die Prüfung macht, eine
+Freigabe erfragt bzw. Auswahl wie immer. Falls doppelte existieren, immer
+den nehmen, der aktiv ist. Falls alles passt, reicht ein Report per Mail."
+
+### Die Aktiv-Regel kam zuerst
+
+Sie gehört nicht in die Automatik, sondern in `js/aufloesung.js` — sie gilt
+auch für den Menschen an der Oberfläche. Eine Automatik, die anders
+entscheidet als die App, wäre ein zweites Regelwerk.
+
+Genau ein aktiver Treffer unter mehreren? Der gilt, ohne Rückfrage, mit
+Vermerk. Mehrere aktiv oder alle inaktiv? Weiterhin eine Frage. Eine
+ausdrückliche Auswahl geht vor — wer den inaktiven will, hat einen Grund.
+
+Das Zustandsfeld kommt aus den Metadaten, und das musste es auch:
+`statecode` bei den meisten, `isdisabled` bei `systemuser` (umgekehrte
+Logik), **gar keins** bei `opportunityproduct` und `processstage`. Dabei
+fiel eine schlafende Falle auf: `vergleichsFelder()` selektierte
+`statecode` und `statuscode` bedingungslos mit. Bei einer Tabelle ohne
+diese Felder antwortet Dataverse mit HTTP 400 — unbemerkt nur, weil in
+`OPPPRODUCT_STD` kein Schlüsselfeld steht. Beim nächsten hätte es
+gekracht.
+
+### Der Cron lädt dieselben Dateien wie der Browser
+
+`cron/automatik.mjs` lädt `aufloesung.js`, `pruefung.js`, `lauf.js` —
+Zeile für Zeile dieselben Dateien, die auch `index.html` einbindet. Drei
+Attrappen genügen: `AUTH` liefert ein App-Token, `sessionStorage` ist eine
+Map, `XLSX` kommt aus npm statt vom CDN.
+
+Eine zweite Importlogik wäre eine zweite Wahrheit, und die erste
+Abweichung fiele erst auf, wenn die Zahlen auseinandergehen.
+`tests/test-automatik.mjs` lädt deshalb alle dreizehn Module kopflos und
+schlägt an, sobald eines nach `document` oder `window` greift.
+
+### Der Takt steht in SharePoint
+
+Im Workflow steht `*/15 * * * *`. Das ist ein Blick auf die Uhr, kein
+Takt — ob gearbeitet wird, entscheidet die Liste `CRM_Automatik`. Auf die
+Frage nach dem Takt kam „selbst einstellbar", und das heisst: eine Eingabe
+im Werkzeug, kein Pull Request. Gerechnet wird in deutscher Zeit; in UTC
+hiesse „ab 6 Uhr" im Sommer 8 Uhr, und zweimal im Jahr verschöbe sich das
+Fenster von selbst.
+
+`faellig()` antwortet immer mit einem Grund, auch beim Nein. Ein Cron, der
+still nichts tut, ist von einem kaputten Cron nicht zu unterscheiden.
+
+### Das Tor
+
+Durchgelassen wird, was nichts zu fragen hat: keine Fehler, kein fehlendes
+Blatt, keine offene Mehrdeutigkeit. Sonst entsteht ein Vorgang in
+`CRM_Freigaben`, die Datei bekommt `Wartet auf Freigabe`, und die Fragen
+warten im neuen Reiter **Automatik** — dieselbe Auswahl wie im Prüflauf,
+nur zeitversetzt und in SharePoint statt im Arbeitsspeicher.
+
+Warnungen halten **nicht** an. „Bei 108 Zeilen war der Besitzer nicht
+auffindbar" ist ein Hinweis; hielte er an, wartete jede Datei, und die
+Automatik wäre keine. `WarnungenBlockieren` gibt es trotzdem — beide
+Haltungen sind vertretbar.
+
+### Die eine Abweichung
+
+Der Cron schreibt als **Anwendungsbenutzer** in Dataverse. CLAUDE.md §11
+sagt, die App arbeite ausschliesslich mit `user_impersonation`; für einen
+Lauf ohne angemeldete Person gibt es dazu keine Alternative. Der Rahmen
+bleibt im CRM: was der Anwendungsbenutzer darf, entscheidet seine
+Sicherheitsrolle. Randbedingung 1 bleibt unberührt — das Secret liegt in
+den GitHub-Secrets, die SPA bekommt keins.
+
+**Offen bei Denis:** App-Registrierung, Anwendungsbenutzer in der
+Umgebung, drei Secrets, `setup-crm.ps1`, dann Probelauf (trocken) und
+`Aktiv = ja`. Schritt für Schritt in `docs/11-automatik.md`.
+
 ## 18.09.2026 — Das CRM rechnet selbst: MTZ als Stückwert, nicht als Betrag
 
 Bildschirmfoto von #7214: fünfzehn Positionen, Stückzahl 100, `MTZ` 8,98 €,

@@ -61,7 +61,12 @@ const CRM_CONFIG = {
     mappings: "CRM_FieldMappings",
     werte:    "CRM_ValueMappings",
     laeufe:   "CRM_ImportRuns",
-    fehler:   "CRM_ImportErrors"
+    fehler:   "CRM_ImportErrors",
+    // Steuerung des unbeaufsichtigten Laufs. Takt, Zeitfenster und
+    // Schalter stehen hier und nicht im Repository: wer den Takt ändert,
+    // soll das im Werkzeug tun und nicht einen Pull Request aufmachen.
+    automatik: "CRM_Automatik",
+    freigaben: "CRM_Freigaben"
   },
 
   /* ── Zugriffssteuerung ─────────────────────────────────────────────

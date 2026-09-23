@@ -63,5 +63,8 @@ jobs:
       - name: Prozessbeschreibung im Reiter „Anleitung"
         run: node tests/test-doku.mjs
 
+      - name: Automatik (Takt, Tor zum Import, kopfloses Laden der Module)
+        run: node tests/test-automatik.mjs
+
       - name: Konfiguration, Ladereihenfolge und Doku auf Konsistenz prüfen
         run: node tests/test-konsistenz.mjs

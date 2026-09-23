@@ -369,5 +369,115 @@ console.log("\nDer Bericht zaehlt nicht als fehlend, was gefunden wurde");
   gleich(a.fehlend, [], "und steht nicht zugleich unter den fehlenden");
 }
 
+console.log("\nBei zwei Treffern gewinnt der aktive");
+{
+  /* Hausregel seit dem 23.09.2026: ein deaktivierter Altbestand neben dem
+     Datensatz, mit dem gearbeitet wird, ist kein Rätsel. Ist GENAU EINER
+     aktiv, entscheidet die App selbst – und schreibt es ins Protokoll.
+     Sind mehrere aktiv, bleibt es eine Frage an einen Menschen.
+
+     Das Zustandsfeld kommt aus den Metadaten: `statecode` fast überall,
+     `isdisabled` bei systemuser, und dort mit umgekehrter Logik. */
+  const zeilen = {
+    "/contacts?": [
+      { emailaddress1: "a.meier@dihag.com", contactid: G1, statecode: 1 },
+      { emailaddress1: "a.meier@dihag.com", contactid: G2, statecode: 0 }
+    ],
+    "/accounts?": [
+      { name: "Doppel GmbH", accountid: G1, statecode: 0 },
+      { name: "Doppel GmbH", accountid: G2, statecode: 0 }
+    ]
+  };
+  const gefragt = [];
+  const g = {
+    DV: {
+      alle: async pfad => {
+        gefragt.push(decodeURIComponent(pfad));
+        const k = Object.keys(zeilen).find(x => pfad.startsWith(x));
+        return k ? zeilen[k] : [];
+      },
+      logischerName: async es => es.replace(/ies$/, "y").replace(/s$/, ""),
+      primaerId: async es => es === "contacts" ? "contactid"
+                           : es === "accounts" ? "accountid" : null,
+      felder: async es => es === "systemusers"
+        ? { isdisabled: { typ: "Boolean" } }
+        : { statecode: { typ: "State" }, statuscode: { typ: "Status" } },
+      navigation: async () => ({}), schluessel: async () => []
+    },
+    EXCEL: { blatt: (m, n) => m.blaetter.find(b => b.name === n) },
+    TRANSFORMS: { anwenden: w => ({ wert: w, unbekannt: [] }) },
+    MAPPING: { zugeordnet: () => undefined },
+    console
+  };
+  const src = readFileSync(join(wurzel, "js/aufloesung.js"), "utf8");
+  const A = new Function(...Object.keys(g), src + "; return AUFLOESUNG;")(...Object.values(g));
+
+  const profil = {
+    schritte: [{ step: 30, entitySet: "opportunities", sourceSheet: "Anfragen",
+                 mappingKey: "OPP", mode: "Upsert", aktiv: true }],
+    zuordnungen: { OPP: [
+      { aktiv: true, sourceColumn: "Mail", targetField: "primarycontactid",
+        targetType: "Lookup", lookupEntitySet: "contacts",
+        lookupKeyField: "emailaddress1" },
+      { aktiv: true, sourceColumn: "Kunde", targetField: "customerid",
+        targetType: "Lookup", lookupEntitySet: "accounts", lookupKeyField: "name" }
+    ] }
+  };
+  const mappe = { blaetter: [{ name: "Anfragen", anzahl: 1, zeilen: [
+    { _zeile: 2, Mail: "a.meier@dihag.com", Kunde: "Doppel GmbH" }] }] };
+
+  const aufl = await A.fuer(profil, mappe, () => {});
+
+  pruefe(gefragt.some(x => /^\/contacts\?/.test(x) && /statecode/.test(x)),
+    "das Zustandsfeld wird mitselektiert - ohne es gibt es nichts zu entscheiden");
+
+  const c = A.finde(aufl, "contacts", "emailaddress1", "a.meier@dihag.com", new Map());
+  gleich(c.records.length, 1, "ein Treffer bleibt uebrig");
+  gleich(c.records[0].contactid, G2, "und zwar der AKTIVE");
+  gleich(c.mehrdeutig, false, "nicht mehr mehrdeutig");
+  gleich(c.automatisch, "aktiv", "der Grund steht am Ergebnis");
+
+  const a = A.finde(aufl, "accounts", "name", "Doppel GmbH", new Map());
+  gleich(a.mehrdeutig, true, "zwei AKTIVE bleiben eine Frage an einen Menschen");
+
+  const offen = A.offeneEntscheidungen(aufl, new Map());
+  gleich(offen.length, 1, "nur der echte Zweifelsfall wird gefragt");
+  gleich(offen[0].entitySet, "accounts", "und das ist das Konto, nicht der Kontakt");
+
+  const auto = A.automatischGeloest(aufl);
+  gleich(auto.length, 1, "die stille Entscheidung steht im Bericht");
+  gleich([auto[0].entitySet, auto[0].wert, auto[0].gewaehlt],
+    ["contacts", "a.meier@dihag.com", G2], "mit Tabelle, Wert und gewaehlter GUID");
+
+  // Der Mensch darf den inaktiven waehlen - er hat einen Grund, und die
+  // Regel ist eine Erleichterung, keine Bevormundung.
+  const eigen = new Map([[`contacts|emailaddress1|a.meier@dihag.com`, G1]]);
+  gleich(A.finde(aufl, "contacts", "emailaddress1", "a.meier@dihag.com", eigen)
+    .records[0].contactid, G1, "eine ausdrueckliche Entscheidung geht vor");
+}
+
+console.log("\nZustandsfelder heissen nicht ueberall gleich");
+{
+  const { A } = baueAufloesung(() => []);
+  pruefe(A.istAktiv({ statecode: 0 }, "statecode") === true, "statecode 0 ist aktiv");
+  pruefe(A.istAktiv({ statecode: 1 }, "statecode") === false, "statecode 1 ist inaktiv");
+  pruefe(A.istAktiv({ isdisabled: true }, "isdisabled") === false,
+    "isdisabled true ist deaktiviert - umgekehrte Logik");
+  pruefe(A.istAktiv({}, "isdisabled") === true,
+    "fehlendes isdisabled gilt als aktiv, so wie im CRM");
+  pruefe(A.istAktiv({ statecode: 0 }, null) === null,
+    "ohne Zustandsfeld gibt es keine Aussage - und damit keine stille Wahl");
+
+  /* opportunityproduct hat kein statecode. Blind mitselektiert, antwortet
+     Dataverse mit 400 - heute unbemerkt, weil dort kein Schluesselfeld
+     steht. */
+  gleich(A.vergleichsFelder([], "lineitemnumber", null), ["lineitemnumber"],
+    "ohne Zustandsfeld wird keins selektiert");
+  gleich(A.vergleichsFelder([], "new_dagextopid", "statecode"),
+    ["new_dagextopid", "statecode", "statuscode"], "mit statecode auch statuscode");
+  gleich(A.vergleichsFelder([], "internalemailaddress", "isdisabled"),
+    ["internalemailaddress", "isdisabled"], "bei systemuser nur isdisabled");
+}
+
 console.log(fehler ? `\n${fehler} Prüfung(en) fehlgeschlagen.` : "\nAlle Prüfungen bestanden.");
 process.exit(fehler ? 1 : 0);

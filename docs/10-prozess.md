@@ -29,6 +29,7 @@ Umständen Datensätze angelegt, die niemand wollte. Diese App ersetzt ihn.
 | **Anwender mit `editor`** | öffnet die App, wählt die Datei, prüft, startet den Import |
 | **Anwender mit `viewer`** | darf alles ansehen, auch Prüflauf und Protokoll — aber nicht importieren |
 | **IT** | pflegt Zuordnung und Wertzuordnungen in SharePoint, vergibt Rollen |
+| **Automatik** | prüft neue Mappen von selbst, importiert die unstrittigen, fragt beim Rest nach |
 
 Die Rechte kommen aus der Liste `AppPermissions` auf `/sites/IT`. Wer dort
 nicht steht, sieht den Hinweis „Kein Zugriff" und kann eine Freigabe anfordern.
@@ -240,6 +241,45 @@ zurückdrehen.
 
 ---
 
+## 5a. Die Automatik
+
+Seit dem 23.09.2026 muss niemand mehr dabeistehen. Ein Lauf in der Cloud
+sieht im Quellordner nach, prüft jede neue Mappe mit **demselben
+Prüflauf**, den auch der Reiter „Prüflauf“ zeigt, und importiert sie, wenn
+es nichts zu fragen gibt. Danach kommt ein Bericht per Mail.
+
+**Wann sie nachfragt.** Genau dann, wenn ein Mensch stutzen würde:
+
+| Befund | Was passiert |
+|---|---|
+| Fehler im Prüflauf, fehlendes Blatt | Datei bleibt liegen, Status *Wartet auf Freigabe* |
+| Ein Wert findet mehrere Datensätze, mehrere davon aktiv | dito, mit der Auswahl als Frage |
+| Ein Wert findet mehrere, **genau einer aktiv** | kein Halt — der aktive gilt, und es steht im Bericht |
+| Warnungen („Besitzer nicht gefunden“) | kein Halt — sie stehen im Bericht |
+
+Die vorletzte Zeile ist die Hausregel: ein deaktivierter Altbestand neben
+dem Datensatz, mit dem gearbeitet wird, ist keine Frage.
+
+**Freigeben.** Im Reiter **Automatik** steht jede wartende Datei mit ihren
+offenen Fragen. Auswählen, *Freigeben* — der nächste Lauf importiert mit
+dieser Auswahl. *Ablehnen* lässt die Datei liegen; dann gehört sie in die
+Hand dessen, der die Daten klären kann.
+
+**Einstellen.** Im selben Reiter: Hauptschalter, Takt, Zeitfenster,
+Wochentage, Empfänger. Die Werte stehen in SharePoint, nicht im
+Programmcode — eine Änderung wirkt ab dem nächsten Lauf, ohne dass jemand
+am Programm etwas tun muss.
+
+**Nichts passiert?** Die erste Zeile im Reiter nennt immer den Grund:
+ausgeschaltet, ausserhalb des Zeitfensters, oder der Takt ist noch nicht
+um.
+
+Von Hand importieren geht weiterhin und ändert nichts daran: beide Wege
+schreiben in dieselben Protokolllisten, und beide halten sich an dieselben
+Regeln.
+
+---
+
 ## 6. Was regelmäßig zu tun ist
 
 **Vor jedem Lauf** — nichts. Die App liest ihre Konfiguration bei jedem Aufruf
@@ -255,7 +295,12 @@ eines von dreien: falsches Schlüsselfeld, andere Schreibweise, falsches
 Zielfeld.
 
 **Beim Produktivgang** — `dataverseUrl` und `umgebung` in `js/config.js`
-umstellen. Das Band im Kopf wird dann rot.
+umstellen. Das Band im Kopf wird dann rot. Läuft die Automatik, braucht die
+neue Umgebung ausserdem einen eigenen Anwendungsbenutzer (`docs/11`).
+
+**Wenn das Secret des Cron abläuft** — Client Secrets gelten höchstens
+24 Monate. Läuft es ab, scheitert jeder Lauf mit `AADSTS7000215`, und der
+Bericht bleibt aus. Ablaufdatum notieren.
 
 ---
 

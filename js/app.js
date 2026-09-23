@@ -148,6 +148,7 @@ const APP = (() => {
     { id: "pruefung",  titel: "Prüflauf" },
     { id: "import",    titel: "Import" },
     { id: "protokoll", titel: "Protokoll" },
+    { id: "automatik", titel: "Automatik" },
     { id: "anleitung", titel: "Anleitung" }
   ];
 
@@ -168,7 +169,219 @@ const APP = (() => {
     if (id === "pruefung") renderPruefung();
     if (id === "import") renderImport();
     if (id === "protokoll") renderProtokoll();
+    if (id === "automatik") renderAutomatik();
     if (id === "anleitung") renderAnleitung();
+  }
+
+  /* ── Automatik ─────────────────────────────────────────────────────────
+     Zwei Dinge an einem Ort: was die Automatik tun soll, und was sie nicht
+     allein entscheiden konnte.
+
+     Die Einstellungen stehen in SharePoint, nicht im Repository — dieselbe
+     Linie wie beim Importprofil. Wer den Takt ändern will, soll das hier
+     tun und nicht einen Pull Request aufmachen. Der Cron in GitHub Actions
+     sieht alle 15 Minuten nach und hält sich an das, was hier steht.    */
+
+  let _auto = null;        // { werte, ids, vorhanden }
+  let _vorgaenge = null;
+
+  async function renderAutomatik() {
+    $("main").innerHTML = `
+      <div class="page-head">
+        <h2>Automatik</h2>
+        <p>Der unbeaufsichtigte Lauf prüft neue Mappen im Quellordner und
+           importiert die unstrittigen von selbst. Was er nicht allein
+           entscheiden kann, legt er hier zur Freigabe vor — und schickt
+           einen Bericht an die eingetragene Adresse.</p>
+      </div>
+      <div class="card"><p class="hint" id="auStatus">Wird geladen …</p></div>
+      <div id="auFreigaben"></div>
+      <div id="auEinst"></div>`;
+
+    try {
+      _auto = await AUTOMATIK.einstellungen();
+      _vorgaenge = await AUTOMATIK.freigaben();
+    } catch (e) {
+      $("auStatus").innerHTML = `<span class="err">${esc(e.message)}</span>`;
+      return;
+    }
+
+    const f = AUTOMATIK.faellig(_auto.werte, new Date());
+    const an = AUTOMATIK.istJa(_auto.werte.Aktiv);
+    $("auStatus").innerHTML = !_auto.vorhanden
+      ? `<span class="fehlt">Die Liste <code>${esc(C.listen.automatik)}</code> gibt es
+         noch nicht.</span> Anzulegen mit <code>setup-crm.ps1</code>. Bis dahin
+         gelten die Standardwerte — und die Automatik ist aus.`
+      : `<b class="${an ? "ok" : ""}">${an ? "Eingeschaltet" : "Ausgeschaltet"}.</b>
+         ${esc(f.grund)}${_auto.werte.LetzterLauf
+           ? ` Letzter Lauf: ${esc(datum(_auto.werte.LetzterLauf))}.`
+           : " Noch kein Lauf verzeichnet."}`;
+
+    renderFreigaben();
+    renderEinstellungen();
+  }
+
+  /** Offene Fragen aus einem automatischen Lauf.
+   *
+   *  Dieselbe Auswahl wie im Prüflauf, nur zeitversetzt: der Cron hat sie
+   *  gestellt, jemand beantwortet sie hier, und der nächste Lauf
+   *  importiert damit. Die Antwort steht in SharePoint und nicht im
+   *  Arbeitsspeicher eines Browsers — sonst wäre sie beim Neuladen weg. */
+  function renderFreigaben() {
+    const alle = _vorgaenge || [];
+    const offen = alle.filter(v => v.Status === AUTOMATIK.FREI.offen);
+    const rest = alle.filter(v => v.Status !== AUTOMATIK.FREI.offen).slice(0, 10);
+
+    $("auFreigaben").innerHTML = `
+      <h3 class="section">Wartet auf Freigabe${offen.length ? ` (${offen.length})` : ""}</h3>
+      ${offen.length ? offen.map(v => {
+        let fragen = [];
+        try { fragen = JSON.parse(v.Questions || "[]"); } catch { fragen = []; }
+        return `
+        <div class="card" data-vorgang="${esc(v.id)}">
+          <div class="row" style="justify-content:space-between;align-items:baseline">
+            <b>${esc(v.Title)}</b>
+            <small class="hint">vorgelegt ${esc(datum(v.RequestedAt))}</small>
+          </div>
+          <p class="hint" style="white-space:pre-line;margin-top:6px">${esc(v.Findings || "")}</p>
+          ${fragen.map(q => `
+            <div class="entscheidung">
+              <div class="frage">
+                <code>${esc(q.entitySet)}.${esc(q.feld)} = ${esc(q.wert)}</code>
+                <small>${(q.kandidaten || []).length} Treffer</small>
+              </div>
+              <select data-frage="${esc(q.schluessel)}">
+                <option value="">— bitte wählen —</option>
+                ${(q.kandidaten || []).map(k =>
+                  `<option value="${esc(k.id)}">${esc(k.text)}</option>`).join("")}
+              </select>
+            </div>`).join("")}
+          ${fragen.length ? "" : `<p class="hint">Hier ist nichts auszuwählen — es geht
+             um Fehler in der Datei. Freigeben hiesse: trotzdem importieren,
+             soweit es geht.</p>`}
+          <div class="row" style="margin-top:12px">
+            <button class="btn" data-frei="${esc(v.id)}">Freigeben</button>
+            <button class="btn sec" data-ab="${esc(v.id)}">Ablehnen</button>
+            ${v.FileUrl ? `<a class="btn ghost sm" href="${esc(v.FileUrl)}"
+               target="_blank" rel="noopener">Datei ansehen</a>` : ""}
+          </div>
+          <p class="hint" id="auMeld-${esc(v.id)}"></p>
+        </div>`; }).join("")
+      : '<div class="card"><p class="ok">Nichts offen.</p></div>'}
+
+      ${rest.length ? `<h3 class="section">Zuletzt entschieden</h3>
+        <div class="card"><div class="tbl-wrap"><table class="tbl">
+          <thead><tr><th>Datei</th><th>Status</th><th>entschieden</th><th>von</th></tr></thead>
+          <tbody>${rest.map(v => `<tr>
+            <td>${esc(v.Title)}</td><td>${esc(v.Status)}</td>
+            <td>${esc(datum(v.DecidedAt))}</td><td>${esc(v.DecidedBy || "")}</td>
+          </tr>`).join("")}</tbody></table></div></div>` : ""}`;
+
+    for (const b of $("auFreigaben").querySelectorAll("button[data-frei]"))
+      b.onclick = () => entscheiden(b.dataset.frei, AUTOMATIK.FREI.frei, b);
+    for (const b of $("auFreigaben").querySelectorAll("button[data-ab]"))
+      b.onclick = () => entscheiden(b.dataset.ab, AUTOMATIK.FREI.abgelehnt, b);
+  }
+
+  async function entscheiden(id, status, knopf) {
+    const karte = knopf.closest("[data-vorgang]");
+    const meld = $(`auMeld-${id}`);
+    const auswahl = {};
+    let fehlend = 0;
+    for (const sel of karte.querySelectorAll("select[data-frage]")) {
+      if (sel.value) auswahl[sel.dataset.frage] = sel.value;
+      else fehlend++;
+    }
+    /* Freigeben mit unbeantworteter Frage hiesse: das Feld bleibt leer,
+       und niemand sieht es je wieder. Genau so verliert der Altflow die
+       Zeichnungsnummer. */
+    if (status === AUTOMATIK.FREI.frei && fehlend) {
+      meld.innerHTML = `<span class="fehlt">${fehlend} Frage(n) ohne Antwort.</span>
+        Ohne Auswahl bliebe das Feld leer — dann lieber ablehnen und die
+        Daten klären.`;
+      return;
+    }
+    knopf.disabled = true;
+    meld.textContent = "Wird gespeichert …";
+    try {
+      await AUTOMATIK.freigabeEntscheiden(id, status, auswahl, DATA.ctx.email || "");
+
+      /* Beim Ablehnen auch die BIBLIOTHEK nachziehen. Sonst steht an der
+         Datei weiter „Wartet auf Freigabe“, obwohl niemand mehr wartet –
+         und wer den Ordner ansieht, sucht eine Freigabe, die es nicht
+         mehr gibt. Scheitert der Vermerk, ist die Ablehnung trotzdem
+         gültig: sie steht in der Liste, und danach richtet sich die
+         Automatik. */
+      let vermerk = "";
+      if (status === AUTOMATIK.FREI.abgelehnt) {
+        const v = (_vorgaenge || []).find(x => String(x.id) === String(id));
+        try {
+          const datei = (await SPFILES.liste()).find(d => d.id === v?.FileId);
+          if (datei) await SPFILES.statusSetzen(datei, { ImportStatus: "Abgelehnt" });
+        } catch { vermerk = " Der Status in der Bibliothek konnte nicht "
+          + "gesetzt werden – die Automatik fasst die Datei trotzdem nicht mehr an."; }
+      }
+
+      meld.innerHTML = status === AUTOMATIK.FREI.frei
+        ? '<span class="ok">✓ Freigegeben.</span> Der nächste automatische Lauf '
+          + "importiert die Datei mit dieser Auswahl."
+        : '<span class="ok">✓ Abgelehnt.</span> Die Datei bleibt liegen.' + esc(vermerk);
+      _vorgaenge = await AUTOMATIK.freigaben();
+      setTimeout(renderFreigaben, 1500);
+    } catch (e) {
+      knopf.disabled = false;
+      meld.innerHTML = `<span class="err">${esc(e.message)}</span>`;
+    }
+  }
+
+  function renderEinstellungen() {
+    const w = _auto.werte;
+    const zeile = k => `
+      <tr>
+        <td><code>${esc(k)}</code></td>
+        <td>${k === "LetzterLauf"
+          ? `<span class="hint">${esc(w[k] ? datum(w[k]) : "—")}</span>`
+          : `<input data-einst="${esc(k)}" value="${esc(w[k] ?? "")}"
+               size="${k === "Empfaenger" || k === "Absender" ? 30 : 10}">`}</td>
+        <td class="hint">${esc(AUTOMATIK.ERKLAERUNG[k] || "")}</td>
+      </tr>`;
+
+    $("auEinst").innerHTML = `
+      <h3 class="section">Einstellungen</h3>
+      <div class="card">
+        <p class="hint">Sie stehen in <code>${esc(C.listen.automatik)}</code> auf
+           <code>${esc(C.konfigSite.split(":").pop())}</code> — nicht im Programmcode.
+           Eine Änderung wirkt ab dem nächsten Lauf.</p>
+        <div class="tbl-wrap"><table class="tbl">
+          <thead><tr><th>Einstellung</th><th>Wert</th><th>Bedeutung</th></tr></thead>
+          <tbody>${Object.keys(AUTOMATIK.STANDARD).map(zeile).join("")}</tbody>
+        </table></div>
+        <div class="row" style="margin-top:12px">
+          <button class="btn" id="auSpeichern">Einstellungen speichern</button>
+        </div>
+        <p class="hint" id="auEinstMeld"></p>
+      </div>`;
+
+    $("auSpeichern").onclick = async () => {
+      const knopf = $("auSpeichern"), meld = $("auEinstMeld");
+      knopf.disabled = true; meld.textContent = "Wird gespeichert …";
+      let n = 0;
+      try {
+        for (const feld of $("auEinst").querySelectorAll("input[data-einst]")) {
+          const k = feld.dataset.einst;
+          if (String(_auto.werte[k] ?? "") === feld.value) continue;
+          await AUTOMATIK.einstellungSetzen(k, feld.value, _auto.ids);
+          n++;
+        }
+        _auto = await AUTOMATIK.einstellungen();
+        meld.innerHTML = n
+          ? `<span class="ok">✓ ${n} Einstellung(en) gespeichert.</span>
+             ${esc(AUTOMATIK.faellig(_auto.werte, new Date()).grund)}`
+          : '<span class="hint">Nichts geändert.</span>';
+      } catch (e) {
+        meld.innerHTML = `<span class="err">${esc(e.message)}</span>`;
+      } finally { knopf.disabled = false; }
+    };
   }
 
   /* ── Anleitung ─────────────────────────────────────────────────────────
@@ -359,7 +572,7 @@ const APP = (() => {
            je Zeile. Der Altflow braucht für 300 Zeilen rund 600 Einzelabfragen.</p>
         <div class="tbl-wrap"><table class="tbl roh">
           <thead><tr><th>Tabelle</th><th>Feld</th><th>gesucht</th><th>gefunden</th>
-            <th>nicht gefunden</th><th>mehrdeutig</th></tr></thead>
+            <th>nicht gefunden</th><th>mehrdeutig</th><th>aktiver gewählt</th></tr></thead>
           <tbody>${b.aufl.abfragen.map(a => `
             <tr class="${a.mehrdeutig.length ? "problem" : ""}">
               <td>${esc(a.entitySet)}</td><td>${esc(a.feld)}</td>
@@ -369,9 +582,12 @@ const APP = (() => {
                        title="Zeigt, welche Werte in dieser Tabelle wirklich stehen"
                        >Was steht dort?</button>` : ""}</td>
               <td>${a.mehrdeutig.length ? `<span class="fehlt">${a.mehrdeutig.map(m=>`${m.wert}×${m.anzahl}`).join(", ")}</span>` : ""}</td>
+              <td>${(a.automatisch || []).length ? `<span class="hinweis-text"
+                     title="Mehrere Treffer, genau einer aktiv – der wurde genommen"
+                     >${a.automatisch.map(m=>`${m.wert}×${m.anzahl}`).join(", ")}</span>` : ""}</td>
             </tr>
             <tr class="bsp" id="bsp-${esc(a.entitySet)}-${esc(a.feld)}" hidden>
-              <td colspan="6"></td>
+              <td colspan="7"></td>
             </tr>`).join("")}</tbody>
         </table></div>
       </div>
@@ -476,8 +692,9 @@ const APP = (() => {
    *  und die Entscheidung wird protokolliert. */
   function entscheidungsBlock() {
     const offen = AUFLOESUNG.offeneEntscheidungen(_bericht.aufl, _entscheidungen);
+    const auto = AUFLOESUNG.automatischGeloest(_bericht.aufl);
     const getroffen = _entscheidungen.size;
-    if (!offen.length && !getroffen) return "";
+    if (!offen.length && !getroffen && !auto.length) return "";
 
     return `
       <h3 class="section">Offene Entscheidungen${offen.length ? ` (${offen.length})` : ""}</h3>
@@ -485,6 +702,11 @@ const APP = (() => {
         <p class="hint">Ein Wert findet mehrere Datensätze. Welcher gemeint ist,
            kann die App nicht wissen – geraten wird nicht. Die Auswahl gilt für
            diesen Lauf und steht im Protokoll.</p>
+        ${auto.length ? `<p class="hint"><b>${auto.length} Fall/Fälle ohne
+           Rückfrage entschieden:</b> mehrere Treffer, genau einer aktiv – der
+           gilt. ${auto.slice(0, 6).map(a => `<code>${esc(a.entitySet)}.${
+             esc(a.feld)} = ${esc(String(a.wert))}</code> (${a.anzahl} Treffer)`)
+             .join(" · ")}${auto.length > 6 ? " …" : ""}</p>` : ""}
         ${offen.length ? offen.map(o => `
           <div class="entscheidung">
             <div class="frage">

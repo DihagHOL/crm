@@ -1,0 +1,9 @@
+{
+  "name": "crm-automatik",
+  "private": true,
+  "type": "module",
+  "description": "Unbeaufsichtigter Import-Lauf. Laeuft in GitHub Actions, nicht im Browser.",
+  "dependencies": {
+    "xlsx": "0.18.5"
+  }
+}

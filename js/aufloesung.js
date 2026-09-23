@@ -129,10 +129,59 @@ const AUFLOESUNG = (() => {
     return treffer;
   }
 
+  /* ── Aktiv oder inaktiv ───────────────────────────────────────────
+     Zwei Treffer auf denselben Wert sind meist kein Rätsel, sondern ein
+     Altbestand: ein deaktivierter Datensatz und der, mit dem heute
+     gearbeitet wird. Hausregel seit dem 23.09.2026: **ist genau einer
+     aktiv, gewinnt er** – ohne Rückfrage, aber mit Vermerk im Protokoll.
+     Sind mehrere aktiv oder alle inaktiv, bleibt es eine Frage an einen
+     Menschen.
+
+     Das Feld dafür heisst nicht überall gleich, und es ist auch nicht
+     überall vorhanden: `statecode` bei fast allen Tabellen, `isdisabled`
+     bei `systemuser` – und das mit umgekehrter Logik. `opportunityproduct`
+     und `processstage` haben gar keins. Deshalb aus den Metadaten, nicht
+     geraten. */
+
+  /** @returns {Promise<"statecode"|"isdisabled"|null>} */
+  async function zustandsFeld(entitySet, merker) {
+    if (merker.has(entitySet)) return merker.get(entitySet);
+    let f = null;
+    try {
+      const felder = await DV.felder(entitySet);
+      if (felder.statecode) f = "statecode";
+      else if (felder.isdisabled) f = "isdisabled";
+    } catch { f = null; }   // keine Metadaten? Dann eben keine Regel.
+    merker.set(entitySet, f);
+    return f;
+  }
+
+  /** Ist dieser Datensatz aktiv? `null` heisst „nicht feststellbar". */
+  function istAktiv(record, zustandsFeld) {
+    if (!zustandsFeld || !record) return null;
+    if (zustandsFeld === "statecode") {
+      const v = record.statecode;
+      return v === null || v === undefined ? null : Number(v) === 0;
+    }
+    // isdisabled: true heisst deaktiviert. Fehlt der Wert, gilt der
+    // Datensatz als aktiv – so steht es auch in der Oberfläche von CRM.
+    return record.isdisabled !== true;
+  }
+
+  /** Die aktiven unter mehreren Treffern. */
+  const nurAktive = (records, zf) => records.filter(r => istAktiv(r, zf) === true);
+
   /** Welche Felder braucht der Vergleich? Alle, die der Import schreiben
    *  will – sonst ist „unverändert" nicht feststellbar (CLAUDE.md §8). */
-  function vergleichsFelder(zuordnungen, primaerFeld) {
-    const s = new Set([primaerFeld, "statecode", "statuscode"]);
+  function vergleichsFelder(zuordnungen, primaerFeld, zustandsFeld) {
+    /* `statecode`/`statuscode` nur, wenn die Tabelle sie führt. Blind
+       mitselektiert, antwortet Dataverse mit 400 „Could not find a
+       property named 'statecode'" – `opportunityproduct` hat keins. Heute
+       fällt das nicht auf, weil dort kein Schlüsselfeld steht; beim
+       nächsten Schlüsselfeld schon. */
+    const s = new Set([primaerFeld]);
+    if (zustandsFeld === "statecode") { s.add("statecode"); s.add("statuscode"); }
+    else if (zustandsFeld) s.add(zustandsFeld);
     for (const z of zuordnungen) {
       if (!z.aktiv || !z.targetField || z.targetField.startsWith("KLAEREN")) continue;
       s.add(z.targetType === "Lookup" ? `_${z.targetField}_value` : z.targetField);
@@ -154,6 +203,7 @@ const AUFLOESUNG = (() => {
     const idFelder = new Map();     // entitySet → Primärschlüsselfeld
     const navigation = new Map();   // entitySet → { Attribut: Navigationsname }
     const schluesselFehlt = new Map();  // "entitySet|feld" → Meldung oder null
+    const zustandsFelder = new Map();   // entitySet → "statecode"|"isdisabled"|null
 
     /** Eine Abfrage vorbereiten, ausführen und protokollieren. */
     /** @param {boolean} [mehrfachErwartet] Mehrere Treffer je Wert sind
@@ -183,17 +233,35 @@ const AUFLOESUNG = (() => {
         catch { idFelder.set(entitySet, null); }
       }
       const idF = idFelder.get(entitySet);
-      const sel = idF && !select.split(",").includes(idF) ? select + "," + idF : select;
+      let sel = idF && !select.split(",").includes(idF) ? select + "," + idF : select;
+
+      /* Zustandsfeld mitlesen – sonst lässt sich bei zwei Treffern nicht
+         sagen, welcher der aktive ist, und jede Dublette im Altbestand
+         wird zu einer Frage. */
+      const zf = await zustandsFeld(entitySet, zustandsFelder);
+      if (zf && !sel.split(",").includes(zf)) sel += "," + zf;
 
       const m = await sammle(entitySet, feld, [...gesucht], sel);
       treffer.set(k, m);
-      const mehrdeutig = [...m.entries()].filter(([, v]) => v.length > 1);
+
+      /* Mehrfachtreffer trennen: solche, die die Aktiv-Regel löst, und
+         solche, die offen bleiben. Bei erwarteten Mehrfachtreffern (die
+         Positionen einer Chance) ist beides bedeutungslos. */
+      const mehrdeutig = [], automatisch = [];
+      for (const [wert, v] of m.entries()) {
+        if (v.length < 2) continue;
+        const eintrag = { wert, anzahl: v.length };
+        if (!mehrfachErwartet && nurAktive(v, zf).length === 1) {
+          eintrag.aktive = 1;
+          automatisch.push(eintrag);
+        } else mehrdeutig.push(eintrag);
+      }
       abfragen.push({
         entitySet, feld, zweck, mehrfachErwartet: !!mehrfachErwartet,
         gesucht: gesucht.size,
         gefunden: m.size,
         fehlend: [...gesucht].filter(v => !m.has(vergleichbar(v))),
-        mehrdeutig: mehrdeutig.map(([wert, v]) => ({ wert, anzahl: v.length }))
+        mehrdeutig, automatisch
       });
     }
 
@@ -266,7 +334,8 @@ const AUFLOESUNG = (() => {
           return t.wert;
         });
         await frage(s.entitySet, key.targetField, werte,
-          vergleichsFelder(zu, key.targetField).join(","),
+          vergleichsFelder(zu, key.targetField,
+            await zustandsFeld(s.entitySet, zustandsFelder)).join(","),
           `Schritt ${s.step}: existiert der Datensatz schon?`);
       }
 
@@ -344,7 +413,7 @@ const AUFLOESUNG = (() => {
       }
     }
 
-    return { treffer, abfragen, idFelder, navigation, schluesselFehlt };
+    return { treffer, abfragen, idFelder, navigation, schluesselFehlt, zustandsFelder };
   }
 
   /** Primärschlüsselfeld einer Tabelle, aus der Auflösung.
@@ -372,6 +441,18 @@ const AUFLOESUNG = (() => {
     const m = aufl.treffer.get(schluessel(entitySet, feld));
     if (!m) return { records: [], mehrdeutig: false, fehlt: true, entschieden: false };
     const r = m.get(vergleichbar(wert)) || [];
+    /* Genau ein aktiver Treffer? Dann ist die Sache entschieden. Die
+       ausdrückliche Entscheidung eines Menschen geht trotzdem vor – wer
+       bewusst den inaktiven wählt, hat einen Grund. */
+    if (r.length > 1) {
+      const gewaehltVorher = entscheidungen?.get(`${entitySet}|${feld}|${vergleichbar(wert)}`);
+      if (!gewaehltVorher) {
+        const aktive = nurAktive(r, aufl.zustandsFelder?.get(entitySet));
+        if (aktive.length === 1)
+          return { records: aktive, mehrdeutig: false, fehlt: false,
+                   entschieden: true, automatisch: "aktiv" };
+      }
+    }
     if (r.length > 1 && entscheidungen) {
       // Der Schlüssel der Entscheidung wird aus derselben Vergleichsform
       // gebaut wie in `offeneEntscheidungen` – sonst zeigt die Oberfläche
@@ -402,11 +483,34 @@ const AUFLOESUNG = (() => {
         if (entscheidungen?.get(k)) continue;
         const kandidaten = aufl.treffer.get(schluessel(a.entitySet, a.feld))
           ?.get(vergleichbar(m.wert)) || [];
+        // Was die Aktiv-Regel löst, ist keine offene Frage mehr.
+        if (nurAktive(kandidaten, aufl.zustandsFelder?.get(a.entitySet)).length === 1)
+          continue;
         offen.push({ schluessel: k, entitySet: a.entitySet, feld: a.feld,
                      wert: m.wert, idFeld: idFeld(aufl, a.entitySet), kandidaten });
       }
     }
     return offen;
+  }
+
+  /** Was die Aktiv-Regel ohne Rückfrage entschieden hat.
+   *
+   *  Gehört in den Bericht und ins Protokoll: eine Entscheidung, die
+   *  niemand getroffen hat, muss wenigstens nachlesbar sein. */
+  function automatischGeloest(aufl) {
+    const out = [];
+    for (const a of aufl.abfragen || []) {
+      for (const m of a.automatisch || []) {
+        const kandidaten = aufl.treffer.get(schluessel(a.entitySet, a.feld))
+          ?.get(vergleichbar(m.wert)) || [];
+        const zf = aufl.zustandsFelder?.get(a.entitySet);
+        const aktiv = nurAktive(kandidaten, zf)[0];
+        out.push({ entitySet: a.entitySet, feld: a.feld, wert: m.wert,
+                   anzahl: m.anzahl, zustandsFeld: zf,
+                   gewaehlt: aktiv ? aktiv[idFeld(aufl, a.entitySet)] : null });
+      }
+    }
+    return out;
   }
 
   /** Auflöser für `MAPPING.baue`: die GUID zu einem Verweiswert.
@@ -445,5 +549,6 @@ const AUFLOESUNG = (() => {
   }
 
   return { fuer, finde, sammle, vergleichsFelder, offeneEntscheidungen, idFeld,
-           filterFeld, aufloeser, schluesselFelder, vergleichbar, BLOCK };
+           filterFeld, aufloeser, schluesselFelder, vergleichbar, istAktiv,
+           automatischGeloest, BLOCK };
 })();

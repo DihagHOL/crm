@@ -137,11 +137,14 @@ crm/
 │  ├─ aufloesung.js         ✓ Phase 0 – Sammelabfragen
 │  ├─ pruefung.js           ✓ Einstufung und Prüfbericht
 │  ├─ batch.js             ✓ Batch-Aufbau und -Auswertung
-│  └─ lauf.js              ✓ Ausführung, Drosselung, Abbruch, Protokoll
+│  ├─ lauf.js              ✓ Ausführung, Drosselung, Abbruch, Protokoll
+│  ├─ doku.js              ✓ Markdown für den Reiter „Anleitung“
+│  └─ automatik.js         ✓ Takt, Tor zum Import, Freigaben, Bericht
+├─ cron/automatik.mjs       ✓ unbeaufsichtigter Lauf (GitHub Actions)
 ├─ tests/                   ✓ *.mjs, laufen unter Node ohne Browser
-├─ .github/workflows/pruefung.yml  ✓
+├─ .github/workflows/       ✓ pruefung.yml, automatik.yml
 ├─ config/import-profile.dihag.json ✓
-└─ docs/                    ✓ 00–10, darunter 10-prozess.md (Prozessbeschreibung)
+└─ docs/                    ✓ 00–11, darunter 10-prozess.md und 11-automatik.md
 ```
 
 ---
@@ -606,6 +609,39 @@ in den Metadaten nachsehen, ob das Ziel schon rechnet.** Berechnete Felder
 (`SourceType 1`) tragen ihre Formel als XAML in `FormulaDefinition`; die
 Operatoren und Attribute lassen sich daraus lesen.
 
+### Zwei Treffer, einer aktiv — der gewinnt
+
+Ein Wert findet zwei Datensätze. Der Altflow nimmt mit `$top: 1` den
+ersten und schreibt bei doppelten Kundennummern auf das falsche Konto;
+diese App fragt stattdessen einen Menschen. Beides ist in einem Fall
+falsch, und es ist der häufigste: **ein deaktivierter Altbestand neben
+dem Datensatz, mit dem heute gearbeitet wird.** Da gibt es nichts zu
+entscheiden.
+
+Hausregel seit dem 23.09.2026: Ist unter mehreren Treffern **genau einer
+aktiv**, gilt er — ohne Rückfrage, aber mit Vermerk im Prüfbericht, in der
+Mail und im Vollprotokoll. Sind mehrere aktiv oder alle inaktiv, bleibt es
+eine Frage an einen Menschen. Eine ausdrückliche Entscheidung geht immer
+vor: wer bewusst den inaktiven wählt, hat einen Grund.
+
+Das Zustandsfeld kommt aus den **Metadaten**, nicht aus dem Namen:
+
+| Tabelle | Feld | „aktiv“ heisst |
+|---|---|---|
+| `opportunity`, `contact`, `account`, `pricelevel`, … | `statecode` | `0` |
+| `systemuser` | `isdisabled` | nicht `true` — **umgekehrte Logik** |
+| `opportunityproduct`, `processstage` | keins | keine Aussage, also keine stille Wahl |
+
+Die letzte Zeile war zugleich eine Falle: `vergleichsFelder()` selektierte
+`statecode` und `statuscode` bedingungslos mit. Bei `opportunityproduct`
+gibt es beide nicht, und Dataverse antwortet auf ein unbekanntes Feld im
+`$select` mit HTTP 400. Unbemerkt blieb das nur, weil dort kein
+Schlüsselfeld steht — beim nächsten Schlüsselfeld wäre es aufgefallen.
+
+Die Regel steht in `js/aufloesung.js` und **nicht** in der Automatik: sie
+gilt auch für den Menschen an der Oberfläche. Eine Automatik, die anders
+entscheidet als die App, wäre ein zweites Regelwerk.
+
 ### Schreibrichtlinie je Feld
 
 Aus der Auflösung folgt die Unterscheidung, die den Import erst zu einem
@@ -825,6 +861,75 @@ nicht aufhalten:
 
 Sie erscheinen im Prüfbericht **vor** dem Import, nicht erst danach. Der
 Anwender entscheidet in Kenntnis der Lage.
+
+---
+
+## 10a. Automatik — Import ohne Menschen
+
+Seit dem 23.09.2026 kann der Import unbeaufsichtigt laufen: ein Cron in
+GitHub Actions (`cron/automatik.mjs`) prüft neue Mappen im Quellordner,
+importiert die unstrittigen und legt den Rest zur Freigabe vor.
+Einrichtung und Betrieb stehen in `docs/11-automatik.md`; hier die drei
+Entscheidungen, die die Bauweise prägen.
+
+### Derselbe Code, nicht derselbe Ablauf
+
+Der Cron lädt **dieselben Dateien** wie der Browser — `aufloesung.js`,
+`pruefung.js`, `lauf.js`, Zeile für Zeile. Möglich wird das durch drei
+Attrappen: `AUTH` liefert ein App-Token statt eines Benutzertokens,
+`sessionStorage` ist eine Map, `XLSX` kommt aus npm statt vom CDN. Mehr
+braucht es nicht; die Module fassen sonst nichts an, was es nur im Browser
+gibt.
+
+Das ist keine Sparsamkeit, sondern der Kern: **eine zweite Importlogik
+wäre eine zweite Wahrheit.** Die erste Abweichung fiele erst auf, wenn die
+Zahlen auseinandergehen — und dann ist sie schon im CRM.
+`tests/test-automatik.mjs` lädt deshalb alle Module kopflos und schlägt an,
+sobald eine davon nach `document` oder `window` greift.
+
+### Der Takt steht in SharePoint, nicht im Workflow
+
+Im Workflow steht `*/15 * * * *`. Das ist ein Blick auf die Uhr, kein
+Takt. Ob gearbeitet wird, entscheidet die Liste `CRM_Automatik`: Schalter,
+Takt, Zeitfenster, Wochentage. Grund ist derselbe wie beim Importprofil —
+**eine Taktänderung soll eine Eingabe im Werkzeug sein und kein Pull
+Request.**
+
+Gerechnet wird in deutscher Zeit (`Intl`, Zeitzone Europe/Berlin). In UTC
+hiesse „ab 6 Uhr“ im Sommer 8 Uhr, und zweimal im Jahr verschöbe sich das
+Fenster von selbst.
+
+`faellig()` beantwortet die Frage **immer mit einem Grund**, auch beim
+Nein. Ein Cron, der still nichts tut, ist von einem kaputten Cron nicht zu
+unterscheiden — und genau danach wird gefragt, wenn eine Datei
+liegenbleibt.
+
+### Das Tor: was einen Menschen stutzen liesse, hält an
+
+`AUTOMATIK.torschluss()` lässt genau dann durch, wenn der Prüflauf nichts
+zu fragen hat: keine Fehler, kein fehlendes Blatt, keine offene
+Mehrdeutigkeit. Sonst entsteht ein Vorgang in `CRM_Freigaben`, die Datei
+bekommt den Status `Wartet auf Freigabe`, und die Fragen warten im Reiter
+**Automatik** — dieselbe Auswahl wie im Prüflauf, nur zeitversetzt. Die
+Antwort steht in SharePoint, nicht im Arbeitsspeicher eines Browsers.
+
+**Warnungen halten nicht an.** „Bei 108 Zeilen war der Besitzer nicht
+auffindbar“ ist ein Hinweis; würde er anhalten, wartete praktisch jede
+Datei, und die Automatik wäre keine. Wer es anders will, stellt
+`WarnungenBlockieren` auf `ja` — die Einstellung gibt es, weil beide
+Haltungen vertretbar sind.
+
+### Eine bewusste Abweichung von §11
+
+§11 sagt: die App arbeitet mit `user_impersonation`, der Sicherheitsrahmen
+bleibt in M365. Für einen Lauf ohne angemeldete Person gibt es dazu keine
+Alternative — der Cron schreibt als **Anwendungsbenutzer** in Dataverse.
+Der Rahmen bleibt trotzdem im CRM: was er darf, entscheidet seine
+Sicherheitsrolle, nicht das Skript. Wer ihm nur Leserechte gibt, bekommt
+eine Automatik, die prüft und berichtet, aber nichts schreibt.
+
+Randbedingung 1 (kein Secret im Repository) bleibt unberührt: das Secret
+liegt in den GitHub-Secrets, und die SPA-Registrierung bekommt keins.
 
 ---
 

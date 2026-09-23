@@ -1,0 +1,48 @@
+name: Automatischer Import
+
+# Sieht nach, ob neue Mappen im Quellordner liegen, prueft sie und
+# importiert die unstrittigen. Ob ein Lauf wirklich etwas tut, entscheidet
+# NICHT dieser Zeitplan, sondern die Liste CRM_Automatik in SharePoint:
+# dort stehen Schalter, Takt, Zeitfenster und Wochentage. Deshalb sieht der
+# Cron haeufig nach und haelt sich an das, was dort eingestellt ist - eine
+# Taktaenderung ist dann eine Eingabe im Werkzeug und kein Pull Request.
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+    inputs:
+      erzwingen:
+        description: "Takt und Zeitfenster uebergehen"
+        type: boolean
+        default: true
+      trocken:
+        description: "Nur pruefen und berichten, nichts schreiben"
+        type: boolean
+        default: false
+
+# Zwei Laeufe gleichzeitig wuerden dieselbe Datei zweimal importieren.
+concurrency:
+  group: crm-automatik
+  cancel-in-progress: false
+
+jobs:
+  lauf:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: SheetJS installieren
+        run: npm install --prefix cron --no-audit --no-fund
+      - name: Import-Lauf
+        working-directory: cron
+        env:
+          TENANT_ID:     ${{ secrets.TENANT_ID }}
+          CLIENT_ID:     ${{ secrets.CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
+          CRM_ERZWINGEN: ${{ (github.event_name == 'workflow_dispatch' && inputs.erzwingen) && '1' || '0' }}
+          CRM_TROCKEN:   ${{ (github.event_name == 'workflow_dispatch' && inputs.trocken) && '1' || '0' }}
+        run: node automatik.mjs

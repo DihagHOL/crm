@@ -198,7 +198,32 @@ function Ensure-Columns($siteId, $listName, $defs) {
     }
     $vorhanden = @($cols | ForEach-Object { $_.name })
     foreach ($d in $defs) {
-        if ($vorhanden -contains $d.name) { continue }
+        if ($vorhanden -contains $d.name) {
+            # Eine vorhandene Auswahlspalte kann Werte VERMISSEN - genau das
+            # passierte mit 'Wartet auf Freigabe': die Spalte gab es seit
+            # der Einrichtung, den Wert nicht, und SharePoint weist ihn
+            # beim Schreiben stillschweigend ab.
+            if ($d.kind -eq "choice") {
+                $ist = @($cols | Where-Object { $_.name -eq $d.name } |
+                         ForEach-Object { $_.choice.choices } | ForEach-Object { $_ })
+                $fehlt = @($d.choices | Where-Object { $ist -notcontains $_ })
+                if ($fehlt.Count -gt 0) {
+                    if ($NurPruefen) {
+                        Warn "    [$listName] '$($d.name)' fehlen Auswahlwerte: $($fehlt -join ', ')"
+                    } else {
+                        try {
+                            $alle = @($ist + $fehlt)
+                            Gx -Method PATCH -Uri "$g/sites/$siteId/lists/$listName/columns/$($d.name)" `
+                               -Body @{ choice = @{ choices = $alle } } | Out-Null
+                            Info "    [$listName] '$($d.name)': $($fehlt -join ', ') ergaenzt"
+                        } catch {
+                            Fehl "    [$listName] '$($d.name)' Auswahlwerte: $($_.Exception.Message)"
+                        }
+                    }
+                }
+            }
+            continue
+        }
         if ($NurPruefen) { Warn "    [$listName] Spalte '$($d.name)' FEHLT"; continue }
         $body = @{ name = $d.name; displayName = $d.name }
         switch ($d.kind) {
@@ -258,7 +283,8 @@ try {
         Info "  Bibliothek gefunden: $($bib.displayName)"
         Ensure-Columns $qsite.id $bib.displayName @(
             @{ name = "ImportStatus"; kind = "choice"
-               choices = @("Neu","Geprueft","Importiert","Fehlgeschlagen") },
+               choices = @("Neu","Geprueft","Importiert","Fehlgeschlagen",
+                           "Wartet auf Freigabe","Abgelehnt") },
             @{ name = "ImportRunId";  kind = "text"     },
             @{ name = "ImportedAt";   kind = "dateTime" },
             @{ name = "ImportedBy";   kind = "person"   }
@@ -457,6 +483,66 @@ if ($ksite) {
         @{ name = "SourceValue";  kind = "text"   },
         @{ name = "Resolved";     kind = "boolean" }
     )
+
+    # -- Automatik: Takt und Schalter des unbeaufsichtigten Laufs --------
+    # Bewusst eine Liste und keine Datei im Repository: wer den Takt
+    # aendert, soll das im Werkzeug tun und nicht einen Pull Request
+    # aufmachen. Title = Schluessel, Wert = Wert.
+    Ensure-List $sid "CRM_Automatik" | Out-Null
+    Ensure-Columns $sid "CRM_Automatik" @(
+        @{ name = "Wert";    kind = "text" },              # Title = Schluessel
+        @{ name = "Hinweis"; kind = "note" }
+    )
+
+    # -- Freigaben: was die Automatik nicht allein entscheiden konnte ----
+    Ensure-List $sid "CRM_Freigaben" | Out-Null
+    Ensure-Columns $sid "CRM_Freigaben" @(
+        @{ name = "FileId";      kind = "text" },          # Title = Dateiname
+        @{ name = "FileUrl";     kind = "text" },
+        @{ name = "Status";      kind = "choice"
+           choices = @("Offen","Freigegeben","Abgelehnt","Erledigt") },
+        @{ name = "Findings";    kind = "note" },
+        @{ name = "Questions";   kind = "note" },          # JSON: die offenen Fragen
+        @{ name = "Decisions";   kind = "note" },          # JSON: die Antworten
+        @{ name = "RequestedAt"; kind = "dateTime" },
+        @{ name = "DecidedAt";   kind = "dateTime" },
+        @{ name = "DecidedBy";   kind = "text" },
+        @{ name = "RunId";       kind = "text" }
+    )
+
+    # Standardwerte der Automatik - nur anlegen, nie ueberschreiben. Wer
+    # den Takt im Werkzeug geaendert hat, soll ihn nach dem naechsten
+    # Skriptlauf nicht wieder auf 60 vorfinden.
+    $standard = [ordered]@{
+        Aktiv               = @("nein", "ja | nein - Hauptschalter. Bei 'nein' tut der Cron nichts.")
+        TaktMinuten         = @("60",   "Mindestabstand zwischen zwei Laeufen, in Minuten.")
+        VonUhr              = @("6",    "Fruehestens ab dieser vollen Stunde (deutsche Zeit).")
+        BisUhr              = @("18",   "Letzte Stunde, in der ein Lauf beginnen darf.")
+        Wochentage          = @("Mo-Fr","'Mo-Fr', 'taeglich' oder eine Liste wie 'Mo,Mi,Fr'.")
+        MaxDateien          = @("3",    "Hoechstzahl Dateien je Lauf.")
+        WarnungenBlockieren = @("nein", "ja | nein - erzwingen Warnungen eine Freigabe?")
+        Empfaenger          = @("administrator@dihag.com", "Wer den Bericht bekommt.")
+        Absender            = @("administrator@dihag.com", "Postfach fuer den Versand (Mail.Send).")
+    }
+    try {
+        $da = @{}
+        foreach ($z in (Gx -Uri "$g/sites/$sid/lists/CRM_Automatik/items?`$expand=fields&`$top=200").value) {
+            if ($z.fields.Title) { $da[$z.fields.Title] = $true }
+        }
+        $neu = 0
+        foreach ($k in $standard.Keys) {
+            if ($da.ContainsKey($k)) { continue }
+            if ($NurPruefen) { Warn "    [CRM_Automatik] '$k' fehlt"; continue }
+            Gx -Method POST -Uri "$g/sites/$sid/lists/CRM_Automatik/items" `
+               -Body @{ fields = @{ Title = $k; Wert = $standard[$k][0]
+                                    Hinweis = $standard[$k][1] } } | Out-Null
+            $neu++
+        }
+        if ($neu) { Info "  CRM_Automatik: $neu Standardwert(e) angelegt (Aktiv = nein)." }
+        else      { Info "  CRM_Automatik: Einstellungen vorhanden, nichts ueberschrieben." }
+    } catch {
+        Warn "  CRM_Automatik: Standardwerte nicht geschrieben - $($_.Exception.Message)"
+    }
 
     Write-Host ""
     Write-Host "  Einmalig von Hand, falls noch nicht geschehen: in CRM_ImportRuns die"

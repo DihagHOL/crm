@@ -131,6 +131,7 @@ Positionen ersetzen → Vertriebsprozess → Abschlüsse.
 | `docs/08-frontend-github.md` | **Diese Bauweise, und warum sie von der ersten Fassung abweicht** |
 | `docs/01`–`03` | App-Registrierung, SharePoint, Dataverse einrichten |
 | `docs/09-rechte-eintragen.md` | Zugriff freischalten — Kurzanleitung zu `AppPermissions` |
+| `docs/11-automatik.md` | **Unbeaufsichtigter Import: Einrichtung, Takt, Freigaben** |
 | `config/import-profile.dihag.json` | Echtes Profil, aus dem Flow-Export abgeleitet |
 
 ---
