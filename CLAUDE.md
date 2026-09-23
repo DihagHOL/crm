@@ -924,6 +924,16 @@ Haltungen vertretbar sind.
 §11 sagt: die App arbeitet mit `user_impersonation`, der Sicherheitsrahmen
 bleibt in M365. Für einen Lauf ohne angemeldete Person gibt es dazu keine
 Alternative — der Cron schreibt als **Anwendungsbenutzer** in Dataverse.
+
+Und zwar als der, den das Haus ohnehin hat: **DIHAG Cron-Job**
+(`089bf9ad-…`), dieselbe Registrierung wie in ZAPP, Bedarfsanfrage und dem
+Compliance-Cockpit. Sie bringt `Sites.Selected`, `Sites.Read.All` und
+`Mail.Send` schon mit und sendet bereits als `administrator@dihag.com`. Eine
+zweite Registrierung hiesse: ein zweites Secret mit einem zweiten
+Ablaufdatum, ein zweiter Consent, eine zweite Stelle zum Nachziehen. Zu
+ergänzen bleiben die Dynamics-CRM-Berechtigung, das Schreibrecht auf
+`/teams/crm-integration` (`Sites.Selected` gilt je Site) und der
+Anwendungsbenutzer in der Umgebung.
 Der Rahmen bleibt trotzdem im CRM: was er darf, entscheidet seine
 Sicherheitsrolle, nicht das Skript. Wer ihm nur Leserechte gibt, bekommt
 eine Automatik, die prüft und berichtet, aber nichts schreibt.

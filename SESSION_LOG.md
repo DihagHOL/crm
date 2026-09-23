@@ -79,9 +79,32 @@ anders — sie lässt den Anwendungsbenutzer schreiben, an den eigenen
 Rechten vorbei. Ohne Sperre wäre „nur zusehen" plötzlich „schreiben
 lassen". Freigeben und Einstellen verlangen deshalb `editor`.
 
-**Offen bei Denis:** App-Registrierung, Anwendungsbenutzer in der
-Umgebung, drei Secrets, `setup-crm.ps1`, dann Probelauf (trocken) und
-`Aktiv = ja`. Schritt für Schritt in `docs/11-automatik.md`.
+### „Ich habe doch schon einen CronJob"
+
+Stimmt — und er passt. **DIHAG Cron-Job** (`089bf9ad-…`) treibt ZAPP,
+Bedarfsanfrage und das Compliance-Cockpit. Gegen den Tenant geprüft:
+
+| | |
+|---|---|
+| `Sites.Selected`, `Sites.Read.All`, `Mail.Send` | vorhanden |
+| sendet als `administrator@dihag.com` | schon eingerichtet |
+| Schreibrecht `/sites/IT` | seit ZAPP vergeben |
+| Schreibrecht `/teams/crm-integration` | fehlt — die Site kam später |
+| Dynamics-CRM-Berechtigung | fehlt |
+| Anwendungsbenutzer in der Umgebung | fehlt (0 von 211 ist unserer) |
+
+Die Einrichtung schrumpft damit von fünf Schritten auf drei plus Secrets.
+Die Secret-Namen passten ohne Zutun: `bedarfsanfrage` benutzt dieselben
+drei ohne Präfix.
+
+`Sites.Selected` gilt **je Site** — das ist die Falle, die im Betrieb als
+`403 accessDenied` ohne Angabe der Site erscheint. Der Lauf fängt sie jetzt
+ab und nennt die Ursache.
+
+**Offen bei Denis:** Dynamics-CRM-Berechtigung ergänzen, Site-Freigabe für
+`/teams/crm-integration`, Anwendungsbenutzer anlegen, `CLIENT_SECRET`
+setzen, `setup-crm.ps1`, Probelauf (trocken), `Aktiv = ja`. Schritt für
+Schritt in `docs/11-automatik.md`.
 
 ## 18.09.2026 — Das CRM rechnet selbst: MTZ als Stückwert, nicht als Betrag
 

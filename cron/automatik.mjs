@@ -367,7 +367,21 @@ async function markieren(datei, felder) {
   }
   sagen(`Gesamtdauer ${Math.round((Date.now() - beginn) / 1000)} s.`);
 })().catch(e => {
-  console.error("\nAbbruch:", e.stack || e.message);
+  /* Der wahrscheinlichste Fehler im Betrieb hat eine unlesbare Meldung.
+     „DIHAG Cron-Job" arbeitet mit `Sites.Selected`: Lesen geht überall
+     (Sites.Read.All), SCHREIBEN nur auf Sites, für die die App einzeln
+     freigeschaltet wurde. Fehlt die Freigabe, antwortet Graph mit 403
+     accessDenied – und sagt nicht, auf welcher Site. */
+  const txt = String(e.message || "");
+  if (/403|accessDenied|Access denied/i.test(txt)) {
+    console.error("\nAbbruch:", txt);
+    console.error("\nWahrscheinlich fehlt der App das SCHREIBrecht auf einer "
+      + "Site. `Sites.Selected` gilt je Site und muss einmalig vergeben "
+      + "werden – für die Quellsite UND die Konfigurationssite. Der Befehl "
+      + "steht in docs/11-automatik.md, Schritt 2.");
+  } else {
+    console.error("\nAbbruch:", e.stack || e.message);
+  }
   process.exit(1);
 });
 

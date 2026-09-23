@@ -10,7 +10,7 @@ Mail an die eingetragene Adresse.
 | Wo läuft es | GitHub Actions, `.github/workflows/automatik.yml` |
 | Was läuft | `cron/automatik.mjs` — lädt **dieselben** Dateien wie der Browser |
 | Zeitplan | alle 15 Minuten *nachsehen*; **ob** gearbeitet wird, steht in SharePoint |
-| Identität | Anwendungsbenutzer in Dataverse, App-Registrierung mit Secret |
+| Identität | App **DIHAG Cron-Job** (`089bf9ad-…`) — dieselbe wie ZAPP, Bedarfsanfrage, Compliance |
 
 ---
 
@@ -47,39 +47,58 @@ Alles im Reiter **Automatik** einstellbar:
 
 ## Einrichtung
 
-### 1. Eigene App-Registrierung für den Cron
+**Es wird keine neue App-Registrierung gebraucht.** Der Haus-Cron
+**DIHAG Cron-Job** (`089bf9ad-2d9a-4cbc-b85d-88b4484af0bb`) — derselbe, mit
+dem ZAPP, Bedarfsanfrage und das Compliance-Cockpit laufen — bringt das
+meiste schon mit. Geprüft am 23.09.2026 gegen den Tenant:
 
-**Nicht** die der Oberfläche erweitern. Die ist eine SPA ohne Secret, und
-das soll so bleiben (CLAUDE.md Randbedingung 1). Der Cron bekommt eine
-zweite Registrierung — Entra ID → App-Registrierungen → Neue Registrierung:
+| Was | Stand |
+|---|---|
+| `Sites.Selected` (Anwendung) | ✅ vorhanden |
+| `Sites.Read.All` (Anwendung) | ✅ vorhanden — Lesen tenant-weit |
+| `Mail.Send` (Anwendung) | ✅ vorhanden, sendet bereits als `administrator@dihag.com` |
+| Schreibrecht auf `/sites/IT` | ✅ für ZAPP vergeben |
+| Schreibrecht auf `/teams/crm-integration` | ❌ **fehlt** — die Site gibt es erst seit diesem Projekt |
+| Dynamics-CRM-Berechtigung | ❌ **fehlt** |
+| Anwendungsbenutzer in Dataverse | ❌ **fehlt** (0 von 211 Anwendungsbenutzern ist unserer) |
 
+Bleiben drei Schritte statt fünf.
+
+### 1. Dynamics CRM als Berechtigung ergänzen
+
+Entra ID → App-Registrierungen → **DIHAG Cron-Job** → API-Berechtigungen →
+Berechtigung hinzufügen → **Dynamics CRM** → `user_impersonation` →
+Administratorzustimmung erteilen.
+
+Das ist die Registrierungsseite. Sie allein öffnet die Umgebung noch nicht
+— das tut erst Schritt 3.
+
+### 2. Schreibrecht auf die Konfigurationssite
+
+`Sites.Selected` gilt **je Site**. Lesen kann die App überall
+(`Sites.Read.All`), schreiben nur dort, wo sie einzeln freigeschaltet ist.
+Für `/sites/IT` ist das seit ZAPP der Fall; die CRM-Konfigurationssite kam
+später dazu. Einmalig als Global- oder SharePoint-Administrator:
+
+```powershell
+Connect-MgGraph -TenantId fdb70646-023a-403b-a4b9-1f474a935123 -Scopes "Sites.FullControl.All" -UseDeviceCode
+$site = Invoke-MgGraphRequest GET "https://graph.microsoft.com/v1.0/sites/dihag.sharepoint.com:/teams/crm-integration"
+Invoke-MgGraphRequest POST "https://graph.microsoft.com/v1.0/sites/$($site.id)/permissions" -Body (@{
+  roles = @("write")
+  grantedToIdentities = @(@{ application = @{ id = "089bf9ad-2d9a-4cbc-b85d-88b4484af0bb"; displayName = "DIHAG Cron-Job" } })
+} | ConvertTo-Json -Depth 6) -ContentType "application/json"
 ```
-Name:  DIHAG CRM Automatik
-Konto: Nur Organisationsverzeichnis
-Umleitungs-URI: keine
-```
 
-Dann **API-Berechtigungen** (alle vom Typ *Anwendung*, nicht *Delegiert*),
-jeweils mit Administratorzustimmung:
+Fehlt sie, antwortet Graph mit `403 accessDenied` und verrät nicht, auf
+welcher Site. Der Lauf fängt das ab und sagt es.
 
-| API | Berechtigung | Wofür |
-|---|---|---|
-| Microsoft Graph | `Sites.ReadWrite.All` | Quellordner lesen, Status und Protokoll schreiben |
-| Microsoft Graph | `Mail.Send` | den Bericht verschicken |
-| Dynamics CRM | `user_impersonation` | wird über den Anwendungsbenutzer wirksam |
+> `-UseDeviceCode` nicht vergessen: PowerShell 7.6 und das Graph-SDK 2.39
+> vertragen sich beim Browser-Login nicht (`Method not found: …WithLogging`).
 
-> `Sites.Selected` statt `Sites.ReadWrite.All` ist die sparsamere Variante
-> (so läuft der Bedarfsanfrage-Cron). Dann muss je Site ein Schreibrecht
-> vergeben werden — für `/sites/IT` **und** `/teams/crm-integration`.
-> Wer das mag, nimmt es; nötig ist es nicht.
+### 3. Anwendungsbenutzer in Dataverse
 
-Unter **Zertifikate & Geheimnisse** ein Secret anlegen, Laufzeit notieren.
-Der Wert ist genau einmal sichtbar.
-
-### 2. Anwendungsbenutzer in Dataverse
-
-**Das ist der Schritt, den nur ein Power-Platform-Administrator machen
-kann, und ohne ihn läuft gar nichts.** Ein App-Token allein öffnet
+**Der einzige Schritt, der wirklich Arbeit macht, und nur ein
+Power-Platform-Administrator kann ihn.** Ein App-Token allein öffnet
 Dataverse nicht; die Umgebung muss die Anwendung als Benutzer kennen:
 
 ```
@@ -87,15 +106,15 @@ admin.powerplatform.microsoft.com
   → Umgebungen → (die Umgebung) → Einstellungen
   → Benutzer + Berechtigungen → Anwendungsbenutzer
   → Neuer App-Benutzer
-      Anwendung:        DIHAG CRM Automatik
+      Anwendung:        DIHAG Cron-Job
       Geschäftseinheit: die Stammeinheit
       Sicherheitsrolle: eine Rolle mit Lese-/Schreibrecht auf
                         Verkaufschance, Verkaufschancenprodukt, Kontakt,
                         Firma und Geschäftsprozessfluss
 ```
 
-Fehlt er, meldet der Lauf beim Token-Abruf `AADSTS500011` — und die
-Meldung sagt genau das.
+Fehlt er, scheitert der Lauf beim Token-Abruf — und die Meldung sagt genau
+das.
 
 **Das ist eine bewusste Abweichung von CLAUDE.md §11.3**, wo steht, dass
 die App ausschliesslich mit `user_impersonation` arbeitet und der
@@ -105,17 +124,27 @@ Anwendungsbenutzer darf, entscheidet seine Sicherheitsrolle, nicht dieses
 Skript. Wer ihm nur Leserechte gibt, bekommt eine Automatik, die prüft und
 berichtet, aber nichts schreibt.
 
-### 3. Secrets in GitHub
+### 4. Secrets im Repo `dfedorov12/crm`
 
-Repository → Settings → Secrets and variables → Actions:
+Dieselben drei Werte wie bei `bedarfsanfrage`, dieselben Namen. Die beiden
+ersten sind keine Geheimnisse und stehen so auch in den anderen Repos:
 
+```bash
+gh secret set TENANT_ID     -R dfedorov12/crm -b "fdb70646-023a-403b-a4b9-1f474a935123"
+gh secret set CLIENT_ID     -R dfedorov12/crm -b "089bf9ad-2d9a-4cbc-b85d-88b4484af0bb"
+gh secret set CLIENT_SECRET -R dfedorov12/crm -b "<Wert des Client-Secrets>"
 ```
-TENANT_ID      fdb70646-023a-403b-a4b9-1f474a935123
-CLIENT_ID      (die der neuen Registrierung, NICHT b6078457-…)
-CLIENT_SECRET  (der Wert aus Schritt 1)
-```
 
-### 4. Listen anlegen
+Der Secret-Wert lässt sich nirgends nachlesen — auch nicht aus den anderen
+Repos. Entweder liegt er im Kennwortspeicher, oder in Entra ID →
+*DIHAG Cron-Job* → Zertifikate & Geheimnisse ein **zweites** Secret
+anlegen. Mehrere Secrets nebeneinander sind zulässig, und die bestehenden
+Cron-Jobs laufen unverändert weiter.
+
+> Ablaufdatum notieren. Läuft das Secret ab, scheitert jeder Lauf mit
+> `AADSTS7000215`, und der Bericht bleibt aus.
+
+### 5. Listen anlegen
 
 ```powershell
 cd crm
@@ -128,13 +157,25 @@ Statuswerte `Wartet auf Freigabe` und `Abgelehnt`. Vorhandene
 Einstellungen werden **nicht** überschrieben — wer den Takt im Werkzeug
 geändert hat, findet ihn nach dem nächsten Skriptlauf unverändert vor.
 
-### 5. Probelauf, dann einschalten
+### 6. Probelauf, dann einschalten
 
 Actions → *Automatischer Import* → **Run workflow**, mit
 „Takt und Zeitfenster übergehen" = an und „Nur prüfen, nichts schreiben" =
 **an**. Das Protokoll zeigt, was der Lauf täte, ohne etwas zu tun.
 
 Sieht das gut aus: im Reiter **Automatik** `Aktiv` auf `ja`.
+
+### Wenn es doch eine eigene Registrierung sein soll
+
+Spricht etwas dagegen, dass derselbe Dienst ZAPP-Mails verschickt und ins
+CRM schreibt, ist eine eigene Registrierung der sauberere Weg: gleiche
+Berechtigungen (`Sites.Selected`, `Mail.Send`, Dynamics CRM), eigenes
+Secret, eigener Anwendungsbenutzer, eigene Site-Freigaben. Am Code ändert
+sich nichts — nur die drei Secrets zeigen dann woanders hin.
+
+Dafür spricht die Trennung, dagegen der doppelte Pflegeaufwand: zwei
+Secrets mit zwei Ablaufdaten, zwei Consent-Vorgänge, zwei Stellen, an
+denen bei einem Umzug etwas nachzuziehen ist.
 
 ---
 
