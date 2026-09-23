@@ -33,7 +33,6 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import * as XLSX from "xlsx";
 
 const WURZEL = join(dirname(fileURLToPath(import.meta.url)), "..");
 const lies = p => readFileSync(join(WURZEL, p), "utf8");
@@ -42,10 +41,30 @@ const { TENANT_ID, CLIENT_ID, CLIENT_SECRET } = process.env;
 const ERZWINGEN = process.env.CRM_ERZWINGEN === "1";
 const TROCKEN   = process.env.CRM_TROCKEN === "1";
 
+/* Noch nicht eingerichtet? Dann SAUBER aussteigen, nicht scheitern.
+   Der Zeitplan läuft ab dem ersten Push alle 15 Minuten. Ein roter Lauf
+   wäre dann viermal je Stunde eine Fehlermail für etwas, das niemand
+   kaputt gemacht hat – und nach dem dritten Tag sieht keiner mehr hin.
+   Die Zeile im Protokoll sagt trotzdem klar, was fehlt. */
 if (!TENANT_ID || !CLIENT_ID || !CLIENT_SECRET) {
-  console.error("Fehlende Secrets: TENANT_ID, CLIENT_ID, CLIENT_SECRET.");
+  const fehlt = [["TENANT_ID", TENANT_ID], ["CLIENT_ID", CLIENT_ID],
+                 ["CLIENT_SECRET", CLIENT_SECRET]]
+    .filter(([, v]) => !v).map(([k]) => k).join(", ");
+  console.log(`Automatik ist noch nicht eingerichtet – es fehlen: ${fehlt}.`);
+  console.log("Anleitung: docs/11-automatik.md. Bis dahin tut dieser Lauf nichts.");
+  process.exit(0);
+}
+
+/* SheetJS erst JETZT laden, nach der Prüfung oben. Als fester Import ganz
+   am Kopf bräche der Lauf schon an der fehlenden Abhängigkeit ab – also
+   bevor die Zeile erscheint, die erklärt, dass nur die Einrichtung fehlt. */
+const _xlsx = await import("xlsx").catch(() => null);
+if (!_xlsx) {
+  console.error("SheetJS fehlt. Im Workflow macht das `npm install --prefix cron`; "
+    + "von Hand: cd cron && npm install");
   process.exit(1);
 }
+const XLSX = _xlsx.default ?? _xlsx;
 
 /* ── Attrappe 1: Anmeldung ─────────────────────────────────────────────
    Client Credentials statt PKCE. Ein Token gilt immer für genau EINE

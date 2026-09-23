@@ -21,6 +21,10 @@ on:
         type: boolean
         default: false
 
+# Solange die Secrets fehlen, steigt das Skript sauber aus (Exit 0) statt zu
+# scheitern: ein roter Lauf viermal je Stunde waere eine Fehlermail fuer
+# etwas, das niemand kaputt gemacht hat. Was fehlt, steht im Protokoll.
+
 # Zwei Laeufe gleichzeitig wuerden dieselbe Datei zweimal importieren.
 concurrency:
   group: crm-automatik

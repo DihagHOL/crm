@@ -3,3 +3,7 @@
 # den Rechner, nicht hierher.
 aufraeumen-b1-bericht.csv
 *-bericht.csv
+
+# Abhängigkeit des Cron (SheetJS). Wird in GitHub Actions bei jedem Lauf
+# frisch installiert - im Repo hat sie nichts zu suchen.
+cron/node_modules/
