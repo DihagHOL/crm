@@ -1081,8 +1081,8 @@ const APP = (() => {
         dauerMs: l.dauerMs, jeSchritt
       });
 
-      const fehlerhaft = l.eintraege.filter(e => e.aktion === "fehlgeschlagen");
-      const f = await SPLISTEN.fehlerSchreiben(l.laufId, fehlerhaft);
+      // Nicht nur die Fehler: auch jede übersprungene Zeile, mit Grund.
+      const f = await SPLISTEN.zeilenSchreiben(l.laufId, l.eintraege);
       const url = await SPLISTEN.vollprotokoll(l.laufId, {
         lauf: { ...l, eintraege: undefined }, eintraege: l.eintraege,
         entscheidungen: [..._entscheidungen.entries()]
@@ -1101,7 +1101,8 @@ const APP = (() => {
 
       sagen(`✓ Protokoll geschrieben: Lauf ${esc(String(id))} in
         <code>${esc(C.listen.laeufe)}</code>${f.geschrieben
-          ? `, ${f.geschrieben} Fehlerzeile(n)` : ""}${f.ausgelassen
+          ? `, ${f.geschrieben} Zeile(n) mit Grund in
+             <code>${esc(C.listen.fehler)}</code>` : ""}${f.ausgelassen
           ? ` (${f.ausgelassen} weitere nur im Vollprotokoll)` : ""}${url
           ? `, <a href="${esc(url)}" target="_blank" rel="noopener">Vollprotokoll</a>` : ""}.
         ${markiert ? "Die Quelldatei ist als bearbeitet markiert."
@@ -1139,7 +1140,7 @@ const APP = (() => {
           <div class="tbl-wrap"><table class="tbl">
             <thead><tr><th>Start</th><th>Datei</th><th>Status</th><th>angelegt</th>
               <th>aktualisiert</th><th>unverändert</th><th>übersprungen</th>
-              <th>Fehler</th><th>Dauer</th></tr></thead>
+              <th>Fehler</th><th>Dauer</th><th></th></tr></thead>
             <tbody>${rows.slice(0, 50).map(r => `<tr class="${
                 r.Status === "MitFehlern" || r.Status === "Fehlgeschlagen" ? "problem" : ""}">
               <td>${esc(datum(r.StartedAt))}</td>
@@ -1149,10 +1150,87 @@ const APP = (() => {
               <td>${r.UnchangedCount ?? ""}</td><td>${r.SkippedCount ?? ""}</td>
               <td>${r.FailedCount ?? ""}</td>
               <td>${r.DurationSeconds != null ? r.DurationSeconds + " s" : ""}</td>
+              <td>${(r.SkippedCount || r.FailedCount)
+                ? `<button class="btn ghost sm" data-lauf="${esc(r.Title || "")}"
+                     title="Welche Zeilen, und warum?">Welche?</button>` : ""}</td>
+            </tr>
+            <tr class="bsp" id="lauf-${esc(r.Title || "")}" hidden>
+              <td colspan="10"></td>
             </tr>`).join("")}</tbody>
           </table></div>`;
+
+        for (const b of $("prListe").querySelectorAll("button[data-lauf]"))
+          b.onclick = () => laufZeilen(b.dataset.lauf, b);
       })
       .catch(e => { $("prStatus").textContent = e.detail || e.message; });
+  }
+
+  /* Welche Zeilen sind nicht im CRM gelandet, und warum?
+     „14 übersprungen" ist eine Zahl, keine Auskunft. Die Gründe stehen seit
+     dem 24.09.2026 zeilenweise in CRM_ImportErrors – hier werden sie nach
+     Grund gebündelt, mit den Excel-Zeilennummern dahinter. */
+  const _laufZeilen = new Map();
+
+  async function laufZeilen(laufId, knopf) {
+    const zelle = $(`lauf-${laufId}`);
+    if (!zelle) return;
+    if (!zelle.hidden) { zelle.hidden = true; knopf.textContent = "Welche?"; return; }
+    zelle.hidden = false;
+    knopf.textContent = "Zuklappen";
+
+    if (!_laufZeilen.has(laufId)) {
+      zelle.firstElementChild.innerHTML = '<p class="hint">Wird geladen …</p>';
+      try {
+        const alle = await GRAPH.listItems(C.konfigSite, C.listen.fehler,
+          ["Title", "RowNumber", "SheetName", "EntitySet", "SourceKey",
+           "ErrorType", "ErrorMessage", "FieldName", "SourceValue"]);
+        _laufZeilen.set(laufId, (alle || []).filter(z => z.Title === laufId));
+      } catch (e) {
+        zelle.firstElementChild.innerHTML = `<p class="err">${esc(e.detail || e.message)}</p>`;
+        return;
+      }
+    }
+
+    const zeilen = _laufZeilen.get(laufId) || [];
+    if (!zeilen.length) {
+      zelle.firstElementChild.innerHTML = `<p class="hint">Zu diesem Lauf sind keine
+        Einzelzeilen protokolliert. Läufe vor dem 24.09.2026 führen nur die
+        Fehler, nicht die übersprungenen Zeilen.</p>`;
+      return;
+    }
+
+    // Nach Grund bündeln – derselbe Grund für 40 Zeilen ist eine Zeile.
+    const gruppen = new Map();
+    for (const z of zeilen) {
+      const kern = String(z.ErrorMessage || "ohne Angabe").replace(/„[^“]*“/g, "…");
+      const k = `${z.ErrorType}|${z.EntitySet}|${kern}`;
+      if (!gruppen.has(k))
+        gruppen.set(k, { art: z.ErrorType, entitySet: z.EntitySet, meldung: kern,
+                         zeilen: [], werte: new Set() });
+      const g = gruppen.get(k);
+      g.zeilen.push(z.RowNumber);
+      if (g.werte.size < 6 && z.SourceKey) g.werte.add(z.SourceKey);
+    }
+
+    const farbe = a => a === "Uebersprungen" || a === "Ausgeschlossen" ? "grau" : "rot";
+    zelle.firstElementChild.innerHTML = `
+      <div class="tbl-wrap"><table class="tbl roh">
+        <thead><tr><th>Art</th><th>Tabelle</th><th>Grund</th><th>Schlüssel</th>
+          <th>Excel-Zeilen</th></tr></thead>
+        <tbody>${[...gruppen.values()]
+          .sort((a, b) => b.zeilen.length - a.zeilen.length)
+          .map(g => `<tr>
+            <td><span class="pill ${farbe(g.art)}">${esc(g.art || "")}</span>
+                ${g.zeilen.length}×</td>
+            <td>${esc(g.entitySet || "")}</td>
+            <td>${esc(g.meldung)}</td>
+            <td>${esc([...g.werte].join(", "))}</td>
+            <td>${esc(g.zeilen.slice(0, 30).join(", "))}${
+              g.zeilen.length > 30 ? " …" : ""}</td>
+          </tr>`).join("")}</tbody>
+      </table></div>
+      <p class="hint">Zeilennummern sind die aus Excel, inklusive Kopfzeile —
+         aufschlagen ohne zu rechnen.</p>`;
   }
 
   /** Bericht als Arbeitsmappe. Die Fachabteilung arbeitet ihn in der

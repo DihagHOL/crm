@@ -1,5 +1,37 @@
 # Session-Log
 
+## 24.09.2026 — „Welche genau, und warum?"
+
+Die Automatik läuft. Erste Rückmeldung zum Protokoll: es soll dastehen,
+welche Zeilen übersprungen wurden und weshalb.
+
+Die Daten gab es längst. Jede übersprungene Zeile trägt ihre `meldung` seit
+jeher mit — neun Stellen in `lauf.js` setzen sie. Sie endeten nur im
+Vollprotokoll-JSON, also dort, wo niemand nachsieht, während der
+Laufeintrag „14 übersprungen" meldete und die Liste `CRM_ImportErrors` nur
+echte Fehler führte.
+
+Aus `fehlerSchreiben` wurde `zeilenSchreiben`: **jede Zeile, die nicht im
+CRM gelandet ist**, mit Excel-Zeile, Schlüssel und Grund. `ErrorType`
+trennt sie (`Uebersprungen`, `Ausgeschlossen`), damit „wie viele Fehler?"
+beantwortbar bleibt. Gedeckelt wird je Art — ein Lauf mit 500
+übersprungenen Zeilen darf die drei echten Fehler nicht verdrängen.
+
+Gezeigt an drei Stellen, überall nach Grund gebündelt:
+
+- **Reiter Protokoll**, Knopf *Welche?* je Lauf
+- **Bericht der Automatik**, Abschnitt „Nicht geschrieben"
+- **`CRM_ImportErrors`**, jede Zeile einzeln und filterbar
+
+Der Kniff steckt in der Bündelung: `Opp-ID = „7446" steht in SkipOnValues`
+und dieselbe Meldung mit `5482` sind EIN Grund, nicht zwei. Der wechselnde
+Wert weicht einem Platzhalter, die konkreten Werte stehen als Beispiele
+daneben. Ohne das wäre jede Zeile ihre eigene Gruppe gewesen und die
+Bündelung sinnlos.
+
+Zeilennummern sind die aus Excel, inklusive Kopfzeile — aufschlagen ohne zu
+rechnen (Randbedingung aus `excel.js`).
+
 ## 23.09.2026 — Die Automatik, und wer bei zwei Treffern gewinnt
 
 „Eine Automatik, die für jede neue Excel-Datei die Prüfung macht, eine

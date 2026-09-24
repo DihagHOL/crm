@@ -474,8 +474,12 @@ if ($ksite) {
         @{ name = "SheetName";    kind = "text"   },
         @{ name = "EntitySet";    kind = "text"   },
         @{ name = "SourceKey";    kind = "text"   },
+        # Die Liste heisst "Errors", fuehrt aber jede Zeile, die NICHT im
+        # CRM gelandet ist - auch die uebersprungenen. "14 uebersprungen"
+        # im Laufeintrag war sonst nicht aufloesbar: welche, und warum?
         @{ name = "ErrorType";    kind = "choice"
-           choices = @("Validierung","Lookup","Berechtigung","Dublette","API","Throttling") },
+           choices = @("Validierung","Lookup","Berechtigung","Dublette","API","Throttling",
+                       "Uebersprungen","Ausgeschlossen") },
         @{ name = "HttpStatus";   kind = "number" },
         @{ name = "ErrorCode";    kind = "text"   },
         @{ name = "ErrorMessage"; kind = "note"   },

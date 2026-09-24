@@ -170,8 +170,9 @@ async function protokollSchreiben(l, entscheidungen) {
       status: l.gesamt.fehlgeschlagen ? "MitFehlern" : "Erfolgreich",
       zeilen: l.eintraege.length, ...l.gesamt, dauerMs: l.dauerMs, jeSchritt
     });
-    await SPLISTEN.fehlerSchreiben(l.laufId,
-      l.eintraege.filter(e => e.aktion === "fehlgeschlagen"));
+    // Auch die uebersprungenen Zeilen, mit Grund - sonst steht im
+    // Laufeintrag "14 uebersprungen" und nirgends, welche.
+    await SPLISTEN.zeilenSchreiben(l.laufId, l.eintraege);
     return await SPLISTEN.vollprotokoll(l.laufId, {
       lauf: { ...l, eintraege: undefined, profil: undefined },
       eintraege: l.eintraege,
@@ -331,6 +332,12 @@ async function markieren(datei, felder) {
 
       sagen(`  → ${zahlSatz(l.gesamt).replace(/<\/?b>/g, "")}`);
       const warn = AUTOMATIK.warnungsGruppen(bericht.warnungen);
+
+      /* Welche Zeilen sind nicht durchgegangen, und warum? Die Frage kommt
+         unmittelbar nach „14 übersprungen" – also steht die Antwort
+         daneben und nicht im Vollprotokoll. */
+      const aus = AUTOMATIK.auslassungen(l.eintraege);
+      for (const g of aus) sagen(`     ${AUTOMATIK.auslassungsSatz(g)}`);
       abschnitte.push({
         art: l.gesamt.fehlgeschlagen ? "fehler" : "importiert",
         titel: `${datei.name} – importiert`,
@@ -342,7 +349,11 @@ async function markieren(datei, felder) {
             + "(genau ein aktiver Datensatz je Wert)."] : []),
           ...warn.slice(0, 5).map(w => `⚠ ${w.anzahl}× ${esc(w.meldung)}`
             + (w.werte.size ? ` <i>(${esc([...w.werte].join(", "))})</i>` : "")),
-          ...(warn.length > 5 ? [`… und ${warn.length - 5} weitere Warnungsarten.`] : [])
+          ...(warn.length > 5 ? [`… und ${warn.length - 5} weitere Warnungsarten.`] : []),
+          ...(aus.length ? ["<b>Nicht geschrieben:</b>"] : []),
+          ...aus.slice(0, 6).map(g => "↷ " + esc(AUTOMATIK.auslassungsSatz(g))),
+          ...(aus.length > 6 ? [`… und ${aus.length - 6} weitere Gründe; alle Zeilen `
+            + "stehen einzeln in <code>CRM_ImportErrors</code>."] : [])
         ] });
     } catch (fehler) {
       sagen(`  ! ${fehler.message}`);

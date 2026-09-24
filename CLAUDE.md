@@ -828,6 +828,37 @@ geänderten Felder. Das ist die einzige Möglichkeit, eine Änderung im
 Nachhinein zu beurteilen — und der Ersatz für das „Datenbank leeren" des
 Altflows.
 
+### „14 übersprungen“ ist eine Zahl, keine Auskunft
+
+Bis zum 24.09.2026 führte `CRM_ImportErrors` nur, was fehlgeschlagen ist.
+Der Laufeintrag meldete daneben „14 übersprungen“ — und die Frage, die
+unmittelbar darauf folgt, war nirgends beantwortet: **welche Zeilen, und
+warum?** Die Gründe gab es längst, jede übersprungene Zeile trägt ihre
+`meldung` seit jeher mit. Sie endeten nur im Vollprotokoll-JSON, also dort,
+wo niemand nachsieht.
+
+Seitdem schreibt `SPLISTEN.zeilenSchreiben()` **jede Zeile, die nicht im
+CRM gelandet ist** — fehlgeschlagene und übersprungene — mit Excel-Zeile,
+Schlüssel und Grund. `ErrorType` unterscheidet sie (`Uebersprungen`,
+`Ausgeschlossen`), damit „wie viele Fehler?“ beantwortbar bleibt. Gedeckelt
+wird **je Art**: ein Lauf mit 500 übersprungenen Zeilen darf die drei
+echten Fehler nicht aus der Liste drängen.
+
+Gezeigt wird es an drei Stellen, jeweils nach Grund gebündelt statt Zeile
+für Zeile:
+
+| Wo | Was |
+|---|---|
+| Reiter Protokoll | Knopf *Welche?* je Lauf — Art, Grund, Schlüssel, Excel-Zeilen |
+| Bericht der Automatik | „Nicht geschrieben“: bis zu sechs Gründe mit Zeilennummern |
+| `CRM_ImportErrors` | jede Zeile einzeln, filterbar |
+
+Gebündelt wird über den Meldungskern: `Opp-ID = „7446“ steht in
+SkipOnValues` und dieselbe Meldung mit `5482` sind **ein** Grund, nicht
+zwei. Der wechselnde Wert weicht einem Platzhalter, die konkreten Werte
+stehen als Beispiele daneben — sonst wäre jede Zeile ihre eigene Gruppe,
+und die Bündelung liefe leer.
+
 ### Ausschlüsse sind keine Fehler
 
 Ein Datensatz, den `LookupOnly` nicht findet, ist kein blockierender

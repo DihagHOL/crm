@@ -320,6 +320,41 @@ const AUTOMATIK = (() => {
     return [...m.values()].sort((a, b) => b.anzahl - a.anzahl);
   }
 
+  /** Übersprungene Zeilen nach Grund gruppieren – mit Zeilennummern.
+   *
+   *  „14 übersprungen" beantwortet die Frage nicht, die danach kommt:
+   *  WELCHE, und WARUM? Beides steht in den Protokolleinträgen, es kam nur
+   *  nie heraus. Zeilennummern sind die aus Excel, wie sie links im Blatt
+   *  stehen – damit man die Zeile aufschlagen kann, ohne zu rechnen.
+   *
+   *  @returns {Array<{meldung, anzahl, zeilen:number[], schritt}>} */
+  function auslassungen(eintraege = []) {
+    const m = new Map();
+    for (const e of eintraege) {
+      if (e.aktion !== "uebersprungen") continue;
+      /* Gleichartige Meldungen zusammenfassen: „Opp-ID = „7446" steht in
+         SkipOnValues" ist für jede Zeile ein anderer Text, aber derselbe
+         Grund. Der konkrete Wert steht dann bei den Beispielen. */
+      const kern = String(e.meldung || "ohne Angabe")
+        .replace(/„[^“]*“/g, "…").replace(/\s+/g, " ").trim();
+      const k = `${e.schritt}|${kern}`;
+      if (!m.has(k)) m.set(k, { meldung: kern, schritt: e.schritt,
+                                anzahl: 0, zeilen: [], werte: new Set() });
+      const g = m.get(k);
+      g.anzahl++;
+      if (g.zeilen.length < 25) g.zeilen.push(e.zeile);
+      if (g.werte.size < 5 && e.schluessel != null && e.schluessel !== "")
+        g.werte.add(String(e.schluessel));
+    }
+    return [...m.values()].sort((a, b) => b.anzahl - a.anzahl);
+  }
+
+  /** Eine Gruppe als Satz: Anzahl, Grund, Zeilennummern. */
+  const auslassungsSatz = g =>
+    `${g.anzahl}× Schritt ${g.schritt}: ${g.meldung}`
+    + (g.werte.size ? ` (${[...g.werte].join(", ")}${g.anzahl > g.werte.size ? " …" : ""})` : "")
+    + ` — Zeile ${g.zeilen.join(", ")}${g.anzahl > g.zeilen.length ? " …" : ""}`;
+
   /** Der Bericht als Mail. Ein Betreff, den man in der Übersicht lesen
    *  kann, und ein Text, der ohne Anmeldung an der App auskommt.
    *  @returns {{betreff:string, html:string}} */
@@ -377,6 +412,7 @@ const AUTOMATIK = (() => {
   }
 
   return { STANDARD, ERKLAERUNG, FREI, istJa, zahl, nachStichtag,
+           auslassungen, auslassungsSatz,
            einstellungen, einstellungSetzen, faellig, deutscheZeit, tagErlaubt,
            torschluss, hatArbeit, warnungsGruppen,
            freigaben, freigabeAnlegen, freigabeEntscheiden, entscheidungenAus,

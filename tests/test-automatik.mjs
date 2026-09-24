@@ -211,5 +211,48 @@ console.log("\nDerselbe Grund steht einmal da, nicht fünfmal");
   pruefe(!t.frei, "und angehalten wird trotzdem");
 }
 
+console.log("\nWelche Zeilen sind nicht durchgegangen, und warum");
+{
+  /* „14 übersprungen" ist eine Zahl, keine Auskunft. Jede übersprungene
+     Zeile trägt ihren Grund seit jeher mit – er endete nur im
+     Vollprotokoll-JSON, also dort, wo niemand nachsieht. */
+  const { AUTOMATIK: A } = ladeAlles();
+  const eintraege = [
+    { aktion: "uebersprungen", schritt: 40, zeile: 12, schluessel: "7446",
+      meldung: "Opp-ID = „7446“ steht in SkipOnValues" },
+    { aktion: "uebersprungen", schritt: 40, zeile: 15, schluessel: "5482",
+      meldung: "Opp-ID = „5482“ steht in SkipOnValues" },
+    { aktion: "uebersprungen", schritt: 50, zeile: 12,
+      meldung: "Zeile wurde in einem früheren Schritt ausgeschlossen" },
+    { aktion: "angelegt", zeile: 3 },
+    { aktion: "fehlgeschlagen", zeile: 4, meldung: "HTTP 400" }
+  ];
+  const g = A.auslassungen(eintraege);
+
+  gleich(g.length, 2, "gleiche Gründe werden gebündelt, verschiedene getrennt");
+  gleich(g[0].anzahl, 2, "der häufigste Grund steht oben");
+  gleich(g[0].zeilen, [12, 15], "mit den Excel-Zeilennummern");
+  pruefe(/SkipOnValues/.test(g[0].meldung), "und dem Grund im Klartext");
+  pruefe(g[0].meldung.includes("…"),
+    "der wechselnde Wert weicht einem Platzhalter - sonst waere jede Zeile eine Gruppe");
+  pruefe([...g[0].werte].join() === "7446,5482",
+    "die konkreten Werte stehen als Beispiele daneben");
+
+  const satz = A.auslassungsSatz(g[0]);
+  pruefe(/2×/.test(satz) && /Schritt 40/.test(satz) && /Zeile 12, 15/.test(satz),
+    "der Satz nennt Anzahl, Schritt und Zeilen");
+
+  pruefe(!g.some(x => /HTTP 400/.test(x.meldung)),
+    "Fehler sind keine Auslassungen - die stehen woanders");
+
+  // Ein Lauf mit 300 uebersprungenen Zeilen soll keine 300 Nummern mailen.
+  const viele = Array.from({ length: 300 }, (_, i) => ({
+    aktion: "uebersprungen", schritt: 40, zeile: i + 2, meldung: "derselbe Grund" }));
+  const gv = A.auslassungen(viele);
+  gleich(gv[0].anzahl, 300, "gezaehlt werden alle");
+  pruefe(gv[0].zeilen.length <= 25, "aufgezaehlt hoechstens 25");
+  pruefe(A.auslassungsSatz(gv[0]).endsWith("…"), "und der Rest wird angedeutet");
+}
+
 console.log(fehler ? `\n${fehler} Prüfung(en) fehlgeschlagen.\n` : "\nAlle Prüfungen bestanden.\n");
 process.exit(fehler ? 1 : 0);

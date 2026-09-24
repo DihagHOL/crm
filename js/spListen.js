@@ -186,31 +186,59 @@ const SPLISTEN = (() => {
     return r.id;
   }
 
-  /** Fehlerzeilen. Gedeckelt, damit ein Lauf mit 8.000 kaputten Zeilen
-   *  nicht 8.000 Listeneinträge erzeugt – das Vollprotokoll hat sie alle. */
-  async function fehlerSchreiben(laufId, eintraege, maxAnzahl = 200) {
-    const teil = eintraege.slice(0, maxAnzahl);
-    let n = 0;
-    for (const e of teil) {
-      try {
-        await GRAPH.addItem(C.konfigSite, C.listen.fehler, {
-          Title: laufId,
-          RowNumber: e.zeile | 0,
-          SheetName: e.blatt || "",
-          EntitySet: e.entitySet || "",
-          SourceKey: String(e.schluessel ?? ""),
-          ErrorType: e.art || "API",
-          HttpStatus: e.httpStatus | 0,
-          ErrorCode: e.code || "",
-          ErrorMessage: e.meldung || "",
-          FieldName: e.feld || "",
-          SourceValue: String(e.wert ?? ""),
-          Resolved: false
-        });
-        n++;
-      } catch { /* eine gescheiterte Fehlerzeile darf den Lauf nicht kippen */ }
+  /** Zeilen, die nicht im CRM gelandet sind – mit Grund.
+   *
+   *  ZWEI ARTEN IN EINER LISTE. Bis zum 24.09.2026 stand hier nur, was
+   *  fehlgeschlagen ist. „14 übersprungen" im Laufeintrag liess sich damit
+   *  nicht auflösen: welche Zeilen, und warum? Die Antwort lag im
+   *  Vollprotokoll-JSON, also dort, wo niemand nachsieht.
+   *
+   *  Jede übersprungene Zeile trägt ihren Grund ohnehin schon mit
+   *  (`meldung` aus lauf.js) – er musste nur hierher. `ErrorType`
+   *  unterscheidet die Arten, damit „wie viele Fehler?" weiterhin
+   *  beantwortbar bleibt.
+   *
+   *  Gedeckelt JE ART: ein Lauf mit 500 übersprungenen Zeilen soll die
+   *  drei echten Fehler nicht aus der Liste drängen.
+   *
+   *  @returns {{geschrieben:number, ausgelassen:number, jeArt:object}} */
+  async function zeilenSchreiben(laufId, eintraege, maxJeArt = 120) {
+    const arten = { fehlgeschlagen: [], uebersprungen: [] };
+    for (const e of eintraege) {
+      if (arten[e.aktion]) arten[e.aktion].push(e);
     }
-    return { geschrieben: n, ausgelassen: eintraege.length - teil.length };
+
+    let n = 0, ausgelassen = 0;
+    const jeArt = {};
+    for (const [aktion, liste] of Object.entries(arten)) {
+      jeArt[aktion] = liste.length;
+      const teil = liste.slice(0, maxJeArt);
+      ausgelassen += liste.length - teil.length;
+      for (const e of teil) {
+        try {
+          await GRAPH.addItem(C.konfigSite, C.listen.fehler, {
+            Title: laufId,
+            RowNumber: e.zeile | 0,
+            SheetName: e.blatt || "",
+            EntitySet: e.entitySet || "",
+            SourceKey: String(e.schluessel ?? ""),
+            // Bei den Fehlern die genaue Art (Lookup, API …), sonst der
+            // Grund der Auslassung.
+            ErrorType: aktion === "fehlgeschlagen" ? (e.art || "API")
+                     : /ausgeschlossen/i.test(e.meldung || "") ? "Ausgeschlossen"
+                     : "Uebersprungen",
+            HttpStatus: e.httpStatus | 0,
+            ErrorCode: e.code || "",
+            ErrorMessage: e.meldung || "",
+            FieldName: e.feld || "",
+            SourceValue: String(e.wert ?? ""),
+            Resolved: false
+          });
+          n++;
+        } catch { /* eine gescheiterte Protokollzeile darf den Lauf nicht kippen */ }
+      }
+    }
+    return { geschrieben: n, ausgelassen, jeArt };
   }
 
   /** Vollprotokoll als Datei.
@@ -241,6 +269,6 @@ const SPLISTEN = (() => {
     }
   }
 
-  return { profil, werte, laufSchreiben, fehlerSchreiben, vollprotokoll,
+  return { profil, werte, laufSchreiben, zeilenSchreiben, vollprotokoll,
            SPALTEN_PROFIL, SPALTEN_MAPPING };
 })();

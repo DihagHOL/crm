@@ -305,6 +305,37 @@ Bericht bleibt aus. Ablaufdatum notieren.
 
 ---
 
+## 6a. Welche Zeilen sind nicht durchgegangen?
+
+Ein Lauf meldet „12 neu, 94 geändert, **14 übersprungen**“. Die letzte Zahl
+ist die interessante, und sie lässt sich aufklappen:
+
+Reiter **Protokoll** → in der Zeile des Laufs auf **Welche?** — darunter
+erscheint, nach Grund gebündelt:
+
+| Art | Tabelle | Grund | Schlüssel | Excel-Zeilen |
+|---|---|---|---|---|
+| Uebersprungen 9× | opportunityproducts | Zeile wurde in einem früheren Schritt ausgeschlossen | | 12, 15, 18 … |
+| Ausgeschlossen 5× | opportunities | Opp-ID = … steht in SkipOnValues | 7446, 5482 | 4, 9, 22 … |
+
+Die Zeilennummern sind die **aus Excel**, inklusive Kopfzeile — die Zeile
+lässt sich aufschlagen, ohne zu rechnen.
+
+Dieselbe Aufstellung steht im Bericht der Automatik unter „Nicht
+geschrieben“, und jede Zeile einzeln in `CRM_ImportErrors`.
+
+Drei Gründe kommen fast immer vor:
+
+- **steht in SkipOnValues** — bewusst konfiguriert, etwa ein Platzhalter
+  wie `dummy@dihag.com`. Kein Fehler.
+- **in einem früheren Schritt ausgeschlossen** — die Verkaufschance
+  wurde nicht angelegt, also haben ihre Positionen nichts, woran sie
+  hängen könnten. Der Grund steht beim früheren Schritt.
+- **Verkaufschance ist geschlossen** — an geschlossenen Chancen ändert der
+  Import nichts (siehe unten, Grenzen).
+
+---
+
 ## 7. Grenzen
 
 Was diese App **nicht** tut:
