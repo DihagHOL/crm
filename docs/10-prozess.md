@@ -324,6 +324,12 @@ lässt sich aufschlagen, ohne zu rechnen.
 Dieselbe Aufstellung steht im Bericht der Automatik unter „Nicht
 geschrieben“, und jede Zeile einzeln in `CRM_ImportErrors`.
 
+**Auch für ältere Läufe.** Die Einzelzeilen stehen erst seit dem
+24.09.2026 in der Liste. Für jeden Lauf davor holt die App die Angaben aus
+dem Vollprotokoll, das schon immer mitgeschrieben wurde, und vermerkt das
+unter der Tabelle. Der Knopf *Welche?* funktioniert also auch beim Lauf vom
+letzten Monat.
+
 Drei Gründe kommen fast immer vor:
 
 - **steht in SkipOnValues** — bewusst konfiguriert, etwa ein Platzhalter

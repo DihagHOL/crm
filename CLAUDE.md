@@ -862,6 +862,19 @@ für Zeile:
 | Bericht der Automatik | „Nicht geschrieben“ nach dem Import, „Würde auslassen“ im Probelauf |
 | `CRM_ImportErrors` | jede Zeile einzeln, filterbar |
 
+**Und für die Läufe von vorher?** Die stehen nicht in der Liste — dort
+landeten bis dahin nur Fehler. Ihre Antwort liegt trotzdem vor: jeder Lauf
+schreibt seit jeher ein **Vollprotokoll** als JSON in die
+Dokumentbibliothek, und darin steht jede Zeile samt Grund. Findet der
+Reiter Protokoll keine Listenzeilen zu einem Lauf, liest er das
+Vollprotokoll (`SPLISTEN.vollprotokollLesen`) und sagt dazu, woher die
+Angaben stammen. Ohne diesen Rückfallweg hiesse die Auskunft „nicht mehr
+feststellbar", während die Daten seit Monaten auf der Platte liegen.
+
+Ein `404` heisst dort „kein Vollprotokoll", alles andere schlägt durch:
+ein `403` als „gibt es nicht" auszugeben, verkauft ein Rechteproblem als
+Datenlage.
+
 Gebündelt wird über den Meldungskern: `Opp-ID = „7446“ steht in
 SkipOnValues` und dieselbe Meldung mit `5482` sind **ein** Grund, nicht
 zwei. Der wechselnde Wert weicht einem Platzhalter, die konkreten Werte

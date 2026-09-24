@@ -66,5 +66,8 @@ jobs:
       - name: Automatik (Takt, Tor zum Import, kopfloses Laden der Module)
         run: node tests/test-automatik.mjs
 
+      - name: Protokoll (ausgelassene Zeilen, Vollprotokoll zurücklesen)
+        run: node tests/test-protokoll.mjs
+
       - name: Konfiguration, Ladereihenfolge und Doku auf Konsistenz prüfen
         run: node tests/test-konsistenz.mjs

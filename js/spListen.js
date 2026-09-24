@@ -269,6 +269,29 @@ const SPLISTEN = (() => {
     }
   }
 
+  /** Das Vollprotokoll eines Laufs zurücklesen.
+   *
+   *  Es liegt seit jeher da — jeder Lauf schreibt es —, nur sah niemand
+   *  hinein: eine JSON-Datei in einer Dokumentbibliothek ist kein Ort, an
+   *  dem man nachschlägt. Damit lässt sich auch für Läufe VOR dem
+   *  24.09.2026 beantworten, welche Zeilen ausgelassen wurden und warum;
+   *  die Einzelzeilen in `CRM_ImportErrors` gibt es erst seitdem.
+   *
+   *  @returns {Promise<object|null>} `null`, wenn es keins gibt */
+  async function vollprotokollLesen(laufId) {
+    try {
+      const sid = await GRAPH.siteId(C.konfigSite);
+      const drive = (await GRAPH.call(`/sites/${sid}/drive`))?.id;
+      if (!drive) return null;
+      const pfad = `Protokolle/${laufId}.json`;
+      return await GRAPH.call(`/drives/${drive}/root:/${encodeURI(pfad)}:/content`);
+    } catch (e) {
+      if (e.status === 404) return null;   // kein Vollprotokoll zu diesem Lauf
+      throw e;
+    }
+  }
+
   return { profil, werte, laufSchreiben, zeilenSchreiben, vollprotokoll,
+           vollprotokollLesen,
            SPALTEN_PROFIL, SPALTEN_MAPPING };
 })();

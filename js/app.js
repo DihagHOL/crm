@@ -1186,7 +1186,30 @@ const APP = (() => {
         const alle = await GRAPH.listItems(C.konfigSite, C.listen.fehler,
           ["Title", "RowNumber", "SheetName", "EntitySet", "SourceKey",
            "ErrorType", "ErrorMessage", "FieldName", "SourceValue"]);
-        _laufZeilen.set(laufId, (alle || []).filter(z => z.Title === laufId));
+        let zeilen = (alle || []).filter(z => z.Title === laufId);
+        let quelle = C.listen.fehler;
+
+        /* Nichts in der Liste? Dann ins VOLLPROTOKOLL sehen. Es liegt für
+           jeden Lauf da, auch für die vor dem 24.09.2026 — nur schrieb die
+           Liste damals ausschliesslich Fehler. Ohne diesen Rückfallweg
+           hiesse die Antwort „nicht mehr feststellbar", obwohl die Daten
+           seit Monaten auf der Platte liegen. */
+        if (!zeilen.length) {
+          const voll = await SPLISTEN.vollprotokollLesen(laufId);
+          for (const e of voll?.eintraege || []) {
+            if (e.aktion !== "uebersprungen" && e.aktion !== "fehlgeschlagen") continue;
+            zeilen.push({
+              RowNumber: e.zeile, EntitySet: e.entitySet, SourceKey: e.schluessel,
+              ErrorMessage: e.meldung || "",
+              ErrorType: e.aktion === "fehlgeschlagen" ? (e.art || "API")
+                       : /ausgeschlossen/i.test(e.meldung || "") ? "Ausgeschlossen"
+                       : "Uebersprungen"
+            });
+          }
+          if (zeilen.length) quelle = "Vollprotokoll";
+        }
+        zeilen._quelle = quelle;
+        _laufZeilen.set(laufId, zeilen);
       } catch (e) {
         zelle.firstElementChild.innerHTML = `<p class="err">${esc(e.detail || e.message)}</p>`;
         return;
@@ -1195,9 +1218,9 @@ const APP = (() => {
 
     const zeilen = _laufZeilen.get(laufId) || [];
     if (!zeilen.length) {
-      zelle.firstElementChild.innerHTML = `<p class="hint">Zu diesem Lauf sind keine
-        Einzelzeilen protokolliert. Läufe vor dem 24.09.2026 führen nur die
-        Fehler, nicht die übersprungenen Zeilen.</p>`;
+      zelle.firstElementChild.innerHTML = `<p class="hint">Zu diesem Lauf ist nichts
+        im Einzelnen festgehalten — weder in <code>${esc(C.listen.fehler)}</code>
+        noch als Vollprotokoll.</p>`;
       return;
     }
 
@@ -1232,7 +1255,10 @@ const APP = (() => {
           </tr>`).join("")}</tbody>
       </table></div>
       <p class="hint">Zeilennummern sind die aus Excel, inklusive Kopfzeile —
-         aufschlagen ohne zu rechnen.</p>`;
+         aufschlagen ohne zu rechnen.${zeilen._quelle === "Vollprotokoll"
+           ? " Gelesen aus dem <b>Vollprotokoll</b> dieses Laufs: in "
+             + `<code>${esc(C.listen.fehler)}</code> stehen die einzelnen Zeilen `
+             + "erst seit dem 24.09.2026." : ""}</p>`;
   }
 
   /** Bericht als Arbeitsmappe. Die Fachabteilung arbeitet ihn in der

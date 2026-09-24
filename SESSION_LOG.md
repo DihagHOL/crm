@@ -47,6 +47,14 @@ Probelauf an einer älteren Mappe hätte verlangt, den Stichtag in SharePoint
 zu verstellen — den man dann zurückzustellen vergisst. Beides behoben; der
 Stichtag lässt sich jetzt für einen einzelnen manuellen Lauf übersteuern.
 
+**„Und den letzten Lauf kann ich dann auch nicht prüfen?"** Doch. Die
+Einzelzeilen in `CRM_ImportErrors` gibt es zwar erst ab heute, aber jeder
+Lauf schreibt seit jeher ein Vollprotokoll als JSON — mit jeder Zeile und
+jedem Grund. Es lag nur so gut versteckt, dass es niemand las. Findet der
+Reiter Protokoll keine Listenzeilen, liest er jetzt das Vollprotokoll und
+sagt dazu, woher die Angaben kommen. Damit ist auch der Lauf vom 17.09.
+(13 übersprungene Zeilen) im Nachhinein aufschlüsselbar.
+
 ## 23.09.2026 — Die Automatik, und wer bei zwei Treffern gewinnt
 
 „Eine Automatik, die für jede neue Excel-Datei die Prüfung macht, eine
