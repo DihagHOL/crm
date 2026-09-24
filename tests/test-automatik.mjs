@@ -156,6 +156,14 @@ console.log("\nDer Bericht");
   gleich(A.bericht([]).betreff, "CRM-Import TEST: nichts zu tun",
     "auch der leere Fall hat einen lesbaren Betreff");
 
+  /* Ein Probelauf, der drei Dateien durchgerechnet hat, darf nicht
+     „nichts zu tun" melden – der Betreff ist das Einzige, was in der
+     Postfachübersicht steht. */
+  gleich(A.bericht([{ art: "hinweis", titel: "Probelauf", zeilen: [] },
+                    { art: "hinweis", titel: "Probelauf", zeilen: [] }]).betreff,
+    "CRM-Import TEST: 2 geprüft, nichts geschrieben",
+    "ein Probelauf ist nicht nichts");
+
   // 108-mal dieselbe Warnung ist EINE Zeile mit einer Zahl davor.
   const viele = Array.from({ length: 108 }, (_, i) => ({
     feld: "ownerid", meldung: "In systemusers nicht gefunden", wert: `u${i % 3}@dihag.com` }));

@@ -618,6 +618,8 @@ const APP = (() => {
       ${liste("Fehler", b.fehler, "err")}
       ${liste("Ausgeschlossen – diese Zeilen werden nicht importiert",
               b.ausschluesse, "warn")}
+      ${liste("Übersprungen – diese Zeilen lässt der Import aus, und warum",
+              b.uebersprungen || [], "warn")}
       ${liste("Warnungen – der Import läuft trotzdem", b.warnungen, "warn")}`;
 
     const imp = $("plImport");

@@ -85,10 +85,17 @@ console.log("\nDie fünf Ausgänge einer Zeile");
 console.log("\nGeschlossene Verkaufschancen (Review A3)");
 {
   const r = PRUEFUNG.lauf({ schritte: [schritt()], zuordnungen }, mappe, aufl);
-  const w = r.warnungen.find(x => /geschlossen/.test(x.meldung));
-  pruefe(!!w, "die Übersprungene wird als Warnung gemeldet, nicht verschwiegen");
+  /* Seit dem 24.09.2026 in einer EIGENEN Liste: „Zeile ausgelassen, und
+     zwar deshalb" ist eine andere Aussage als „Zeile geschrieben, aber ein
+     Feld blieb leer". Beides als Warnung zu führen, machte „14
+     übersprungen" unauflösbar. */
+  const w = r.uebersprungen.find(x => /geschlossen/.test(x.meldung));
+  pruefe(!!w, "die Übersprungene wird mit Grund gemeldet, nicht verschwiegen");
+  gleich(w.zeile, 5, "mit der Excel-Zeilennummer");
   pruefe(/nicht automatisch wiedereröffnet/.test(w.meldung),
     "und die Meldung sagt, dass NICHT wiedereröffnet wird – das wäre eine fachliche Entscheidung");
+  pruefe(!r.warnungen.some(x => /geschlossen/.test(x.meldung)),
+    "und sie steht NICHT zugleich unter den Warnungen");
 }
 {
   const r = PRUEFUNG.lauf({ schritte: [schritt({ skipIfClosed: false })], zuordnungen }, mappe, aufl);
@@ -113,7 +120,7 @@ console.log("\nFehlender Schlüssel: Fail gegen Skip");
   const skip = PRUEFUNG.lauf({ schritte: [schritt({ onMissingKey: "Skip" })], zuordnungen }, mappe, aufl);
   gleich(skip.schritte[0].fehler, 1, "Skip: nur noch der Mehrfachtreffer ist ein Fehler");
   gleich(skip.schritte[0].uebersprungen, 2, "die Zeile ohne Schlüssel wird übersprungen");
-  pruefe(skip.warnungen.some(w => /folgenden Schritte laufen weiter/.test(w.meldung)),
+  pruefe(skip.uebersprungen.some(w => /folgenden Schritte laufen weiter/.test(w.meldung)),
     "und die Warnung sagt, dass die Folgeschritte weiterlaufen");
 }
 
@@ -283,10 +290,10 @@ console.log("\nSkipOnValues - ausdruecklich ausgelassene Werte");
   const r = PRUEFUNG.lauf({ schritte: [s], zuordnungen }, m, aufl);
 
   gleich(r.schritte[0].uebersprungen, 1, "die Zeile mit dem Wert wird ausgelassen");
-  pruefe(r.warnungen.some(w => /SkipOnValues/.test(w.meldung)),
+  pruefe(r.uebersprungen.some(w => /SkipOnValues/.test(w.meldung)),
     "und das steht als Warnung im Bericht, nicht als stiller Verlust");
   gleich(r.gesamt.fehler, 0, "ein Auslassen ist kein Fehler");
-  pruefe(!r.warnungen.some(w => w.zeile === 2 && /SkipOnValues/.test(w.meldung)),
+  pruefe(!r.uebersprungen.some(w => w.zeile === 2 && /SkipOnValues/.test(w.meldung)),
     "die andere Zeile bleibt unberuehrt");
 }
 
@@ -385,7 +392,7 @@ console.log("\nGeschlossene Chance: die Vorschau rechnet wie der Import");
   gleich(r.schritte[0].neu, 0, "es entsteht nichts");
   gleich(r.schritte[0].geloescht, 0,
     "und es werden keine Loeschungen angekuendigt, die nie stattfinden");
-  pruefe(r.warnungen.some(w => /geschlossen/.test(w.meldung)),
+  pruefe(r.uebersprungen.some(w => /geschlossen/.test(w.meldung)),
     "der Bericht nennt den Grund");
 }
 
@@ -410,7 +417,7 @@ console.log("\nDie Vorschau rechnet dieselbe Dublettenregel");
 
   gleich(r.schritte[0].neu, 2, "zwei Neuanlagen angekuendigt, nicht drei");
   gleich(r.schritte[0].uebersprungen, 1, "die Wiederholung wird ausgelassen");
-  pruefe(r.warnungen.some(w => /schon in Zeile 2/.test(w.meldung)),
+  pruefe(r.uebersprungen.some(w => /schon in Zeile 2/.test(w.meldung)),
     "und der Bericht nennt die Zeile, in der die Kennung zuerst stand");
 }
 

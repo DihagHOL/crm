@@ -363,11 +363,17 @@ const AUTOMATIK = (() => {
     const wartet = abschnitte.filter(a => a.art === "freigabe").length;
     const fertig = abschnitte.filter(a => a.art === "importiert").length;
 
+    const geprueft = abschnitte.filter(a => a.art === "hinweis").length;
     const teile = [fertig ? `${fertig} importiert` : null,
                    wartet ? `${wartet} wartet auf Freigabe` : null,
                    fehler ? `${fehler} fehlgeschlagen` : null].filter(Boolean);
+    /* „nichts zu tun" wäre gelogen, wenn ein Probelauf gerade drei Dateien
+       durchgerechnet hat. Der Betreff ist das Einzige, was in der
+       Postfachübersicht steht – er muss stimmen. */
     const betreff = `CRM-Import ${C.umgebung}: `
-      + (teile.length ? teile.join(", ") : "nichts zu tun");
+      + (teile.length ? teile.join(", ")
+         : geprueft ? `${geprueft} geprüft, nichts geschrieben`
+         : "nichts zu tun");
 
     const farbe = { importiert: "#2e7d32", freigabe: "#F08300", fehler: "#c62828",
                     hinweis: "#424241" };

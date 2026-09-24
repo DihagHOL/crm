@@ -317,8 +317,18 @@ async function markieren(datei, felder) {
 
       if (TROCKEN) {
         sagen("  → CRM_TROCKEN=1: es wird nichts geschrieben.");
+        /* Auch im Probelauf beantworten, was „14 übersprungen" bedeutet.
+           Die Gründe stehen im Prüfbericht – der Probelauf ist genau der
+           Moment, in dem man sie sehen will: VOR dem Schreiben. */
+        const vorher = AUTOMATIK.auslassungen(
+          (bericht.uebersprungen || []).map(u => ({ ...u, aktion: "uebersprungen" })));
+        for (const g of vorher) sagen(`     ${AUTOMATIK.auslassungsSatz(g)}`);
         abschnitte.push({ art: "hinweis", titel: `${datei.name} – Probelauf`,
-          zeilen: [`Würde schreiben: ${esc(vorschau)}`] });
+          zeilen: [`Würde schreiben: ${esc(vorschau)}`,
+            ...(vorher.length ? ["<b>Würde auslassen:</b>"] : []),
+            ...vorher.slice(0, 6).map(g => "↷ " + esc(AUTOMATIK.auslassungsSatz(g))),
+            ...(vorher.length > 6
+              ? [`… und ${vorher.length - 6} weitere Gründe.`] : [])] });
         continue;
       }
 

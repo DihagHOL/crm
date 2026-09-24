@@ -844,13 +844,22 @@ Schlüssel und Grund. `ErrorType` unterscheidet sie (`Uebersprungen`,
 wird **je Art**: ein Lauf mit 500 übersprungenen Zeilen darf die drei
 echten Fehler nicht aus der Liste drängen.
 
-Gezeigt wird es an drei Stellen, jeweils nach Grund gebündelt statt Zeile
+**Auch die Vorschau musste nachziehen.** Der Prüflauf zählte an elf
+Stellen `uebersprungen++` und merkte sich nichts; die Gründe standen teils
+in den Warnungen, ununterscheidbar von „Zeile geschrieben, aber ein Feld
+blieb leer“. Das sind zwei verschiedene Aussagen, und sie stehen jetzt in
+zwei Listen: `bericht.uebersprungen` neben `bericht.warnungen`. Damit
+beantwortet schon der **Prüflauf** die Frage, und zwar bevor geschrieben
+wird — genau dann, wenn die Antwort noch etwas ändern kann.
+
+Gezeigt wird es an vier Stellen, jeweils nach Grund gebündelt statt Zeile
 für Zeile:
 
 | Wo | Was |
 |---|---|
+| Reiter Prüflauf | Block „Übersprungen — diese Zeilen lässt der Import aus, und warum“ |
 | Reiter Protokoll | Knopf *Welche?* je Lauf — Art, Grund, Schlüssel, Excel-Zeilen |
-| Bericht der Automatik | „Nicht geschrieben“: bis zu sechs Gründe mit Zeilennummern |
+| Bericht der Automatik | „Nicht geschrieben“ nach dem Import, „Würde auslassen“ im Probelauf |
 | `CRM_ImportErrors` | jede Zeile einzeln, filterbar |
 
 Gebündelt wird über den Meldungskern: `Opp-ID = „7446“ steht in

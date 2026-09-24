@@ -32,6 +32,21 @@ Bündelung sinnlos.
 Zeilennummern sind die aus Excel, inklusive Kopfzeile — aufschlagen ohne zu
 rechnen (Randbedingung aus `excel.js`).
 
+**Nachtrag aus dem Probelauf.** Er zeigte, dass die halbe Antwort fehlte:
+der *Prüflauf* zählte an elf Stellen `uebersprungen++` und merkte sich
+keinen Grund. Einige Stellen schrieben eine Warnung, andere gar nichts —
+und eine Warnung ist die falsche Schublade: „Zeile ausgelassen, deshalb"
+ist etwas anderes als „Zeile geschrieben, aber ein Feld blieb leer". Jetzt
+hat der Prüfbericht eine eigene Liste, und damit beantwortet schon die
+Vorschau die Frage — bevor geschrieben wird, also dann, wenn die Antwort
+noch etwas ändern kann.
+
+Zwei Kleinigkeiten fielen im selben Lauf auf: der Betreff meldete „nichts
+zu tun", obwohl gerade eine Datei durchgerechnet worden war, und ein
+Probelauf an einer älteren Mappe hätte verlangt, den Stichtag in SharePoint
+zu verstellen — den man dann zurückzustellen vergisst. Beides behoben; der
+Stichtag lässt sich jetzt für einen einzelnen manuellen Lauf übersteuern.
+
 ## 23.09.2026 — Die Automatik, und wer bei zwei Treffern gewinnt
 
 „Eine Automatik, die für jede neue Excel-Datei die Prüfung macht, eine

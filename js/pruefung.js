@@ -168,6 +168,19 @@ const PRUEFUNG = (() => {
     };
     const aus = ausschluss(profil);
     const schritte = [], alleFehler = [], alleWarnungen = [], alleAusschluesse = [];
+
+    /* Übersprungene Zeilen MIT GRUND.
+       Bis zum 24.09.2026 zählte der Prüflauf an elf Stellen `uebersprungen++`
+       und merkte sich nichts – „14 übersprungen" liess sich nicht auflösen.
+       Die Gründe standen teils in den Warnungen, ununterscheidbar von
+       „Zeile geschrieben, aber ein Feld blieb leer". Das sind zwei
+       verschiedene Aussagen und gehören in zwei Listen. */
+    const alleUebersprungen = [];
+    const ueber = (z, s, zeile, meldung, extra = {}) => {
+      z.uebersprungen++;
+      alleUebersprungen.push({ schritt: s.step, entitySet: s.entitySet,
+        zeile: zeile?._zeile, meldung, ...extra });
+    };
     const gesamt = { neu: 0, aktualisiert: 0, unveraendert: 0, uebersprungen: 0,
                      ausgeschlossen: 0, geloescht: 0, fehler: 0 };
 
@@ -230,6 +243,9 @@ const PRUEFUNG = (() => {
          sie Datensätze an, die nie entstehen. */
       if (s.mode === "CloseOpportunity") {
         z.uebersprungen = blatt.anzahl;
+        alleUebersprungen.push({ schritt: s.step, entitySet: s.entitySet,
+          anzahl: blatt.anzahl,
+          meldung: `Modus ${s.mode} ist nicht scharf geschaltet (fachlich offen)` });
         alleWarnungen.push({ schritt: s.step,
           meldung: `Modus ${s.mode} ist nicht scharf geschaltet – `
             + `${blatt.anzahl} Zeile(n) werden übersprungen (fachlich offen).` });
@@ -256,6 +272,10 @@ const PRUEFUNG = (() => {
            Spalte „übersprungen". */
         if (!eltern?.lookupEntitySet || !eltern.lookupKeyField) {
           z.uebersprungen = blatt.anzahl;
+          alleUebersprungen.push({ schritt: s.step, entitySet: s.entitySet,
+            anzahl: blatt.anzahl,
+            meldung: `Modus SetStage ohne aufgelösten Verweis auf `
+              + `${s.parentField || "den Elterndatensatz"}` });
           alleWarnungen.push({ schritt: s.step,
             meldung: `Modus SetStage braucht einen aufgelösten Verweis auf `
               + `${s.parentField || "den Elterndatensatz"} – ohne ihn ist die `
@@ -267,11 +287,24 @@ const PRUEFUNG = (() => {
         }
 
         for (const zeile of blatt.zeilen) {
-          if (aus.ist(s.sourceSheet, zeile)) { z.uebersprungen++; continue; }
-          if (ausgelassen(s, zeile)) { z.uebersprungen++; continue; }
+          if (aus.ist(s.sourceSheet, zeile)) {
+            ueber(z, s, zeile, "Zeile wurde in einem früheren Schritt ausgeschlossen");
+            continue;
+          }
+          const uebergangenS = ausgelassen(s, zeile);
+          if (uebergangenS) {
+            ueber(z, s, zeile, "Steht in SkipOnValues – dieser Schritt lässt die Zeile aus",
+              { spalte: uebergangenS.spalte, wert: uebergangenS.wert });
+            continue;
+          }
 
           const ew = TRANSFORMS.anwenden(zeile[eltern.sourceColumn], eltern.transform).wert;
-          if (leer(ew)) { z.uebersprungen++; continue; }
+          if (leer(ew)) {
+            ueber(z, s, zeile, `${eltern.sourceColumn} ist leer – ohne Verweis auf die `
+              + "Verkaufschance gibt es keine Prozessinstanz",
+              { spalte: eltern.sourceColumn });
+            continue;
+          }
 
           const et = AUFLOESUNG.finde(aufl, eltern.lookupEntitySet, eltern.lookupKeyField,
                                       ew, entscheidungen);
@@ -279,12 +312,10 @@ const PRUEFUNG = (() => {
           const bestand = elternId
             ? instanzen?.get(AUFLOESUNG.vergleichbar(elternId))?.[0] || null : null;
           if (!bestand) {
-            z.uebersprungen++;
-            alleWarnungen.push({ schritt: s.step, zeile: zeile._zeile,
-              spalte: eltern.sourceColumn, wert: ew, klartext: klartext(zeile),
-              meldung: elternId
+            ueber(z, s, zeile, elternId
                 ? "Keine Prozessinstanz vorhanden – die Phase kann nicht gesetzt werden"
-                : `${eltern.lookupEntitySet} zu „${ew}“ nicht aufgelöst` });
+                : `${eltern.lookupEntitySet} zu „${ew}“ nicht aufgelöst`,
+              { spalte: eltern.sourceColumn, wert: ew, klartext: klartext(zeile) });
             continue;
           }
 
@@ -330,16 +361,17 @@ const PRUEFUNG = (() => {
         // Hängt die Zeile an einer, die schon ausgeschlossen ist? Dann
         // entsteht hier nichts – und die Vorschau darf sie auch nicht als
         // „neu" zählen, sonst sagt sie mehr voraus, als der Import tut.
-        if (aus.ist(s.sourceSheet, zeile)) { z.uebersprungen++; continue; }
+        if (aus.ist(s.sourceSheet, zeile)) {
+          ueber(z, s, zeile, "Zeile wurde in einem früheren Schritt ausgeschlossen");
+          continue;
+        }
 
         // Ausdrücklich ausgelassene Werte (Sammeladresse dummy@dihag.com).
         // Kein Fehler und keine Warnung, sondern eine Regel aus dem Profil.
         const uebergangen = ausgelassen(s, zeile);
         if (uebergangen) {
-          z.uebersprungen++;
-          alleWarnungen.push({ schritt: s.step, zeile: zeile._zeile,
-            spalte: uebergangen.spalte, wert: uebergangen.wert,
-            meldung: "Steht in SkipOnValues – dieser Schritt lässt die Zeile aus" });
+          ueber(z, s, zeile, "Steht in SkipOnValues – dieser Schritt lässt die Zeile aus",
+            { spalte: uebergangen.spalte, wert: uebergangen.wert });
           continue;
         }
 
@@ -349,11 +381,9 @@ const PRUEFUNG = (() => {
           schluesselWert = TRANSFORMS.anwenden(zeile[key.sourceColumn], key.transform).wert;
           if (leer(schluesselWert)) {
             if (s.onMissingKey === "Skip") {
-              z.uebersprungen++;
-              alleWarnungen.push({ schritt: s.step, zeile: zeile._zeile,
-                spalte: key.sourceColumn,
-                meldung: "Schlüssel leer – Zeile wird in diesem Schritt übersprungen, "
-                  + "die folgenden Schritte laufen weiter" });
+              ueber(z, s, zeile, "Schlüssel leer – Zeile wird in diesem Schritt "
+                + "übersprungen, die folgenden Schritte laufen weiter",
+                { spalte: key.sourceColumn });
             } else {
               z.fehler++;
               alleFehler.push({ schritt: s.step, zeile: zeile._zeile,
@@ -414,13 +444,10 @@ const PRUEFUNG = (() => {
           const vk = AUFLOESUNG.vergleichbar(schluesselWert);
           const zuerst = angekuendigt.get(vk);
           if (zuerst !== undefined) {
-            z.uebersprungen++;
-            alleWarnungen.push({ schritt: s.step, zeile: zeile._zeile,
-              spalte: key.sourceColumn, wert: schluesselWert, klartext: klartext(zeile),
-              meldung: `Dieselbe Kennung steht in dieser Datei schon in Zeile `
-                + `${zuerst}. Die Zeile wird ausgelassen – ein zweiter Datensatz `
-                + "dazu wäre eine Dublette. Welche der beiden gilt, entscheidet "
-                + "die Datei, nicht die App." });
+            ueber(z, s, zeile, `Dieselbe Kennung steht in dieser Datei schon in `
+              + `Zeile ${zuerst} – ein zweiter Datensatz dazu wäre eine Dublette. `
+              + "Welche der beiden gilt, entscheidet die Datei, nicht die App.",
+              { spalte: key.sourceColumn, wert: schluesselWert, klartext: klartext(zeile) });
             continue;
           }
           angekuendigt.set(vk, zeile._zeile);
@@ -428,14 +455,13 @@ const PRUEFUNG = (() => {
 
         // Geschlossene Verkaufschancen sind schreibgeschützt (Review A3)
         if (s.skipIfClosed && bestand && Number(bestand.statecode) !== 0) {
-          z.uebersprungen++;
-          alleWarnungen.push({ schritt: s.step, zeile: zeile._zeile,
-            wert: schluesselWert, klartext: klartext(zeile),
-            meldung: `Verkaufschance ist im CRM ${zustand(bestand.statecode)} und damit `
+          ueber(z, s, zeile,
+            `Verkaufschance ist im CRM ${zustand(bestand.statecode)} und damit `
               + "schreibgeschützt – wird übersprungen, nicht automatisch "
               + "wiedereröffnet. Steht sie in der Datei noch als offen oder "
               + "anders abgeschlossen, widersprechen sich die Systeme: im CRM "
-              + "prüfen." });
+              + "prüfen.",
+            { wert: schluesselWert, klartext: klartext(zeile) });
           continue;
         }
 
@@ -459,12 +485,9 @@ const PRUEFUNG = (() => {
                Löschungen an, die dieser Zweig gerade verhindert. */
             if (eid) elternIdFeld = eid;
             if (s.skipIfParentClosed && p && Number(p.statecode) !== 0) {
-              z.uebersprungen++;
-              alleWarnungen.push({ schritt: s.step, zeile: zeile._zeile,
-                spalte: ez.sourceColumn, wert: ew, klartext: klartext(zeile),
-                meldung: `${ez.lookupEntitySet} zu „${ew}“ ist geschlossen – `
-                  + "ihre Positionen bleiben unverändert, sie lassen sich nicht "
-                  + "ersetzen" });
+              ueber(z, s, zeile, `${ez.lookupEntitySet} zu „${ew}“ ist geschlossen – `
+                + "ihre Positionen bleiben unverändert, sie lassen sich nicht ersetzen",
+                { spalte: ez.sourceColumn, wert: ew, klartext: klartext(zeile) });
               continue;
             }
             if (p && eid && p[eid]) ersetzteEltern.add(AUFLOESUNG.vergleichbar(p[eid]));
@@ -512,7 +535,7 @@ const PRUEFUNG = (() => {
     }
 
     return { schritte, gesamt, fehler: alleFehler, warnungen: alleWarnungen,
-             ausschluesse: alleAusschluesse };
+             ausschluesse: alleAusschluesse, uebersprungen: alleUebersprungen };
   }
 
   /* `felder` ist kein Zaehler, sondern eine Bilanz: Feldname -> wie oft
