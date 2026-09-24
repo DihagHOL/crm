@@ -974,6 +974,27 @@ Und: **die älteste zuerst.** Liegen mehrere Mappen zur selben Anfrage, soll
 die jüngere den letzten Stand schreiben. `SPFILES.liste()` sortiert
 neueste zuerst — für die Anzeige richtig, für die Abarbeitung falsch herum.
 
+### Ein alter Vermerk an neuem Inhalt
+
+Die Automatik sah anfangs nur auf den Status: `Neu` heisst anfassen, alles
+andere liegen lassen. Am 24.09.2026 lag im Ordner `Anfragen
+2026-09-24_2.xlsx` mit Status `Importiert`, **derselben Lauf-ID und
+demselben Importzeitpunkt wie das Original** — eine Kopie, die in
+SharePoint die Spaltenwerte geerbt hat. Sie wäre nie angesehen worden:
+neuer Inhalt, alter Vermerk, kein Import, keine Meldung.
+
+Seitdem gilt eine Datei auch dann als anstehend, wenn ihr Inhalt **nach**
+dem eingetragenen Importzeitpunkt verändert wurde. Das deckt drei Fälle mit
+einer Regel ab: die geerbte Kopie, eine korrigierte Fassung unter gleichem
+Namen, und eine reparierte Datei, die vorher auf `Fehlgeschlagen` stand —
+für die musste man bis dahin den Status von Hand zurücksetzen.
+
+**Die Toleranz von zehn Minuten ist nicht kosmetisch.** Der Statusvermerk
+selbst verändert den Bibliothekseintrag: gemessen zwei Sekunden nach dem
+eingetragenen Importzeitpunkt. Ohne Abstand hielte sich jede Datei für
+geändert und würde bei jedem Lauf erneut importiert — eine Schleife, die
+sich selbst füttert.
+
 ### Das Tor: was einen Menschen stutzen liesse, hält an
 
 `AUTOMATIK.torschluss()` lässt genau dann durch, wenn der Prüflauf nichts

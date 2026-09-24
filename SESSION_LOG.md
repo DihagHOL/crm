@@ -47,6 +47,33 @@ Probelauf an einer älteren Mappe hätte verlangt, den Stichtag in SharePoint
 zu verstellen — den man dann zurückzustellen vergisst. Beides behoben; der
 Stichtag lässt sich jetzt für einen einzelnen manuellen Lauf übersteuern.
 
+### Der erste unbeaufsichtigte Import — und ein Beinahe-Verlust
+
+Um 07:24 deutscher Zeit hat die Automatik zum ersten Mal von selbst
+importiert: `Anfragen 2026-09-24.xlsx`, **121 angelegt, 25 geändert, 56
+unverändert, 76 ersetzt, 14 übersprungen, 0 Fehler** in 88 Sekunden, Mail
+raus. Zwei Mehrfachtreffer hat die Aktiv-Regel ohne Rückfrage gelöst.
+
+Beim Nachsehen fiel eine zweite Datei auf: `Anfragen 2026-09-24_2.xlsx`,
+Status `Importiert`, **dieselbe Lauf-ID und derselbe Importzeitpunkt wie
+das Original**. Eine Kopie, die in SharePoint die Spaltenwerte geerbt hat.
+Die Automatik hätte sie nie angesehen — neuer Inhalt, alter Vermerk, kein
+Import, keine Meldung. Genau die Art stillen Verlusts, gegen die dieses
+Werkzeug gebaut ist.
+
+Jetzt zählt nicht mehr nur der Status, sondern auch der Zeitpunkt: wurde
+der Inhalt **nach** dem eingetragenen Import verändert, steht die Datei
+wieder an. Das deckt die geerbte Kopie ab, eine korrigierte Fassung unter
+gleichem Namen und eine reparierte Datei, die auf `Fehlgeschlagen` stand.
+Die Toleranz von zehn Minuten ist dabei Pflicht: der Statusvermerk selbst
+verändert den Eintrag zwei Sekunden nach dem Importzeitpunkt, und ohne
+Abstand hielte sich jede Datei für geändert.
+
+**Eigener Fehler beim Nachsehen:** Ich meldete zunächst, der Lauf sei nicht
+protokolliert. Er war es — meine Abfrage hatte `$top=10` und bekam die
+zehn ÄLTESTEN Einträge, weil SharePoint nach ID sortiert und nicht nach
+Datum. Erst danach nach Datum zu sortieren, sortiert die falsche Menge.
+
 **„Und den letzten Lauf kann ich dann auch nicht prüfen?"** Doch. Die
 Einzelzeilen in `CRM_ImportErrors` gibt es zwar erst ab heute, aber jeder
 Lauf schreibt seit jeher ein Vollprotokoll als JSON — mit jeder Zeile und

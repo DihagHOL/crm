@@ -197,6 +197,35 @@ const AUTOMATIK = (() => {
     return wann >= grenze;
   }
 
+  /** Wurde die Datei NACH ihrem Import noch angefasst?
+   *
+   *  Anlass, 24.09.2026: Im Ordner lag `Anfragen 2026-09-24_2.xlsx` mit
+   *  Status „Importiert", derselben Lauf-ID und demselben Importzeitpunkt
+   *  wie das Original — eine Kopie, die in SharePoint die Spaltenwerte
+   *  geerbt hat. Die Automatik hätte sie nie angesehen, weil sie nur auf
+   *  „Neu" achtet. Eine Datei mit neuem Inhalt und altem Vermerk wird so
+   *  stillschweigend nie importiert, und genau solche stillen Verluste
+   *  soll dieses Werkzeug abstellen.
+   *
+   *  Dasselbe greift, wenn Timeline eine korrigierte Fassung unter dem
+   *  gleichen Namen nachlegt oder jemand eine fehlgeschlagene Datei
+   *  repariert: geänderter Inhalt, alter Vermerk.
+   *
+   *  DIE TOLERANZ IST NÖTIG. Der Statusvermerk selbst verändert den
+   *  Bibliothekseintrag — gemessen am 24.09.2026 zwei Sekunden nach dem
+   *  eingetragenen Importzeitpunkt. Ohne Abstand hielte sich jede Datei
+   *  selbst für geändert und würde bei jedem Lauf erneut importiert.
+   *
+   *  @param {{geaendert?:string, importiertAm?:string}} datei aus SPFILES.liste()
+   *  @param {number} [minuten] Mindestabstand
+   *  @returns {boolean} */
+  function seitImportGeaendert(datei, minuten = 10) {
+    const importiert = Date.parse(datei?.importiertAm || "");
+    const geaendert = Date.parse(datei?.geaendert || "");
+    if (!Number.isFinite(importiert) || !Number.isFinite(geaendert)) return false;
+    return geaendert - importiert > minuten * 60000;
+  }
+
   /* ── Darf ohne Rückfrage importiert werden? ───────────────────────── */
 
   /** Das Tor zwischen Prüflauf und Import.
@@ -418,7 +447,7 @@ const AUTOMATIK = (() => {
   }
 
   return { STANDARD, ERKLAERUNG, FREI, istJa, zahl, nachStichtag,
-           auslassungen, auslassungsSatz,
+           seitImportGeaendert, auslassungen, auslassungsSatz,
            einstellungen, einstellungSetzen, faellig, deutscheZeit, tagErlaubt,
            torschluss, hatArbeit, warnungsGruppen,
            freigaben, freigabeAnlegen, freigabeEntscheiden, entscheidungenAus,

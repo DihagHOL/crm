@@ -262,5 +262,33 @@ console.log("\nWelche Zeilen sind nicht durchgegangen, und warum");
   pruefe(A.auslassungsSatz(gv[0]).endsWith("…"), "und der Rest wird angedeutet");
 }
 
+console.log("\nEine Datei, die nach ihrem Import noch angefasst wurde");
+{
+  /* Am 24.09.2026 lag im Ordner „Anfragen 2026-09-24_2.xlsx" mit Status
+     „Importiert", derselben Lauf-ID und demselben Importzeitpunkt wie das
+     Original – eine Kopie, die in SharePoint die Spaltenwerte geerbt hat.
+     Sie wäre nie angesehen worden. */
+  const { AUTOMATIK: A } = ladeAlles();
+  const d = (geaendert, importiertAm) => ({ geaendert, importiertAm });
+
+  pruefe(A.seitImportGeaendert(d("2026-09-24T09:17:40Z", "2026-09-24T05:25:30Z")),
+    "die Kopie faellt auf: Inhalt fast vier Stunden juenger als der Vermerk");
+  pruefe(!A.seitImportGeaendert(d("2026-09-24T05:25:32Z", "2026-09-24T05:25:30Z")),
+    "der Statusvermerk selbst zaehlt NICHT - er veraendert den Eintrag um Sekunden");
+  pruefe(!A.seitImportGeaendert(d("2026-09-24T05:25:30Z", "2026-09-24T05:25:30Z")),
+    "gleichzeitig ist nicht geaendert");
+  pruefe(!A.seitImportGeaendert(d("2026-09-24T05:20:00Z", "2026-09-24T05:25:30Z")),
+    "aelter als der Import erst recht nicht");
+  pruefe(!A.seitImportGeaendert(d("2026-09-24T09:17:40Z", null)),
+    "ohne Importzeitpunkt wird nichts behauptet");
+  pruefe(!A.seitImportGeaendert(null), "und ohne Datei auch nicht");
+
+  // Die Toleranz ist einstellbar, damit sie pruefbar bleibt.
+  pruefe(A.seitImportGeaendert(d("2026-09-24T05:27:00Z", "2026-09-24T05:25:00Z"), 1),
+    "zwei Minuten reichen, wenn die Toleranz eine Minute ist");
+  pruefe(!A.seitImportGeaendert(d("2026-09-24T05:27:00Z", "2026-09-24T05:25:00Z"), 10),
+    "bei zehn Minuten Toleranz nicht");
+}
+
 console.log(fehler ? `\n${fehler} Prüfung(en) fehlgeschlagen.\n` : "\nAlle Prüfungen bestanden.\n");
 process.exit(fehler ? 1 : 0);

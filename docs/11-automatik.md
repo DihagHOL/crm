@@ -248,6 +248,11 @@ Reihenfolge (die jüngere Mappe schreibt zuletzt), dauert aber bei 66 Dateien
 und Takt 60 rund zweiundzwanzig Stunden. Für einen einmaligen Nachzug ist
 der Weg über die Oberfläche der ehrlichere.
 
+**Eine Datei wurde nach dem Import noch geändert.** Sie wird von selbst
+wieder aufgegriffen — der Vergleich läuft über den Änderungszeitpunkt, nicht
+über den Status. Das gilt auch für Kopien, die den Status des Originals
+geerbt haben, und für reparierte Dateien, die auf `Fehlgeschlagen` standen.
+
 **Eine Datei soll sofort laufen.** In `CRM_Automatik` das Feld
 `LetzterLauf` leeren, dann Actions → Run workflow. Oder in der Bibliothek
 den `ImportStatus` der Datei auf `Neu` zurücksetzen, falls sie schon

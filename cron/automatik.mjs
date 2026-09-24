@@ -227,8 +227,17 @@ async function markieren(datei, felder) {
     if (v.Status === AUTOMATIK.FREI.frei && !offeneFreigabe.has(v.FileId))
       offeneFreigabe.set(v.FileId, v);
 
+  /* Angefasst wird, was noch nie dran war – und was SEIT dem Import noch
+     verändert wurde. Der zweite Fall kostete am 24.09.2026 beinahe eine
+     Datei: eine Kopie im Ordner hatte den Status „Importiert" des Originals
+     geerbt und wäre nie angesehen worden. */
+  const erneut = dateien.filter(d =>
+    d.status && d.status !== "Neu" && !offeneFreigabe.has(d.id)
+    && AUTOMATIK.seitImportGeaendert(d));
+
   const unbearbeitet = dateien.filter(d =>
-    !d.status || d.status === "Neu" || offeneFreigabe.has(d.id));
+    !d.status || d.status === "Neu" || offeneFreigabe.has(d.id)
+    || erneut.includes(d));
 
   /* Der Quellordner ist ein Archiv, kein Eingang. Ohne Stichtag würde der
      erste eingeschaltete Lauf den gesamten Altbestand nachimportieren. */
@@ -246,6 +255,10 @@ async function markieren(datei, felder) {
   sagen(`${dateien.length} Mappe(n) im Ordner, ${anstehend.length} anstehend, `
     + `${arbeit.length} in diesem Lauf.`
     + (zuAlt ? ` ${zuAlt} liegen vor dem Stichtag ${e.AbDatum} und bleiben liegen.` : ""));
+  for (const d of erneut)
+    if (anstehend.includes(d))
+      sagen(`  ${d.name}: Status „${d.status}" vom ${d.importiertAm}, `
+        + `Inhalt aber vom ${d.geaendert} – wird erneut geprüft.`);
 
   const abschnitte = [];
 
