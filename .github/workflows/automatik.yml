@@ -20,6 +20,10 @@ on:
         description: "Nur pruefen und berichten, nichts schreiben"
         type: boolean
         default: false
+      stichtag:
+        description: "Stichtag nur fuer DIESEN Lauf (JJJJ-MM-TT), z. B. um eine aeltere Mappe zu pruefen"
+        type: string
+        default: ""
 
 # Solange die Secrets fehlen, steigt das Skript sauber aus (Exit 0) statt zu
 # scheitern: ein roter Lauf viermal je Stunde waere eine Fehlermail fuer
@@ -49,4 +53,7 @@ jobs:
           CLIENT_SECRET: ${{ secrets.CLIENT_SECRET }}
           CRM_ERZWINGEN: ${{ (github.event_name == 'workflow_dispatch' && inputs.erzwingen) && '1' || '0' }}
           CRM_TROCKEN:   ${{ (github.event_name == 'workflow_dispatch' && inputs.trocken) && '1' || '0' }}
+          # Nur beim manuellen Start gesetzt - ein Zeitplanlauf haelt sich
+          # immer an das, was in SharePoint steht.
+          CRM_ABDATUM:   ${{ github.event_name == 'workflow_dispatch' && inputs.stichtag || '' }}
         run: node automatik.mjs

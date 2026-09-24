@@ -28,6 +28,7 @@
      CRM_DATAVERSE_URL, CRM_UMGEBUNG       – andere Umgebung als js/config.js
      CRM_ERZWINGEN=1                       – Takt und Zeitfenster übergehen
      CRM_TROCKEN=1                         – prüfen und berichten, nicht schreiben
+     CRM_ABDATUM=JJJJ-MM-TT                – Stichtag nur für diesen Lauf
 */
 
 import { readFileSync } from "node:fs";
@@ -197,6 +198,16 @@ async function markieren(datei, felder) {
 (async () => {
   const beginn = Date.now();
   const { werte: e, ids } = await AUTOMATIK.einstellungen();
+
+  /* Stichtag für EINEN Lauf übersteuern. Gedacht für die Probe: eine
+     ältere Mappe durchprüfen, ohne die Einstellung anzufassen – wer sie
+     dafür kurz verstellt, vergisst sie zurückzustellen, und der nächste
+     Zeitplanlauf beginnt den Altbestand nachzuimportieren. */
+  if (process.env.CRM_ABDATUM) {
+    sagen(`Stichtag für diesen Lauf: ${process.env.CRM_ABDATUM} `
+      + `(in SharePoint steht ${e.AbDatum || "nichts"} – bleibt unverändert).`);
+    e.AbDatum = process.env.CRM_ABDATUM;
+  }
 
   const f = AUTOMATIK.faellig(e, new Date());
   sagen(`Automatik: ${f.grund}`);
