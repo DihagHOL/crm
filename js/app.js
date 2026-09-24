@@ -196,6 +196,7 @@ const APP = (() => {
       </div>
       <div class="card"><p class="hint" id="auStatus">Wird geladen …</p></div>
       <div id="auFreigaben"></div>
+      <div id="auBerichte"></div>
       <div id="auEinst"></div>`;
 
     try {
@@ -218,7 +219,33 @@ const APP = (() => {
            : " Noch kein Lauf verzeichnet."}`;
 
     renderFreigaben();
+    renderBerichte();
     renderEinstellungen();
+  }
+
+  /** Die zuletzt abgelegten Berichte.
+   *
+   *  Weil „ich sehe keinen Bericht" eine berechtigte Klage war: die Mail
+   *  ist ein Kanal, kein Archiv. Sie kann im Spam landen oder übersehen
+   *  werden, und dann steht nirgends, was der Lauf getan hat. Jeder
+   *  Bericht liegt deshalb als Datei neben den Vollprotokollen. */
+  async function renderBerichte() {
+    const b = await AUTOMATIK.berichte(10).catch(() => []);
+    $("auBerichte").innerHTML = `
+      <h3 class="section">Berichte</h3>
+      <div class="card">
+        ${b.length ? `<p class="hint">Jeder Lauf legt seinen Bericht hier ab —
+           unabhängig davon, ob die Mail ankommt.</p>
+          <div class="tbl-wrap"><table class="tbl">
+            <thead><tr><th>Bericht</th><th>abgelegt</th></tr></thead>
+            <tbody>${b.map(f => `<tr>
+              <td><a href="${esc(f.webUrl)}" target="_blank" rel="noopener">${esc(f.name)}</a></td>
+              <td>${esc(datum(f.lastModifiedDateTime))}</td>
+            </tr>`).join("")}</tbody></table></div>`
+        : `<p class="hint">Noch kein Bericht abgelegt. Berichte entstehen ab dem
+           nächsten Lauf, der etwas zu melden hat — ein Lauf ohne Arbeit
+           schreibt keinen.</p>`}
+      </div>`;
   }
 
   /* Freigeben und Einstellen bleiben der Rolle `editor` vorbehalten.

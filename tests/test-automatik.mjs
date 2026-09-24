@@ -290,5 +290,49 @@ console.log("\nEine Datei, die nach ihrem Import noch angefasst wurde");
     "bei zehn Minuten Toleranz nicht");
 }
 
+console.log("\nGeschlossen im CRM, in der Datei noch aktiv");
+{
+  /* Der einzige Befund im Bericht, den jemand ENTSCHEIDEN muss – alles
+     andere ist Buchhaltung. Am 24.09.2026 tauchten 6428 und 6655 je
+     zweimal auf: einmal für die Chance, einmal für ihre Positionen. Als
+     Befund ist es eine Sache, nicht vier. */
+  const { AUTOMATIK: A } = ladeAlles();
+  const e = [
+    { aktion: "uebersprungen", schritt: 30, zeile: 2, schluessel: "6428",
+      meldung: "Verkaufschance ist im CRM als VERLOREN geschlossen und damit schreibgeschützt" },
+    { aktion: "uebersprungen", schritt: 30, zeile: 3, schluessel: "6655",
+      meldung: "Verkaufschance ist im CRM als VERLOREN geschlossen und damit schreibgeschützt" },
+    { aktion: "uebersprungen", schritt: 40, zeile: 2,
+      meldung: "opportunities zu „6428“ ist geschlossen – ihre Positionen bleiben unverändert" },
+    { aktion: "uebersprungen", schritt: 40, zeile: 3,
+      meldung: "opportunities zu „6655“ ist geschlossen – ihre Positionen bleiben unverändert" },
+    { aktion: "uebersprungen", schritt: 20, zeile: 24,
+      meldung: "Kontaktemail = „dummy@dihag.com“ steht in SkipOnValues" }
+  ];
+  const k = A.geschlosseneKonflikte(e);
+
+  gleich(k.length, 2, "zwei Anfragen, nicht vier Zeilen");
+  gleich(k.map(x => x.kennung), ["6428", "6655"], "je Anfrage eine Meldung");
+  gleich(k[0].zustand, "verloren", "der Zustand steht dabei");
+  gleich(k[0].schritte, [30, 40], "und beide betroffenen Schritte");
+  pruefe(!k.some(x => /dummy/.test(x.kennung)),
+    "SkipOnValues ist kein Konflikt – dort hat jemand eine Regel aufgestellt");
+
+  const zeilen = A.konfliktZeilen(k);
+  pruefe(zeilen.some(z => /6428/.test(z) && /verloren/.test(z)),
+    "der Bericht nennt Kennung und Zustand");
+  pruefe(zeilen.some(z => /welches System recht hat/.test(z)),
+    "und sagt, dass das jemand entscheiden muss");
+  gleich(A.konfliktZeilen([]), [], "ohne Konflikt kein Abschnitt");
+
+  // Der Betreff muss ihn nennen: was zu entscheiden ist, gehoert nach vorn.
+  const r = A.bericht([{ art: "importiert", titel: "x", zeilen: [], konflikte: 2 }]);
+  pruefe(/2 geschlossene Anfrage/.test(r.betreff),
+    "der Betreff nennt die Konflikte");
+  pruefe(!/geschlossene Anfrage/.test(
+    A.bericht([{ art: "importiert", titel: "x", zeilen: [] }]).betreff),
+    "ohne Konflikt bleibt er kurz");
+}
+
 console.log(fehler ? `\n${fehler} Prüfung(en) fehlgeschlagen.\n` : "\nAlle Prüfungen bestanden.\n");
 process.exit(fehler ? 1 : 0);

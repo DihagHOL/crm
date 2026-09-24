@@ -42,7 +42,12 @@ pruefe(!CRM_CONFIG.scopes.some(s => s.includes("crm4.dynamics.com")),
 
 console.log("\nLadereihenfolge");
 const html = lies("index.html");
-const skripte = [...html.matchAll(/<script src="(js\/[^"]+)"><\/script>/g)].map(m => m[1]);
+/* Der Versionsparameter `?v=...` gehoert nicht zum Dateinamen. Er wird bei
+   jedem Push auf die Commit-SHA gesetzt, damit Browser nach einer Aenderung
+   nicht die alte app.js weiterbenutzen - ohne ihn fehlte am 24.09.2026 ein
+   laengst ausgelieferter Knopf in der Oberflaeche. */
+const skripte = [...html.matchAll(/<script src="(js\/[^"?]+)(?:\?[^"]*)?"><\/script>/g)]
+  .map(m => m[1]);
 
 pruefe(skripte.length > 0, "index.html bindet JavaScript ein");
 for (const s of skripte) pruefe(existsSync(join(wurzel, s)), `${s} existiert`);

@@ -333,11 +333,15 @@ async function markieren(datei, felder) {
         /* Auch im Probelauf beantworten, was „14 übersprungen" bedeutet.
            Die Gründe stehen im Prüfbericht – der Probelauf ist genau der
            Moment, in dem man sie sehen will: VOR dem Schreiben. */
-        const vorher = AUTOMATIK.auslassungen(
-          (bericht.uebersprungen || []).map(u => ({ ...u, aktion: "uebersprungen" })));
+        const roh = (bericht.uebersprungen || [])
+          .map(u => ({ ...u, aktion: "uebersprungen" }));
+        const vorher = AUTOMATIK.auslassungen(roh);
+        const konflikteV = AUTOMATIK.geschlosseneKonflikte(roh);
         for (const g of vorher) sagen(`     ${AUTOMATIK.auslassungsSatz(g)}`);
         abschnitte.push({ art: "hinweis", titel: `${datei.name} – Probelauf`,
+          konflikte: konflikteV.length,
           zeilen: [`Würde schreiben: ${esc(vorschau)}`,
+            ...AUTOMATIK.konfliktZeilen(konflikteV),
             ...(vorher.length ? ["<b>Würde auslassen:</b>"] : []),
             ...vorher.slice(0, 6).map(g => "↷ " + esc(AUTOMATIK.auslassungsSatz(g))),
             ...(vorher.length > 6
@@ -372,9 +376,17 @@ async function markieren(datei, felder) {
          daneben und nicht im Vollprotokoll. */
       const aus = AUTOMATIK.auslassungen(l.eintraege);
       for (const g of aus) sagen(`     ${AUTOMATIK.auslassungsSatz(g)}`);
+
+      /* Geschlossen im CRM, in der Datei noch aktiv: der einzige Befund im
+         Bericht, den jemand ENTSCHEIDEN muss. Alles andere ist Buchhaltung. */
+      const konflikte = AUTOMATIK.geschlosseneKonflikte(l.eintraege);
+      for (const k of konflikte)
+        sagen(`     ! ${k.kennung} ist im CRM ${k.zustand}, steht aber in der `
+          + `Datei (Zeile ${k.zeilen.join(", ")}) – unverändert geblieben.`);
       abschnitte.push({
         art: l.gesamt.fehlgeschlagen ? "fehler" : "importiert",
         titel: `${datei.name} – importiert`,
+        konflikte: konflikte.length,
         zeilen: [
           zahlSatz(l.gesamt),
           `Dauer ${Math.round(l.dauerMs / 1000)} s · Lauf-ID <code>${esc(laufId)}</code>`
@@ -387,7 +399,8 @@ async function markieren(datei, felder) {
           ...(aus.length ? ["<b>Nicht geschrieben:</b>"] : []),
           ...aus.slice(0, 6).map(g => "↷ " + esc(AUTOMATIK.auslassungsSatz(g))),
           ...(aus.length > 6 ? [`… und ${aus.length - 6} weitere Gründe; alle Zeilen `
-            + "stehen einzeln in <code>CRM_ImportErrors</code>."] : [])
+            + "stehen einzeln in <code>CRM_ImportErrors</code>."] : []),
+          ...AUTOMATIK.konfliktZeilen(konflikte)
         ] });
     } catch (fehler) {
       sagen(`  ! ${fehler.message}`);
@@ -414,11 +427,18 @@ async function markieren(datei, felder) {
 
   const { betreff, html } = AUTOMATIK.bericht(abschnitte,
     { appUrl: "https://crm.dihag.de/" });
+
+  /* ZUERST ablegen, dann verschicken. Eine Mail ist ein Kanal, kein
+     Archiv – scheitert der Versand oder landet sie im Spam, steht der
+     Bericht trotzdem im Reiter Automatik. */
+  const abgelegt = await AUTOMATIK.berichtAblegen(betreff, html);
+  sagen(`\nBericht abgelegt: ${abgelegt.pfad}${abgelegt.url ? "" : " (NICHT gespeichert)"}`);
+
   try {
     await AUTOMATIK.mailSenden(e.Absender, e.Empfaenger, betreff, html);
-    sagen(`\nBericht an ${e.Empfaenger}: ${betreff}`);
+    sagen(`Bericht an ${e.Empfaenger}: ${betreff}`);
   } catch (er) {
-    sagen(`\n! Bericht NICHT versendet: ${er.message}`);
+    sagen(`! Bericht NICHT versendet: ${er.message}`);
     sagen(betreff);
     process.exitCode = 1;   // sichtbar in Actions – ein stiller Lauf wäre schlimmer
   }

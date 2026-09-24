@@ -1,0 +1,36 @@
+name: Cache-Busting
+
+# Setzt nach jedem Push den ?v=... Parameter in index.html auf die Commit-SHA.
+#
+# Ohne das laedt ein Browser nach einer Aenderung weiter die alte app.js:
+# GitHub Pages liefert mit `Cache-Control: max-age=600`, und wer die Seite
+# offen hat, sieht die Neuerung schlicht nicht. Am 24.09.2026 fehlte
+# deshalb der Knopf "Welche?" im Protokoll - ausgeliefert war er laengst.
+#
+# Uebernommen aus dem Compliance-Cockpit, dort seit Monaten in Betrieb.
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  bust:
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Versionsparameter setzen
+        run: |
+          SHA="${GITHUB_SHA::8}"
+          sed -i -E "s/\?v=[A-Za-z0-9._-]+/?v=$SHA/g" index.html
+          if git diff --quiet; then
+            echo "Keine Aenderung noetig."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git commit -am "Cache-Busting auf $SHA [skip ci]"
+          git push

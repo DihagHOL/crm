@@ -1010,6 +1010,34 @@ Datei, und die Automatik wäre keine. Wer es anders will, stellt
 `WarnungenBlockieren` auf `ja` — die Einstellung gibt es, weil beide
 Haltungen vertretbar sind.
 
+### Zwei Systeme, zwei Wahrheiten — der einzige Befund zum Entscheiden
+
+Eine im CRM geschlossene Verkaufschance, die in der Timeline-Datei weiter
+auftaucht, ist keine gewöhnliche Auslassung. Bei `SkipOnValues` hat jemand
+eine Regel aufgestellt und sie wirkt; hier behaupten zwei Systeme
+Verschiedenes über dieselbe Anfrage, und **beide können nicht recht
+haben**. Solange niemand entscheidet, läuft die Datei jede Woche gegen
+dieselbe Wand.
+
+Deshalb ein eigener Abschnitt im Bericht und ein Vermerk im **Betreff**:
+alles andere im Bericht ist Buchhaltung, das hier ist eine Aufgabe.
+Gebündelt wird je Anfrage, nicht je Zeile — am 24.09.2026 erzeugten 6428
+und 6655 vier Protokollzeilen (Chance und Positionen), als Befund sind es
+zwei.
+
+### Der Bericht ist eine Datei, die Mail nur ein Kanal
+
+„Ich sehe keinen Bericht" war eine berechtigte Klage. Eine Mail kann im
+Spam landen, an einer Transportregel hängen oder übersehen werden — und
+dann steht nirgends, was der Lauf getan hat. Jeder Bericht wird deshalb
+**zuerst als HTML-Datei abgelegt** (`Berichte/` neben den
+Vollprotokollen) und erst danach verschickt. Der Reiter Automatik verlinkt
+die letzten zehn.
+
+Dieselbe Haltung wie beim Protokoll: was ein Lauf getan hat, gehört an
+einen Ort, den man aufsuchen kann — nicht in einen Kanal, der zustellen
+kann oder auch nicht.
+
 ### Eine bewusste Abweichung von §11
 
 §11 sagt: die App arbeitet mit `user_impersonation`, der Sicherheitsrahmen

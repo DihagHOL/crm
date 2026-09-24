@@ -378,6 +378,60 @@ const AUTOMATIK = (() => {
     return [...m.values()].sort((a, b) => b.anzahl - a.anzahl);
   }
 
+  /** Geschlossen im CRM, aktiv in der Datei — der Widerspruch zweier Systeme.
+   *
+   *  Diese Zeilen sind keine gewöhnlichen Auslassungen. Bei „steht in
+   *  SkipOnValues" hat jemand eine Regel aufgestellt und sie wirkt; hier
+   *  behaupten CRM und Timeline verschiedene Dinge über dieselbe Anfrage,
+   *  und **beide können nicht recht haben**. Solange niemand entscheidet,
+   *  läuft die Datei jede Woche erneut auf dieselbe Wand.
+   *
+   *  Deshalb ein eigener Abschnitt statt sechs verstreuter Protokollzeilen:
+   *  6428 und 6655 tauchten am 24.09.2026 zweimal auf, einmal für die
+   *  Chance und einmal für ihre Positionen — als Befund ist es EINE Sache.
+   *
+   *  @returns {Array<{kennung, zustand, zeilen:number[], schritte:number[]}>} */
+  function geschlosseneKonflikte(eintraege = []) {
+    const m = new Map();
+    for (const e of eintraege) {
+      if (e.aktion !== "uebersprungen") continue;
+      const t = String(e.meldung || "");
+      if (!/geschlossen|schreibgeschützt/i.test(t)) continue;
+
+      /* Die Kennung steht je nach Schritt an zwei Stellen: an der Chance
+         selbst als Schlüssel, an der Position als Wert des Elternverweises
+         — und im Text in Anführungszeichen. */
+      const ausText = (t.match(/„([^“]+)“/) || [])[1];
+      const kennung = String(e.schluessel ?? e.wert ?? ausText ?? "?");
+      const zustand = /GEWONNEN/i.test(t) ? "gewonnen"
+                    : /VERLOREN/i.test(t) ? "verloren" : "geschlossen";
+      if (!m.has(kennung))
+        m.set(kennung, { kennung, zustand, zeilen: [], schritte: [] });
+      const g = m.get(kennung);
+      // „verloren" ist genauer als „geschlossen" – die genauere Angabe gewinnt.
+      if (zustand !== "geschlossen") g.zustand = zustand;
+      if (!g.zeilen.includes(e.zeile)) g.zeilen.push(e.zeile);
+      if (!g.schritte.includes(e.schritt)) g.schritte.push(e.schritt);
+    }
+    return [...m.values()].sort((a, b) => String(a.kennung).localeCompare(String(b.kennung)));
+  }
+
+  /** Der Konfliktabschnitt als Zeilen für den Bericht. */
+  function konfliktZeilen(konflikte) {
+    if (!konflikte.length) return [];
+    return [
+      "<b>Geschlossen im CRM, in der Datei noch enthalten:</b>",
+      ...konflikte.map(k => `⚠ <b>${esc(k.kennung)}</b> ist im CRM als `
+        + `<b>${esc(k.zustand)}</b> abgeschlossen (Zeile ${k.zeilen.join(", ")}, `
+        + `Schritt ${k.schritte.join(" und ")}). Unverändert geblieben.`),
+      konflikte.length === 1
+        ? "Die Anfrage bleibt bei jedem Lauf stehen, bis jemand entscheidet, "
+          + "welches System recht hat."
+        : "Diese Anfragen bleiben bei jedem Lauf stehen, bis jemand entscheidet, "
+          + "welches System recht hat."
+    ];
+  }
+
   /** Eine Gruppe als Satz: Anzahl, Grund, Zeilennummern. */
   const auslassungsSatz = g =>
     `${g.anzahl}× Schritt ${g.schritt}: ${g.meldung}`
@@ -393,16 +447,20 @@ const AUTOMATIK = (() => {
     const fertig = abschnitte.filter(a => a.art === "importiert").length;
 
     const geprueft = abschnitte.filter(a => a.art === "hinweis").length;
+    const konflikte = abschnitte.reduce((n, a) => n + (a.konflikte || 0), 0);
     const teile = [fertig ? `${fertig} importiert` : null,
                    wartet ? `${wartet} wartet auf Freigabe` : null,
                    fehler ? `${fehler} fehlgeschlagen` : null].filter(Boolean);
     /* „nichts zu tun" wäre gelogen, wenn ein Probelauf gerade drei Dateien
        durchgerechnet hat. Der Betreff ist das Einzige, was in der
        Postfachübersicht steht – er muss stimmen. */
+    /* Der Konflikt gehört in den Betreff. Er ist das Einzige im Bericht,
+       das jemand entscheiden MUSS – alles andere ist Buchhaltung. */
     const betreff = `CRM-Import ${C.umgebung}: `
       + (teile.length ? teile.join(", ")
          : geprueft ? `${geprueft} geprüft, nichts geschrieben`
-         : "nichts zu tun");
+         : "nichts zu tun")
+      + (konflikte ? ` · ${konflikte} geschlossene Anfrage(n) prüfen` : "");
 
     const farbe = { importiert: "#2e7d32", freigabe: "#F08300", fehler: "#c62828",
                     hinweis: "#424241" };
@@ -427,6 +485,52 @@ const AUTOMATIK = (() => {
     return { betreff, html };
   }
 
+  /** Den Bericht ablegen, bevor er verschickt wird.
+   *
+   *  Eine Mail ist ein Kanal, kein Archiv. Sie kann im Spam landen, an
+   *  einer Transportregel hängen bleiben oder schlicht übersehen werden —
+   *  und dann steht nirgends, was der Lauf getan hat. Deshalb liegt jeder
+   *  Bericht als HTML-Datei neben den Vollprotokollen, und der Reiter
+   *  Automatik verlinkt die letzten.
+   *
+   *  Abgelegt wird ZUERST, verschickt danach: scheitert der Versand, ist
+   *  der Bericht trotzdem da.
+   *
+   *  @returns {Promise<{url:string|null, pfad:string}>} */
+  async function berichtAblegen(betreff, html, wann = new Date()) {
+    const p = n => String(n).padStart(2, "0");
+    const name = `${wann.getFullYear()}-${p(wann.getMonth() + 1)}-${p(wann.getDate())}`
+      + `-${p(wann.getHours())}${p(wann.getMinutes())}${p(wann.getSeconds())}.html`;
+    const pfad = `Berichte/${name}`;
+    try {
+      const sid = await GRAPH.siteId(C.konfigSite);
+      const drive = (await GRAPH.call(`/sites/${sid}/drive`))?.id;
+      if (!drive) return { url: null, pfad };
+      const r = await GRAPH.call(`/drives/${drive}/root:/${encodeURI(pfad)}:/content`,
+        { method: "PUT", headers: { "Content-Type": "text/html; charset=utf-8" },
+          body: `<!-- ${betreff} -->\n${html}` });
+      return { url: r?.webUrl || null, pfad };
+    } catch (e) {
+      console.warn("[Automatik] Bericht nicht abgelegt:", e.message);
+      return { url: null, pfad };
+    }
+  }
+
+  /** Die zuletzt abgelegten Berichte, neueste zuerst. */
+  async function berichte(anzahl = 10) {
+    try {
+      const sid = await GRAPH.siteId(C.konfigSite);
+      const drive = (await GRAPH.call(`/sites/${sid}/drive`))?.id;
+      if (!drive) return [];
+      const d = await GRAPH.call(`/drives/${drive}/root:/Berichte:/children`
+        + `?$select=name,webUrl,lastModifiedDateTime&$top=200`);
+      return (d?.value || [])
+        .filter(f => /\.html?$/i.test(f.name))
+        .sort((a, b) => String(b.name).localeCompare(String(a.name)))
+        .slice(0, anzahl);
+    } catch { return []; }   // noch kein Bericht abgelegt: kein Fehler
+  }
+
   /** Mail über Graph senden. Braucht die Anwendungsberechtigung
    *  `Mail.Send` – die hat nur der Cron, nicht die angemeldete Person. */
   async function mailSenden(absender, empfaenger, betreff, html) {
@@ -448,6 +552,7 @@ const AUTOMATIK = (() => {
 
   return { STANDARD, ERKLAERUNG, FREI, istJa, zahl, nachStichtag,
            seitImportGeaendert, auslassungen, auslassungsSatz,
+           geschlosseneKonflikte, konfliktZeilen, berichtAblegen, berichte,
            einstellungen, einstellungSetzen, faellig, deutscheZeit, tagErlaubt,
            torschluss, hatArbeit, warnungsGruppen,
            freigaben, freigabeAnlegen, freigabeEntscheiden, entscheidungenAus,

@@ -1,5 +1,35 @@
 # Session-Log
 
+## 24.09.2026, nachmittags — „Ich sehe keinen Bericht"
+
+Zwei Rückmeldungen nach dem ersten unbeaufsichtigten Import, und beide
+trafen einen Punkt.
+
+**Der Knopf war da, nur nicht zu sehen.** Im Protokoll-Reiter fehlte
+*Welche?* — ausgeliefert war er längst. GitHub Pages schickt
+`Cache-Control: max-age=600`, und wer die Seite offen hat, bekommt die
+alte `app.js`. Das trifft jede Änderung, also jetzt grundsätzlich gelöst:
+`?v=<Commit-SHA>` an allen Skript- und Stilverweisen, gesetzt von einem
+Cache-Busting-Workflow. Übernommen aus dem Compliance-Cockpit, dort seit
+Monaten in Betrieb. Der Konsistenztest musste lernen, den Parameter nicht
+für einen Teil des Dateinamens zu halten.
+
+**„Ich sehe keinen Bericht."** Der Lauf hatte ihn verschickt und Graph ihn
+angenommen. Aber eine Mail ist ein Kanal, kein Archiv — sie kann im Spam
+landen, an einer Transportregel hängen oder übersehen werden, und dann
+steht nirgends, was der Lauf getan hat. Jeder Bericht wird jetzt **zuerst
+als HTML-Datei abgelegt** (`Berichte/` neben den Vollprotokollen) und erst
+danach verschickt; der Reiter Automatik verlinkt die letzten zehn.
+Dieselbe Haltung wie beim Protokoll: was ein Lauf getan hat, gehört an
+einen Ort, den man aufsuchen kann.
+
+**Geschlossene Chancen sind jetzt ein eigener Befund.** 6428 und 6655
+stehen im CRM als *verloren*, in der Datei aber weiter — vier
+Protokollzeilen (Chance und Positionen), die als Befund eine Sache sind:
+zwei Anfragen, über die zwei Systeme Verschiedenes behaupten. Das ist der
+einzige Punkt im Bericht, den jemand **entscheiden** muss; alles andere
+ist Buchhaltung. Deshalb ein eigener Abschnitt und ein Vermerk im Betreff.
+
 ## 24.09.2026 — „Welche genau, und warum?"
 
 Die Automatik läuft. Erste Rückmeldung zum Protokoll: es soll dastehen,

@@ -258,10 +258,15 @@ geerbt haben, und für reparierte Dateien, die auf `Fehlgeschlagen` standen.
 den `ImportStatus` der Datei auf `Neu` zurücksetzen, falls sie schon
 abgehakt ist.
 
-**Der Bericht kommt nicht.** Kein Bericht heisst: es gab nichts zu
-berichten — keine neue Datei. Kommt er trotz Arbeit nicht, fehlt meist
-`Mail.Send` oder das Absenderpostfach gibt es nicht; der Lauf schlägt dann
-sichtbar fehl statt still zu schweigen.
+**Der Bericht kommt nicht.** Erst im Reiter **Automatik** unter *Berichte*
+nachsehen: dort liegt jeder Bericht als Datei, unabhängig vom Mailversand.
+Steht er da, hat der Lauf gearbeitet und die Mail hängt im Postfach fest
+(Junk-Ordner, Transportregel). Steht er nicht da, gab es nichts zu
+berichten — keine neue Datei.
+
+Scheitert der Versand selbst, schlägt der Lauf in Actions sichtbar fehl
+statt still zu schweigen; meist fehlt dann `Mail.Send` oder das
+Absenderpostfach gibt es nicht.
 
 **Ein Lauf hat Mist gebaut.** Jeder Lauf schreibt Protokoll wie der
 Import von Hand: Eintrag in `CRM_ImportRuns`, Fehlerzeilen in
