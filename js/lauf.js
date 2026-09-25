@@ -372,7 +372,12 @@ const LAUF = (() => {
 
         const auftrag = { zeile, sw, bestand, nutzlast: r.nutzlast, felder: r.felder,
                           warnungen: r.warnungen, wiedereroeffnet: !!oeffnen,
-                          vorher: oeffnen
+                          /* NICHT `vorher` nennen: unter dem Namen stehen im
+                             Protokoll längst die alten FELDWERTE (siehe
+                             unten), und die werden nach dieser Zuweisung
+                             gesetzt. Der Zustand wäre still überschrieben
+                             worden — im Lauf b73a675d genau so passiert. */
+                          zustandVorher: oeffnen
                             ? { zustand: PRUEFUNG.zustand(bestand.statecode),
                                 grund: grundVorher?.label || "" }
                             : null,
@@ -646,7 +651,7 @@ const LAUF = (() => {
           z.auftrag.bestand.statuscode = z.auftrag.nutzlast.statuscode;
         if (z.auftrag.eigeneId)
           geoeffnet.push({ id: z.auftrag.eigeneId, sw: z.auftrag.sw,
-                           vorher: z.auftrag.vorher });
+                           zustandVorher: z.auftrag.zustandVorher });
       }
 
       eintraege.push(BATCH.erfolg(a.status)
@@ -681,8 +686,8 @@ const LAUF = (() => {
       methode: "POST", url: `${basis}/annotations`,
       koerper: {
         subject: "Wiedereröffnet durch den Timeline-Import",
-        notetext: `Diese Verkaufschance war im CRM ${g.vorher?.zustand || "geschlossen"}`
-          + (g.vorher?.grund ? ` mit dem Grund „${g.vorher.grund}“` : "")
+        notetext: `Diese Verkaufschance war im CRM ${g.zustandVorher?.zustand || "geschlossen"}`
+          + (g.zustandVorher?.grund ? ` mit dem Grund „${g.zustandVorher.grund}“` : "")
           + `. Am ${wann} stand sie erneut in der Datei`
           + (quelle?.datei ? ` „${quelle.datei}“` : "")
           + " und wurde deshalb wiedereröffnet. Der Statusgrund von damals "
@@ -743,13 +748,13 @@ const LAUF = (() => {
        gehört benannt, nicht in „aktualisiert" versteckt. */
     if (!fehler && a.wiedereroeffnet) {
       e.wiedereroeffnet = true;
-      e.vorher = a.vorher || null;
+      e.zustandVorher = a.zustandVorher || null;
       /* Der alte Grund gehört in die Meldung, nicht nur in den Zustand.
          Er wird beim Wiedereröffnen überschrieben, und im CRM steht danach
          nichts mehr davon: Abschlussaktivitäten gibt es zu diesen
          Datensätzen nicht, die Änderungsverfolgung ist abgeschaltet. */
-      e.meldung = `War im CRM ${a.vorher?.zustand || "geschlossen"}`
-        + (a.vorher?.grund ? ` („${a.vorher.grund}“)` : "")
+      e.meldung = `War im CRM ${a.zustandVorher?.zustand || "geschlossen"}`
+        + (a.zustandVorher?.grund ? ` („${a.zustandVorher.grund}“)` : "")
         + " und wurde wiedereröffnet, weil die Anfrage erneut in der Datei steht.";
     }
 

@@ -406,7 +406,7 @@ const AUTOMATIK = (() => {
                    /* Der alte Grund wird beim Öffnen überschrieben und ist
                       danach im CRM nur noch in der Notiz zu finden. In den
                       Bericht gehört er auch. */
-                   vorher: e.vorher || null }));
+                   vorher: e.zustandVorher || null }));
 
     for (const e of eintraege) {
       if (e.aktion !== "uebersprungen") continue;

@@ -810,6 +810,15 @@ console.log("\nEine verlorene Chance, die wieder in der Datei steht");
      Deshalb steht er in der Meldung UND in einer Notiz am Datensatz. */
   pruefe(/Verloren - zu teuer/.test(chance.meldung || ""),
     "die Meldung nennt den alten Statusgrund");
+  /* Der Zustand steht unter `zustandVorher`, NICHT unter `vorher`: dort
+     liegen im Protokoll seit jeher die alten Feldwerte, und die werden
+     nach der Zuweisung gesetzt. Im Lauf b73a675d hat das den Zustand
+     still ueberschrieben. */
+  gleich(chance.zustandVorher, { zustand: "als VERLOREN geschlossen",
+                                 grund: "Verloren - zu teuer" },
+    "der alte Zustand steht unter einem eigenen Namen");
+  pruefe(chance.vorher && "name" in chance.vorher,
+    "und die alten Feldwerte behalten ihren Platz unter `vorher`");
   const notiz = gesendet.find(x => x.koerper.includes("/annotations"));
   pruefe(!!notiz, "am Datensatz entsteht eine Notiz");
   pruefe(/Verloren - zu teuer/.test(notiz.koerper),

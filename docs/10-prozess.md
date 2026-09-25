@@ -310,8 +310,18 @@ Bericht bleibt aus. Ablaufdatum notieren.
 Ein Lauf meldet „12 neu, 94 geändert, **14 übersprungen**“. Die letzte Zahl
 ist die interessante, und sie lässt sich aufklappen:
 
-Reiter **Protokoll** → in der Zeile des Laufs auf **Welche?** — darunter
-erscheint, nach Grund gebündelt:
+Reiter **Protokoll** → in der Zeile des Laufs auf **Auswertung**. Darunter
+erscheinen fünf Abschnitte:
+
+| Abschnitt | Beantwortet |
+|---|---|
+| **Je Schritt** | Was hat jeder Schritt getan? Ein Schritt, der nichts tat, fällt hier auf. |
+| **Wiedereröffnet** | Welche geschlossenen Anfragen leben wieder, und was stand vorher dort? |
+| **Nicht geschrieben** | Welche Zeilen sind draussen geblieben, und warum? |
+| **Warnungen** | Geschrieben, aber unvollständig — welches Feld blieb leer, und in wie vielen Zeilen? |
+| **Geschriebene Felder** | Welche Felder wurden überhaupt gefüllt? Was hier fehlt, schreibt niemand. |
+
+Der Abschnitt *Nicht geschrieben*, nach Grund gebündelt:
 
 | Art | Tabelle | Grund | Schlüssel | Excel-Zeilen |
 |---|---|---|---|---|

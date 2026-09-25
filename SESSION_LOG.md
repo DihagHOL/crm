@@ -1,5 +1,37 @@
 # Session-Log
 
+## 25.09.2026, nachmittags — Der Protokoll-Reiter wertet aus
+
+„Pass den Reiter Protokoll so an, dass die Auswertungen dort sichtbar
+sind." Berechtigt: die Tabelle beantwortete „wie viele", nie „was" und
+„warum". Die Antworten lagen verstreut — Gründe in `CRM_ImportErrors`,
+Warnungen ausschliesslich im Vollprotokoll, Wiedereröffnungen nur in der
+Mail.
+
+Aus dem Knopf *Welche?* wurde **Auswertung**, und er liest jetzt das
+**Vollprotokoll** statt der Fehlerliste. Fünf Abschnitte:
+
+- **Je Schritt** — was hat jeder Schritt getan. Ein Schritt, der nichts
+  tat, fällt hier auf; in der Gesamtzahl verschwindet er.
+- **Wiedereröffnet** — mit dem Zustand von vorher.
+- **Nicht geschrieben** — Gründe gebündelt, mit Excel-Zeilen.
+- **Warnungen** — geschrieben, aber unvollständig. Hier wurde „26×
+  pricelevelid" endlich sichtbar, was wochenlang nur im Vollprotokoll
+  stand.
+- **Geschriebene Felder** — was gefüllt wurde, und damit auch, was nie
+  gefüllt wird.
+
+Gebündelt wird mit denselben Funktionen wie der Bericht der Automatik.
+Zwei Auswertungen derselben Daten, die verschieden zählen, wären eine
+Fehlerquelle mehr.
+
+**Dabei einen eigenen Fehler gefunden.** Die Wiedereröffnung legte den
+alten Zustand unter `vorher` ab — ein Name, unter dem das Protokoll seit
+jeher die alten FELDWERTE führt, und die werden danach gesetzt. Der
+Zustand wurde still überschrieben; im Lauf `b73a675d` ist genau das
+passiert. Jetzt heisst er `zustandVorher`, mit Test dagegen. Ältere
+Protokolle zeigen ersatzweise die Meldung, in der der Grund ohnehin steht.
+
 ## 25.09.2026, mittags — Erster Lauf mit Wiedereröffnung, und die Preisliste
 
 Lauf `b73a675d`, Datei `Anfragen 2026-09-24_4.xlsx`, 48 Sekunden:

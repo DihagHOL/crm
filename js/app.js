@@ -1152,7 +1152,11 @@ const APP = (() => {
         <h2>Protokoll</h2>
         <p>Jeder Lauf steht in <code>${esc(C.listen.laeufe)}</code> auf
            <code>${esc(C.konfigSite.split(":").pop())}</code>, jede
-           abgewiesene Zeile in <code>${esc(C.listen.fehler)}</code>.</p>
+           abgewiesene Zeile in <code>${esc(C.listen.fehler)}</code>.
+           <b>Auswertung</b> öffnet je Lauf, was die Zahlen offenlassen:
+           was jeder Schritt getan hat, welche Zeilen ausgelassen wurden
+           und warum, welche Felder unvollständig blieben, und welche
+           Verkaufschancen wiedereröffnet wurden.</p>
       </div>
       <div class="card"><p class="hint" id="prStatus">Läufe werden geladen …</p>
         <div id="prListe"></div></div>`;
@@ -1182,9 +1186,9 @@ const APP = (() => {
               <td>${r.UnchangedCount ?? ""}</td><td>${r.SkippedCount ?? ""}</td>
               <td>${r.FailedCount ?? ""}</td>
               <td>${r.DurationSeconds != null ? r.DurationSeconds + " s" : ""}</td>
-              <td>${(r.SkippedCount || r.FailedCount)
-                ? `<button class="btn ghost sm" data-lauf="${esc(r.Title || "")}"
-                     title="Welche Zeilen, und warum?">Welche?</button>` : ""}</td>
+              <td><button class="btn ghost sm" data-lauf="${esc(r.Title || "")}"
+                    title="Was hat dieser Lauf getan, und was nicht?"
+                    >Auswertung</button></td>
             </tr>
             <tr class="bsp" id="lauf-${esc(r.Title || "")}" hidden>
               <td colspan="10"></td>
@@ -1192,103 +1196,209 @@ const APP = (() => {
           </table></div>`;
 
         for (const b of $("prListe").querySelectorAll("button[data-lauf]"))
-          b.onclick = () => laufZeilen(b.dataset.lauf, b);
+          b.onclick = () => laufAuswertung(b.dataset.lauf, b);
       })
       .catch(e => { $("prStatus").textContent = e.detail || e.message; });
   }
 
-  /* Welche Zeilen sind nicht im CRM gelandet, und warum?
-     „14 übersprungen" ist eine Zahl, keine Auskunft. Die Gründe stehen seit
-     dem 24.09.2026 zeilenweise in CRM_ImportErrors – hier werden sie nach
-     Grund gebündelt, mit den Excel-Zeilennummern dahinter. */
-  const _laufZeilen = new Map();
+  /* Die Auswertung eines Laufs, an der Stelle, an der man sie sucht.
+     ----------------------------------------------------------------
+     Die Zahlen in der Tabelle beantworten „wie viele", nie „was" und
+     „warum". Diese Antworten gab es bisher nur verstreut: die Gründe in
+     `CRM_ImportErrors`, die Warnungen ausschliesslich im Vollprotokoll,
+     die Wiedereröffnungen in der Mail. Wer im Werkzeug nachsehen wollte,
+     was ein Lauf getan hat, fand eine Zeile mit sechs Zahlen.
 
-  async function laufZeilen(laufId, knopf) {
+     Gelesen wird das VOLLPROTOKOLL. Es liegt für jeden Lauf da und hat
+     alles: Aktion, Grund, Warnungen, geschriebene Felder. Erst wenn es
+     fehlt, greift der Rückfallweg über die Fehlerliste — die kennt nur,
+     was nicht durchging.
+
+     Gebündelt wird mit denselben Funktionen wie im Bericht der Automatik
+     (`AUTOMATIK.auslassungen`, `warnungsGruppen`, `geschlosseneKonflikte`).
+     Zwei Auswertungen derselben Daten, die verschieden zählen, wären eine
+     Fehlerquelle mehr.                                                 */
+
+  const _auswertung = new Map();
+
+  async function laufAuswertung(laufId, knopf) {
     const zelle = $(`lauf-${laufId}`);
     if (!zelle) return;
-    if (!zelle.hidden) { zelle.hidden = true; knopf.textContent = "Welche?"; return; }
+    if (!zelle.hidden) { zelle.hidden = true; knopf.textContent = "Auswertung"; return; }
     zelle.hidden = false;
     knopf.textContent = "Zuklappen";
 
-    if (!_laufZeilen.has(laufId)) {
+    if (!_auswertung.has(laufId)) {
       zelle.firstElementChild.innerHTML = '<p class="hint">Wird geladen …</p>';
       try {
-        const alle = await GRAPH.listItems(C.konfigSite, C.listen.fehler,
-          ["Title", "RowNumber", "SheetName", "EntitySet", "SourceKey",
-           "ErrorType", "ErrorMessage", "FieldName", "SourceValue"]);
-        let zeilen = (alle || []).filter(z => z.Title === laufId);
-        let quelle = C.listen.fehler;
-
-        /* Nichts in der Liste? Dann ins VOLLPROTOKOLL sehen. Es liegt für
-           jeden Lauf da, auch für die vor dem 24.09.2026 — nur schrieb die
-           Liste damals ausschliesslich Fehler. Ohne diesen Rückfallweg
-           hiesse die Antwort „nicht mehr feststellbar", obwohl die Daten
-           seit Monaten auf der Platte liegen. */
-        if (!zeilen.length) {
-          const voll = await SPLISTEN.vollprotokollLesen(laufId);
-          for (const e of voll?.eintraege || []) {
-            if (e.aktion !== "uebersprungen" && e.aktion !== "fehlgeschlagen") continue;
-            zeilen.push({
-              RowNumber: e.zeile, EntitySet: e.entitySet, SourceKey: e.schluessel,
-              ErrorMessage: e.meldung || "",
-              ErrorType: e.aktion === "fehlgeschlagen" ? (e.art || "API")
-                       : /ausgeschlossen/i.test(e.meldung || "") ? "Ausgeschlossen"
-                       : "Uebersprungen"
-            });
-          }
-          if (zeilen.length) quelle = "Vollprotokoll";
+        const voll = await SPLISTEN.vollprotokollLesen(laufId);
+        if (voll?.eintraege?.length) {
+          _auswertung.set(laufId, { quelle: "Vollprotokoll", eintraege: voll.eintraege });
+        } else {
+          // Rückfallweg: die Fehlerliste. Sie kennt nur, was nicht durchging,
+          // und für Läufe vor dem 24.09.2026 nicht einmal das vollständig.
+          const alle = await GRAPH.listItems(C.konfigSite, C.listen.fehler,
+            ["Title", "RowNumber", "SheetName", "EntitySet", "SourceKey",
+             "ErrorType", "ErrorMessage", "FieldName", "SourceValue"]);
+          _auswertung.set(laufId, { quelle: C.listen.fehler,
+            eintraege: (alle || []).filter(z => z.Title === laufId).map(z => ({
+              schritt: null, entitySet: z.EntitySet, zeile: z.RowNumber,
+              schluessel: z.SourceKey, meldung: z.ErrorMessage,
+              aktion: z.ErrorType === "Uebersprungen" || z.ErrorType === "Ausgeschlossen"
+                ? "uebersprungen" : z.ErrorType === "Warnung" ? "gewarnt" : "fehlgeschlagen"
+            })) });
         }
-        zeilen._quelle = quelle;
-        _laufZeilen.set(laufId, zeilen);
       } catch (e) {
         zelle.firstElementChild.innerHTML = `<p class="err">${esc(e.detail || e.message)}</p>`;
         return;
       }
     }
 
-    const zeilen = _laufZeilen.get(laufId) || [];
-    if (!zeilen.length) {
+    const { quelle, eintraege } = _auswertung.get(laufId);
+    if (!eintraege.length) {
       zelle.firstElementChild.innerHTML = `<p class="hint">Zu diesem Lauf ist nichts
-        im Einzelnen festgehalten — weder in <code>${esc(C.listen.fehler)}</code>
-        noch als Vollprotokoll.</p>`;
+        im Einzelnen festgehalten — weder als Vollprotokoll noch in
+        <code>${esc(C.listen.fehler)}</code>.</p>`;
       return;
     }
 
-    // Nach Grund bündeln – derselbe Grund für 40 Zeilen ist eine Zeile.
-    const gruppen = new Map();
-    for (const z of zeilen) {
-      const kern = String(z.ErrorMessage || "ohne Angabe").replace(/„[^“]*“/g, "…");
-      const k = `${z.ErrorType}|${z.EntitySet}|${kern}`;
-      if (!gruppen.has(k))
-        gruppen.set(k, { art: z.ErrorType, entitySet: z.EntitySet, meldung: kern,
-                         zeilen: [], werte: new Set() });
-      const g = gruppen.get(k);
-      g.zeilen.push(z.RowNumber);
-      if (g.werte.size < 6 && z.SourceKey) g.werte.add(z.SourceKey);
-    }
+    zelle.firstElementChild.innerHTML = [
+      quelle === "Vollprotokoll" ? schritteBlock(eintraege) : "",
+      geoeffnetBlock(eintraege),
+      nichtGeschriebenBlock(eintraege),
+      quelle === "Vollprotokoll" ? warnungsBlockLauf(eintraege) : "",
+      quelle === "Vollprotokoll" ? felderBlock(eintraege) : "",
+      `<p class="hint">Zeilennummern sind die aus Excel, inklusive Kopfzeile —
+        aufschlagen ohne zu rechnen. Gelesen aus
+        <b>${quelle === "Vollprotokoll" ? "dem Vollprotokoll" : esc(quelle)}</b>.${
+        quelle !== "Vollprotokoll"
+          ? " Ohne Vollprotokoll steht nur, was NICHT geschrieben wurde." : ""}</p>`
+    ].filter(Boolean).join("");
+  }
 
-    const farbe = a => a === "Uebersprungen" || a === "Ausgeschlossen" ? "grau" : "rot";
-    zelle.firstElementChild.innerHTML = `
+  /** Was hat jeder Schritt getan? Die Gesamtzahlen verdecken, dass ein
+   *  Schritt gar nichts getan hat — und genau das ist die interessante
+   *  Auffälligkeit. */
+  function schritteBlock(eintraege) {
+    const ARTEN = ["angelegt", "aktualisiert", "unveraendert", "geloescht",
+                   "uebersprungen", "gewarnt", "fehlgeschlagen"];
+    const je = new Map();
+    for (const e of eintraege) {
+      const k = `${e.schritt ?? "?"}|${e.entitySet || ""}`;
+      if (!je.has(k)) je.set(k, { schritt: e.schritt, entitySet: e.entitySet });
+      const z = je.get(k);
+      z[e.aktion] = (z[e.aktion] || 0) + 1;
+    }
+    const zeilen = [...je.values()].sort((a, b) => (a.schritt || 0) - (b.schritt || 0));
+    return `<h4 class="section">Je Schritt</h4>
       <div class="tbl-wrap"><table class="tbl roh">
-        <thead><tr><th>Art</th><th>Tabelle</th><th>Grund</th><th>Schlüssel</th>
-          <th>Excel-Zeilen</th></tr></thead>
-        <tbody>${[...gruppen.values()]
-          .sort((a, b) => b.zeilen.length - a.zeilen.length)
-          .map(g => `<tr>
-            <td><span class="pill ${farbe(g.art)}">${esc(g.art || "")}</span>
-                ${g.zeilen.length}×</td>
-            <td>${esc(g.entitySet || "")}</td>
-            <td>${esc(g.meldung)}</td>
-            <td>${esc([...g.werte].join(", "))}</td>
-            <td>${esc(g.zeilen.slice(0, 30).join(", "))}${
-              g.zeilen.length > 30 ? " …" : ""}</td>
-          </tr>`).join("")}</tbody>
+        <thead><tr><th>Schritt</th><th>Tabelle</th>
+          ${ARTEN.map(a => `<th>${a === "geloescht" ? "ersetzt" : esc(a)}</th>`).join("")}
+        </tr></thead>
+        <tbody>${zeilen.map(z => `<tr>
+          <td>${z.schritt ?? ""}</td><td>${esc(z.entitySet || "")}</td>
+          ${ARTEN.map(a => `<td class="zahl-zelle">${z[a] || ""}</td>`).join("")}
+        </tr>`).join("")}</tbody>
+      </table></div>`;
+  }
+
+  /** Wiedereröffnete Verkaufschancen. Sie ändern, was das CRM über den
+   *  Ausgang eines Geschäfts sagt — das gehört nicht in eine Zahlenspalte. */
+  function geoeffnetBlock(eintraege) {
+    const auf = eintraege.filter(e => e.wiedereroeffnet);
+    if (!auf.length) return "";
+    return `<h4 class="section">Wiedereröffnet (${auf.length})</h4>
+      <div class="tbl-wrap"><table class="tbl roh">
+        <thead><tr><th>Kennung</th><th>Zeile</th><th>war vorher</th></tr></thead>
+        <tbody>${auf.map(e => `<tr>
+          <td>${esc(e.schluessel ?? "")}</td>
+          <td class="zeilennr">${e.zeile ?? ""}</td>
+          <td>${e.zustandVorher
+            ? esc(e.zustandVorher.zustand || "geschlossen")
+              + (e.zustandVorher.grund
+                 ? ` <span class="leer">${esc(e.zustandVorher.grund)}</span>` : "")
+            /* Ältere Läufe führen den Zustand nur in der Meldung: das Feld
+               hiess `vorher` und wurde von den alten Feldwerten
+               überschrieben. Der Satz steht trotzdem da, also zeigen wir
+               ihn, statt „geschlossen" zu behaupten und den Grund zu
+               verschweigen. */
+            : `<span class="leer">${esc(e.meldung || "geschlossen")}</span>`}</td>
+        </tr>`).join("")}</tbody>
       </table></div>
-      <p class="hint">Zeilennummern sind die aus Excel, inklusive Kopfzeile —
-         aufschlagen ohne zu rechnen.${zeilen._quelle === "Vollprotokoll"
-           ? " Gelesen aus dem <b>Vollprotokoll</b> dieses Laufs: in "
-             + `<code>${esc(C.listen.fehler)}</code> stehen die einzelnen Zeilen `
-             + "erst seit dem 24.09.2026." : ""}</p>`;
+      <p class="hint">Der alte Statusgrund steht zusätzlich als Notiz an der
+         Verkaufschance — im CRM gäbe es ihn sonst nirgends mehr.</p>`;
+  }
+
+  /** Zeilen, die nicht im CRM gelandet sind, nach Grund gebündelt. */
+  function nichtGeschriebenBlock(eintraege) {
+    const aus = AUTOMATIK.auslassungen(eintraege);
+    const fehler = eintraege.filter(e => e.aktion === "fehlgeschlagen");
+    if (!aus.length && !fehler.length) return "";
+    return `<h4 class="section">Nicht geschrieben</h4>
+      <div class="tbl-wrap"><table class="tbl roh">
+        <thead><tr><th>Art</th><th>Grund</th><th>Schlüssel</th><th>Excel-Zeilen</th></tr></thead>
+        <tbody>
+          ${fehler.map(e => `<tr>
+            <td><span class="pill rot">Fehler</span></td>
+            <td>${esc(e.meldung || "")}</td>
+            <td>${esc(e.schluessel ?? "")}</td>
+            <td class="zeilennr">${e.zeile ?? ""}</td>
+          </tr>`).join("")}
+          ${aus.map(g => `<tr>
+            <td><span class="pill grau">ausgelassen</span> ${g.anzahl}×</td>
+            <td>${esc(g.meldung)}${g.schritt != null
+              ? ` <span class="leer">Schritt ${g.schritt}</span>` : ""}</td>
+            <td>${esc([...g.werte].join(", "))}</td>
+            <td class="zeilennr">${esc(g.zeilen.join(", "))}${
+              g.anzahl > g.zeilen.length ? " …" : ""}</td>
+          </tr>`).join("")}
+        </tbody>
+      </table></div>`;
+  }
+
+  /** Warnungen: geschrieben, aber unvollständig.
+   *
+   *  Der Fall, für den das hier gebaut wurde: „26× pricelevelid – In
+   *  pricelevels nicht gefunden" stand wochenlang in jedem Lauf und war
+   *  nur im Vollprotokoll zu sehen. Ein Feld, das in JEDER Zeile leer
+   *  bleibt, ist kein Detail. */
+  function warnungsBlockLauf(eintraege) {
+    const alle = [];
+    for (const e of eintraege)
+      for (const w of e.warnungen || [])
+        alle.push(typeof w === "object" ? w : { meldung: String(w) });
+    if (!alle.length) return "";
+    const g = AUTOMATIK.warnungsGruppen(alle);
+    return `<h4 class="section">Warnungen – geschrieben, aber unvollständig (${alle.length})</h4>
+      <div class="tbl-wrap"><table class="tbl roh">
+        <thead><tr><th>Anzahl</th><th>Feld</th><th>Meldung</th><th>Werte</th></tr></thead>
+        <tbody>${g.map(w => `<tr>
+          <td class="zahl-zelle">${w.anzahl}×</td>
+          <td>${esc(w.feld || "")}</td>
+          <td>${esc(w.meldung)}</td>
+          <td>${esc([...w.werte].join(", "))}</td>
+        </tr>`).join("")}</tbody>
+      </table></div>`;
+  }
+
+  /** Welche Felder wurden überhaupt geschrieben?
+   *
+   *  Beantwortet die Frage, die „2 aktualisiert" offenlässt: WAS hat sich
+   *  geändert. Und sie zeigt das Gegenteil — ein Feld, das nie auftaucht,
+   *  wird von keiner Zeile geschrieben. */
+  function felderBlock(eintraege) {
+    const zaehler = new Map();
+    for (const e of eintraege) {
+      if (e.aktion !== "angelegt" && e.aktion !== "aktualisiert") continue;
+      for (const f of e.felder || []) zaehler.set(f, (zaehler.get(f) || 0) + 1);
+    }
+    if (!zaehler.size) return "";
+    const liste = [...zaehler.entries()].sort((a, b) => b[1] - a[1]);
+    return `<h4 class="section">Geschriebene Felder (${liste.length})</h4>
+      <div class="card" style="padding:12px">
+        ${liste.map(([f, n]) => `<span class="pill grau" style="margin:2px 4px 2px 0">
+          ${esc(f)} <b>${n}</b></span>`).join("")}
+      </div>`;
   }
 
   /** Bericht als Arbeitsmappe. Die Fachabteilung arbeitet ihn in der
