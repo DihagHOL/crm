@@ -1176,7 +1176,7 @@ const APP = (() => {
           <div class="tbl-wrap"><table class="tbl">
             <thead><tr><th>Start</th><th>Datei</th><th>Status</th><th>angelegt</th>
               <th>aktualisiert</th><th>unverändert</th><th>übersprungen</th>
-              <th>Fehler</th><th>Dauer</th><th></th></tr></thead>
+              <th>Fehler</th><th>Dauer</th><th>Auswertung</th></tr></thead>
             <tbody>${rows.slice(0, 50).map(r => `<tr class="${
                 r.Status === "MitFehlern" || r.Status === "Fehlgeschlagen" ? "problem" : ""}">
               <td>${esc(datum(r.StartedAt))}</td>
@@ -1186,17 +1186,26 @@ const APP = (() => {
               <td>${r.UnchangedCount ?? ""}</td><td>${r.SkippedCount ?? ""}</td>
               <td>${r.FailedCount ?? ""}</td>
               <td>${r.DurationSeconds != null ? r.DurationSeconds + " s" : ""}</td>
-              <td><button class="btn ghost sm" data-lauf="${esc(r.Title || "")}"
+              <td><button class="btn sec sm" data-lauf="${esc(r.Title || "")}"
                     title="Was hat dieser Lauf getan, und was nicht?"
-                    >Auswertung</button></td>
+                    >Öffnen</button></td>
             </tr>
             <tr class="bsp" id="lauf-${esc(r.Title || "")}" hidden>
               <td colspan="10"></td>
             </tr>`).join("")}</tbody>
           </table></div>`;
 
-        for (const b of $("prListe").querySelectorAll("button[data-lauf]"))
-          b.onclick = () => laufAuswertung(b.dataset.lauf, b);
+        /* Knopf UND Zeile öffnen die Auswertung. Ein 60 Pixel breiter
+           Knopf am rechten Rand einer 1800 Pixel breiten Tabelle wird
+           übersehen — genau das ist am 25.09.2026 passiert. */
+        for (const b of $("prListe").querySelectorAll("button[data-lauf]")) {
+          b.onclick = e => { e.stopPropagation(); laufAuswertung(b.dataset.lauf, b); };
+          const zeile = b.closest("tr");
+          if (zeile) {
+            zeile.style.cursor = "pointer";
+            zeile.onclick = () => laufAuswertung(b.dataset.lauf, b);
+          }
+        }
       })
       .catch(e => { $("prStatus").textContent = e.detail || e.message; });
   }
@@ -1224,7 +1233,7 @@ const APP = (() => {
   async function laufAuswertung(laufId, knopf) {
     const zelle = $(`lauf-${laufId}`);
     if (!zelle) return;
-    if (!zelle.hidden) { zelle.hidden = true; knopf.textContent = "Auswertung"; return; }
+    if (!zelle.hidden) { zelle.hidden = true; knopf.textContent = "Öffnen"; return; }
     zelle.hidden = false;
     knopf.textContent = "Zuklappen";
 
