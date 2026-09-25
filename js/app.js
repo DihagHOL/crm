@@ -905,7 +905,10 @@ const APP = (() => {
     try {
       const e = await LAUF.ausfuehren({
         profil: _bericht.profil, mappe: _mappe, aufl: _bericht.aufl,
-        werte: _bericht.werte, entscheidungen: _entscheidungen
+        werte: _bericht.werte, entscheidungen: _entscheidungen,
+        // Nur für Vermerke im CRM: die Notiz an einer wiedereröffneten
+        // Chance soll sagen, aus welcher Datei sie stammt.
+        quelle: { datei: _datei?.name, laufId }
       }, {
         signal: ctl.signal,
         onFortschritt: f => { $("imText").textContent = f.text; },

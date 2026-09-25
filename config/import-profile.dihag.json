@@ -61,6 +61,8 @@
       "OnMissingKey": "Fail",
       "SkipIfClosed": true,
       "ReopenIfClosed": "Verloren",
+      "ReopenStatusCodes": "Verloren",
+      "$reopenStatusCodes": "Grenzt das Wiedereroeffnen auf ECHTE Verlustgruende ein. 'Verloren' als Textstueck trifft 'Verloren - zu teuer' (353), 'Verloren - andere Gruende' (150) und 'Verloren - Gruende unbekannt' (2412), aber NICHT 'Anfrage Zurueckgezogen' (228) und nicht die drei 'Kein Angebot'-Gruende (63). Gezaehlt am 25.09.2026. Begruendung: eine zurueckgezogene Anfrage oder ein bewusstes Nicht-Angebot ist fachlich kein verlorener Wettbewerb; taucht so etwas wieder in der Datei auf, soll es geschlossen bleiben. Text statt Zahlen, weil die Statuscodes mandantenspezifisch sind und beim Umzug nach Produktion sonst nachgezogen werden muessten. Leer heisst: alle Gruende des Zustands.",
       "$reopenIfClosed": "Entschieden am 25.09.2026 durch die Fachseite: kommt eine Anfrage erneut aus Timeline, obwohl sie im CRM als VERLOREN geschlossen ist, wird sie wiedereroeffnet und aktualisiert - der Widerspruch wird zugunsten der DATEI aufgeloest. Das kehrt Review A3 um, wo geschlossen gleich schreibgeschuetzt hiess. Bewusst nur 'Verloren': eine GEWONNENE Chance wieder zu oeffnen, weil die Datei sie noch fuehrt, waere fast immer falsch - dort hat jemand im CRM einen Abschluss gebucht. Der Statusgrund fuer 'offen' kommt aus den Metadaten (DefaultStatus der statecode-Option); in dieser Umgebung ist das 100000000 'In Arbeit' und NICHT der Standardwert 1. SkipIfClosed bleibt stehen und greift weiter fuer gewonnene Chancen."
     },
     {

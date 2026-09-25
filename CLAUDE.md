@@ -1024,6 +1024,38 @@ Chance wieder zu öffnen, weil die Datei sie noch führt, wäre fast immer
 falsch: dort hat jemand im CRM einen Abschluss gebucht, und den kippt kein
 Export.
 
+**Der Zustand allein genügt nicht.** `statecode = 2` heisst im Dataverse
+„Verloren", umfasst hier aber sieben Gründe (gezählt am 25.09.2026):
+
+| Grund | Anzahl | lebt wieder auf? |
+|---|---|---|
+| Verloren – Gründe unbekannt | 2412 | ja |
+| Verloren – zu teuer | 353 | ja |
+| Verloren – andere Gründe | 150 | ja |
+| Anfrage zurückgezogen | 228 | **nein** |
+| Kein Angebot – nicht attraktiv / kein Material / Frist | 63 | **nein** |
+
+Eine zurückgezogene Anfrage oder ein bewusstes Nicht-Angebot ist kein
+verlorener Wettbewerb. Deshalb die zweite Stufe `ReopenStatusCodes`: eine
+Liste aus Zahlen **oder Textstücken**. Im Profil steht `Verloren`, und das
+trifft genau die drei oberen Zeilen. Text ist der portablere Weg — die
+Statuscodes sind mandantenspezifisch und müssten beim Umzug nach
+Produktion nachgezogen werden. Leer heisst weiterhin „alle Gründe des
+Zustands".
+
+**Der alte Grund verschwindet sonst spurlos.** Beim Öffnen wird
+`statuscode` überschrieben. Zu den betroffenen Chancen gibt es keine
+Abschlussaktivität (geprüft an 6428 und 6655), und die
+Änderungsverfolgung ist für `opportunity` abgeschaltet — niemand könnte
+hinterher sagen, dass die Anfrage je als verloren galt. Deshalb landet er
+an drei Stellen: in der Protokollmeldung, im Bericht, und als **Notiz am
+Datensatz**. Die Notiz entsteht in einem eigenen Stapel nach dem Erfolg;
+im selben Batch stünde sie auch dann da, wenn das Öffnen scheitert.
+
+Scheitert nur die Notiz, ist der Lauf gültig und die Zeile gilt als
+`gewarnt` — die dritte Art neben `fehlgeschlagen` und `uebersprungen`:
+geschrieben, aber etwas daneben hat nicht geklappt.
+
 Drei Dinge müssen dabei stimmen, sonst ist es eine Halbheit:
 
 1. **`statecode` und `statuscode` gehen in DIESELBE Anfrage wie die

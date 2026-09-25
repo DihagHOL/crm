@@ -204,6 +204,9 @@ const AUFLOESUNG = (() => {
     const navigation = new Map();   // entitySet → { Attribut: Navigationsname }
     const schluesselFehlt = new Map();  // "entitySet|feld" → Meldung oder null
     const zustandsFelder = new Map();   // entitySet → "statecode"|"isdisabled"|null
+    /* Statusgründe je Tabelle, aber nur wo ein Schritt sie braucht: der
+       Prüflauf rechnet synchron und kann keine Metadaten nachladen. */
+    const statusGruende = new Map();    // entitySet → Map(wert → {label, state})
 
     /** Eine Abfrage vorbereiten, ausführen und protokollieren. */
     /** @param {boolean} [mehrfachErwartet] Mehrere Treffer je Wert sind
@@ -267,6 +270,16 @@ const AUFLOESUNG = (() => {
 
     for (const s of profil.schritte) {
       if (!s.aktiv) continue;
+
+      /* Wiedereröffnen kann nach dem GRUND unterscheiden („Verloren" ja,
+         „Anfrage Zurückgezogen" nein). Die Beschriftungen kommen aus den
+         Metadaten und müssen vor dem Prüflauf dastehen. */
+      if (s.reopenIfClosed && String(s.reopenIfClosed).toLowerCase() !== "nie"
+          && !statusGruende.has(s.entitySet)) {
+        try { statusGruende.set(s.entitySet, await DV.statusGruende(s.entitySet)); }
+        catch { statusGruende.set(s.entitySet, new Map()); }
+      }
+
       const zu = profil.zuordnungen[s.mappingKey] || [];
       const blatt = EXCEL.blatt(mappe, s.sourceSheet);
       if (!blatt) continue;
@@ -413,7 +426,8 @@ const AUFLOESUNG = (() => {
       }
     }
 
-    return { treffer, abfragen, idFelder, navigation, schluesselFehlt, zustandsFelder };
+    return { treffer, abfragen, idFelder, navigation, schluesselFehlt, zustandsFelder,
+             statusGruende };
   }
 
   /** Primärschlüsselfeld einer Tabelle, aus der Auflösung.

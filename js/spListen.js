@@ -83,6 +83,9 @@ const SPLISTEN = (() => {
         skipIfClosed: r.SkipIfClosed === true,
         // „Nie" (Standard), „Verloren", „Gewonnen" oder „Immer".
         reopenIfClosed: r.ReopenIfClosed || "",
+        // Grenzt es auf bestimmte Statusgründe ein: Zahlen oder Textstücke,
+        // durch Komma getrennt. Leer heisst „alle Gründe des Zustands".
+        reopenStatusCodes: r.ReopenStatusCodes || "",
         skipIfParentClosed: r.SkipIfParentClosed === true,
         // Zeilen, die dieser Schritt auslassen soll, als JSON in einer
         // Spalte: {"Kontaktemail":["dummy@dihag.com"]}. Steht dort Unsinn,
@@ -205,7 +208,11 @@ const SPLISTEN = (() => {
    *
    *  @returns {{geschrieben:number, ausgelassen:number, jeArt:object}} */
   async function zeilenSchreiben(laufId, eintraege, maxJeArt = 120) {
-    const arten = { fehlgeschlagen: [], uebersprungen: [] };
+    /* `gewarnt` ist der dritte Fall: der Datensatz IST geschrieben, aber
+       etwas daneben hat nicht geklappt — etwa die Notiz mit dem alten
+       Statusgrund einer wiedereröffneten Chance. Weder Fehler noch
+       Auslassung, und trotzdem etwas, das jemand sehen muss. */
+    const arten = { fehlgeschlagen: [], uebersprungen: [], gewarnt: [] };
     for (const e of eintraege) {
       if (arten[e.aktion]) arten[e.aktion].push(e);
     }
@@ -227,6 +234,7 @@ const SPLISTEN = (() => {
             // Bei den Fehlern die genaue Art (Lookup, API …), sonst der
             // Grund der Auslassung.
             ErrorType: aktion === "fehlgeschlagen" ? (e.art || "API")
+                     : aktion === "gewarnt" ? "Warnung"
                      : /ausgeschlossen/i.test(e.meldung || "") ? "Ausgeschlossen"
                      : "Uebersprungen",
             HttpStatus: e.httpStatus | 0,

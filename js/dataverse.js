@@ -340,6 +340,36 @@ const DV = (() => {
     return wert;
   }
 
+  /** Alle Statusgründe einer Tabelle, mit Beschriftung und Zustand.
+   *
+   *  „Verloren" ist im CRM breiter, als das Wort klingt: `statecode = 2`
+   *  umfasst hier sieben Gründe, darunter „Anfrage Zurückgezogen" (228
+   *  Stück) und drei Varianten von „Kein Angebot". Eine zurückgezogene
+   *  Anfrage ist fachlich kein verlorener Wettbewerb, und ob sie wieder
+   *  aufleben soll, ist eine andere Frage. Deshalb muss die Regel den
+   *  GRUND ansehen können, nicht nur den Zustand.
+   *
+   *  @returns {Promise<Map<number,{label:string, state:number}>>} */
+  async function statusGruende(entitySet) {
+    const k = "statusgruende|" + entitySet;
+    if (_meta[k]) return new Map(_meta[k]);
+    const out = [];
+    try {
+      const ln = await logischerName(entitySet);
+      const d = await call(`/EntityDefinitions(LogicalName='${ln}')`
+        + `/Attributes(LogicalName='statuscode')/Microsoft.Dynamics.CRM.StatusAttributeMetadata`
+        + `?$select=LogicalName&$expand=OptionSet($select=Options)`);
+      for (const o of d?.OptionSet?.Options || []) {
+        const label = o.Label?.UserLocalizedLabel?.Label
+          || o.Label?.LocalizedLabels?.[0]?.Label || "";
+        out.push([Number(o.Value), { label, state: Number(o.State) }]);
+      }
+    } catch { /* ohne Metadaten gibt es keine Gründe, nur den Zustand */ }
+    _meta[k] = out;
+    metaSichern();
+    return new Map(out);
+  }
+
   /** Navigationsnamen der Verweisfelder.
    *
    *  `@odata.bind` verlangt den Namen der NAVIGATIONSEIGENSCHAFT, nicht den
@@ -421,6 +451,6 @@ const DV = (() => {
 
   return { call, alle, dubletten, whoAmI, basis, pruefeKonfiguration, beispielWerte,
            belegung, primaerName, primaerId, felder, logischerName, navigation, schluessel,
-           standardStatus,
+           standardStatus, statusGruende,
            typPasst, metaLeeren };
 })();

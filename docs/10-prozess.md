@@ -338,10 +338,13 @@ Drei Gründe kommen fast immer vor:
   wurde nicht angelegt, also haben ihre Positionen nichts, woran sie
   hängen könnten. Der Grund steht beim früheren Schritt.
 - **Verkaufschance ist geschlossen** — seit dem 25.09.2026 gilt das nur
-  noch für **gewonnene** Chancen. Eine als *verloren* geschlossene Anfrage,
-  die erneut in der Datei steht, wird **wiedereröffnet** und aktualisiert;
-  im Bericht steht sie mit ↺ und im Protokoll mit einer eigenen Meldung.
-  Wer das anders will, stellt `ReopenIfClosed` am Schritt um.
+  noch für gewonnene Chancen und für die Gründe *Anfrage zurückgezogen*
+  und *Kein Angebot*. Eine wirklich **verlorene** Anfrage, die erneut in
+  der Datei steht, wird **wiedereröffnet** und aktualisiert; im Bericht
+  steht sie mit ↺, im Protokoll mit eigener Meldung, und an der
+  Verkaufschance entsteht eine **Notiz mit dem alten Statusgrund**. Ohne
+  die wäre nicht mehr feststellbar, dass sie je als verloren galt: eine
+  Abschlussaktivität gibt es nicht, und die Änderungsverfolgung ist aus.
 
 ---
 

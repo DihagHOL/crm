@@ -87,7 +87,8 @@ console.log("\nJede Zeile, die nicht im CRM landet – mit Grund");
     { aktion: "unveraendert", zeile: 3 }
   ]);
   gleich(r.geschrieben, 3, "geschrieben werden Fehler UND Übersprungene");
-  gleich(r.jeArt, { fehlgeschlagen: 1, uebersprungen: 2 }, "nach Art gezählt");
+  gleich(r.jeArt, { fehlgeschlagen: 1, uebersprungen: 2, gewarnt: 0 },
+    "nach Art gezählt – auch die dritte Art, die es seit dem 25.09.2026 gibt");
   pruefe(gerufen.filter(p => p === "ADD E").length === 3,
     "und zwar als drei Einträge in der Fehlerliste");
 
@@ -97,9 +98,26 @@ console.log("\nJede Zeile, die nicht im CRM landet – mit Grund");
   const { S: S2 } = baue(() => null);
   const r2 = await S2.zeilenSchreiben("L2",
     [...viele, { aktion: "fehlgeschlagen", zeile: 1, meldung: "HTTP 400" }], 5);
-  gleich(r2.jeArt, { fehlgeschlagen: 1, uebersprungen: 500 }, "gezählt werden alle");
+  gleich(r2.jeArt, { fehlgeschlagen: 1, uebersprungen: 500, gewarnt: 0 },
+    "gezählt werden alle");
   gleich(r2.geschrieben, 6, "geschrieben höchstens fünf je Art – der Fehler ist dabei");
   gleich(r2.ausgelassen, 495, "der Rest steht im Vollprotokoll");
+}
+
+{
+  /* Die dritte Art: der Datensatz IST geschrieben, aber etwas daneben hat
+     nicht geklappt – etwa die Notiz mit dem alten Statusgrund einer
+     wiedereröffneten Chance. Weder Fehler noch Auslassung. */
+  const { S, gerufen } = baue(() => null);
+  const r = await S.zeilenSchreiben("L3", [
+    { aktion: "gewarnt", zeile: 7, schluessel: "6428",
+      meldung: "Wiedereröffnet, aber die Notiz liess sich nicht anlegen" },
+    { aktion: "aktualisiert", zeile: 8 }
+  ]);
+  gleich(r.geschrieben, 1, "die Warnung landet im Protokoll");
+  gleich(r.jeArt.gewarnt, 1, "und wird als eigene Art gezählt");
+  pruefe(gerufen.filter(p => p === "ADD E").length === 1,
+    "genau ein Eintrag – die geschriebene Zeile gehoert nicht dazu");
 }
 
 console.log(fehler ? `\n${fehler} Prüfung(en) fehlgeschlagen.\n` : "\nAlle Prüfungen bestanden.\n");

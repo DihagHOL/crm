@@ -167,14 +167,44 @@ const PRUEFUNG = (() => {
    *  @param {object} s Schritt aus dem Profil
    *  @param {number|string} statecode Zustand im CRM
    *  @returns {boolean} */
-  function darfWiedereroeffnen(s, statecode) {
+  function darfWiedereroeffnen(s, statecode, grund = null) {
     const regel = String(s?.reopenIfClosed || "").trim().toLowerCase();
     const st = Number(statecode);
     if (!regel || regel === "nie" || regel === "nein" || st === 0) return false;
-    if (regel === "immer" || regel === "ja") return true;
-    if (regel === "verloren") return st === 2;
-    if (regel === "gewonnen") return st === 1;
-    return false;
+
+    const zustandPasst = regel === "immer" || regel === "ja" ? true
+                       : regel === "verloren" ? st === 2
+                       : regel === "gewonnen" ? st === 1
+                       : false;
+    if (!zustandPasst) return false;
+
+    /* Zweite Stufe: der GRUND. Ohne Angabe gilt der ganze Zustand — so
+       war es bis zum 25.09.2026, und so bleibt es, wenn niemand etwas
+       einträgt.
+
+       `ReopenStatusCodes` nimmt Zahlen ODER Textstücke: „Verloren" trifft
+       „Verloren - zu teuer", „Verloren - andere Gründe" und „Verloren -
+       Gründe unbekannt", aber nicht „Anfrage Zurückgezogen" und nicht die
+       drei „Kein Angebot"-Gründe. Text ist der portablere Weg: die Zahlen
+       sind mandantenspezifisch und müssten beim Umzug nach Produktion
+       nachgezogen werden. */
+    const liste = String(s?.reopenStatusCodes || "")
+      .split(/[,;|]/).map(t => t.trim()).filter(Boolean);
+    if (!liste.length) return true;
+
+    const wert = grund && grund.wert != null ? String(grund.wert) : "";
+    const label = String(grund?.label || "").toLowerCase();
+    return liste.some(t =>
+      t === wert || (label && label.includes(t.toLowerCase())));
+  }
+
+  /** Statusgrund eines Bestandsdatensatzes, aus der Auflösung.
+   *  @returns {{wert:number, label:string}|null} */
+  function statusGrund(aufl, entitySet, bestand) {
+    const sc = bestand?.statuscode;
+    if (sc == null) return null;
+    const m = aufl?.statusGruende?.get(entitySet);
+    return { wert: Number(sc), label: m?.get(Number(sc))?.label || "" };
   }
 
   function lauf(profil, mappe, aufl, werte = {}, entscheidungen = null) {
@@ -485,14 +515,17 @@ const PRUEFUNG = (() => {
 
         // Geschlossene Verkaufschancen sind schreibgeschützt (Review A3)
         /* Wiedereröffnen geht dem Überspringen vor: die Datei gewinnt. */
+        const grundVorher = statusGrund(aufl, s.entitySet, bestand);
         if (bestand && Number(bestand.statecode) !== 0
-            && darfWiedereroeffnen(s, bestand.statecode)) {
+            && darfWiedereroeffnen(s, bestand.statecode, grundVorher)) {
           wirdGeoeffnet.add(AUFLOESUNG.vergleichbar(
             bestand[AUFLOESUNG.idFeld(aufl, s.entitySet)] || ""));
           alleWarnungen.push({ schritt: s.step, zeile: zeile._zeile,
             wert: schluesselWert, klartext: klartext(zeile),
-            meldung: `Im CRM ${zustand(bestand.statecode)}, steht aber wieder in der `
-              + "Datei – wird WIEDERERÖFFNET und aktualisiert." });
+            meldung: `Im CRM ${zustand(bestand.statecode)}`
+              + (grundVorher?.label ? ` („${grundVorher.label}“)` : "")
+              + ", steht aber wieder in der Datei – wird WIEDERERÖFFNET "
+              + "und aktualisiert." });
         }
         else if (s.skipIfClosed && bestand && Number(bestand.statecode) !== 0) {
           ueber(z, s, zeile,
@@ -596,5 +629,5 @@ const PRUEFUNG = (() => {
     + (g.fehler ? ` · ${g.fehler} mit Fehler` : "");
 
   return { lauf, zusammenfassung, ausschluss, ausgelassen, zusatzKonflikte, zustand,
-           darfWiedereroeffnen };
+           darfWiedereroeffnen, statusGrund };
 })();

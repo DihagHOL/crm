@@ -319,8 +319,9 @@ const LAUF = (() => {
            erneut aus Timeline, gewinnt die Datei. Der Statusgrund für
            „offen" ist mandantenspezifisch (hier 100000000 statt 1) und
            wurde vor der Schleife aus den Metadaten geholt. */
+        const grundVorher = PRUEFUNG.statusGrund(k.aufl, s.entitySet, bestand);
         const oeffnen = bestand && Number(bestand.statecode) !== 0
-          && PRUEFUNG.darfWiedereroeffnen(s, bestand.statecode);
+          && PRUEFUNG.darfWiedereroeffnen(s, bestand.statecode, grundVorher);
 
         if (s.skipIfClosed && bestand && Number(bestand.statecode) !== 0 && !oeffnen) {
           notiere({ schritt: s.step, entitySet: s.entitySet, zeile: zeile._zeile,
@@ -371,6 +372,10 @@ const LAUF = (() => {
 
         const auftrag = { zeile, sw, bestand, nutzlast: r.nutzlast, felder: r.felder,
                           warnungen: r.warnungen, wiedereroeffnet: !!oeffnen,
+                          vorher: oeffnen
+                            ? { zustand: PRUEFUNG.zustand(bestand.statecode),
+                                grund: grundVorher?.label || "" }
+                            : null,
                           schritt: s, zuordnungen: zu,
                           eigeneId: bestand ? bestand[AUFLOESUNG.idFeld(k.aufl, s.entitySet)] : null };
 
@@ -444,6 +449,7 @@ const LAUF = (() => {
       }
 
       // ── Stapel senden ──────────────────────────────────────────────
+      const geoeffnet = [];   // wiedereröffnet → bekommt hinterher eine Notiz
       let i = 0;
       while (i < stapel.length) {
         if (signal?.aborted) { abgebrochen = true; break; }
@@ -458,6 +464,7 @@ const LAUF = (() => {
           if (e.gedrosselt) { gedrosselt += e.gedrosselt; folge429 += e.gedrosselt; }
           else folge429 = 0;
           for (const n of e.eintraege) { notiere(n); merkeNeu(s, key, n); }
+          if (e.geoeffnet?.length) geoeffnet.push(...e.geoeffnet);
         }
 
         if (folge429 >= 3 && parallel > 1) {
@@ -468,6 +475,14 @@ const LAUF = (() => {
         }
         i += gleichzeitig.length;
       }
+
+      /* Die Notizen zum Schluss des Schrittes, nicht mittendrin: erst
+         jetzt steht fest, welche Wiedereröffnungen wirklich durchgegangen
+         sind. */
+      if (geoeffnet.length && !abgebrochen)
+        for (const w of await notizenSchreiben(geoeffnet, s, basis, signal, k.quelle))
+          notiere(w);
+
       if (abgebrochen) break;
     }
 
@@ -575,6 +590,7 @@ const LAUF = (() => {
 
     const teilAntworten = BATCH.lese(text);
     const eintraege = [];
+    const geoeffnet = [];   // erfolgreich wiedereröffnet → bekommt eine Notiz
 
     /* Ein Changeset ist eine Transaktion. Scheitert ein Teil, antwortet
        Dataverse mit EINEM Fehlerteil für die ganze Gruppe – die übrigen
@@ -628,13 +644,75 @@ const LAUF = (() => {
         z.auftrag.bestand.statecode = 0;
         if (z.auftrag.nutzlast.statuscode != null)
           z.auftrag.bestand.statuscode = z.auftrag.nutzlast.statuscode;
+        if (z.auftrag.eigeneId)
+          geoeffnet.push({ id: z.auftrag.eigeneId, sw: z.auftrag.sw,
+                           vorher: z.auftrag.vorher });
       }
 
       eintraege.push(BATCH.erfolg(a.status)
         ? protokoll(z, s, a.status, null, a.ort)
         : protokoll(z, s, a.status, BATCH.fehlertext(a)));
     }
-    return { gedrosselt: 0, eintraege };
+    return { gedrosselt: 0, eintraege, geoeffnet };
+  }
+
+  /** Eine Notiz an den wiedereröffneten Datensatz.
+   *
+   *  Warum überhaupt: der alte Statusgrund wird beim Öffnen überschrieben,
+   *  und im CRM bleibt davon nichts. Zu den betroffenen Verkaufschancen
+   *  gibt es keine Abschlussaktivität (geprüft am 25.09.2026 an 6428 und
+   *  6655), und die Änderungsverfolgung ist für die Tabelle abgeschaltet.
+   *  Ohne diese Notiz könnte hinterher niemand mehr sagen, dass die
+   *  Anfrage je als verloren galt — und schon gar nicht, warum.
+   *
+   *  Die Notiz entsteht ERST nach dem erfolgreichen Öffnen, in einem
+   *  eigenen Stapel. Im selben Batch stünde sie auch dann da, wenn die
+   *  Änderung scheitert: eine Notiz über etwas, das nicht passiert ist.
+   *
+   *  Scheitert sie selbst, ist der Lauf trotzdem gültig. Sie ist ein
+   *  Vermerk, kein Ergebnis — wie der Statusvermerk an der Quelldatei. */
+  async function notizenSchreiben(geoeffnet, s, basis, signal, quelle) {
+    if (!geoeffnet.length) return [];
+    const wann = new Date().toLocaleString("de-DE");
+    // Der Navigationsname hängt am LOGISCHEN Namen, nicht am Mengennamen:
+    // `objectid_opportunity`, nicht `objectid_opportunities`.
+    const ln = await DV.logischerName(s.entitySet);
+    const teile = geoeffnet.map(g => ({
+      methode: "POST", url: `${basis}/annotations`,
+      koerper: {
+        subject: "Wiedereröffnet durch den Timeline-Import",
+        notetext: `Diese Verkaufschance war im CRM ${g.vorher?.zustand || "geschlossen"}`
+          + (g.vorher?.grund ? ` mit dem Grund „${g.vorher.grund}“` : "")
+          + `. Am ${wann} stand sie erneut in der Datei`
+          + (quelle?.datei ? ` „${quelle.datei}“` : "")
+          + " und wurde deshalb wiedereröffnet. Der Statusgrund von damals "
+          + "steht nur noch hier."
+          + (quelle?.laufId ? ` (Lauf-ID ${quelle.laufId})` : ""),
+        [`objectid_${ln}@odata.bind`]:
+          `/${s.entitySet}(${g.id})`
+      }
+    }));
+
+    try {
+      const grenze = "batch_" + BATCH.uuid();
+      const antwort = await fetch(`${basis}/$batch`, {
+        method: "POST", signal,
+        headers: { Authorization: "Bearer " + await AUTH.getToken("dataverse"),
+                   "Content-Type": `multipart/mixed;boundary=${grenze}` },
+        body: BATCH.baue(teile, grenze)
+      });
+      const antworten = BATCH.lese(await antwort.text());
+      return geoeffnet.map((g, n) => BATCH.erfolg(antworten[n]?.status ?? 0) ? null
+        : { schritt: s.step, entitySet: s.entitySet, schluessel: g.sw,
+            aktion: "gewarnt",
+            meldung: "Die Verkaufschance wurde wiedereröffnet, aber die Notiz mit "
+              + "dem alten Statusgrund liess sich nicht anlegen: "
+              + BATCH.fehlertext(antworten[n]) }).filter(Boolean);
+    } catch (e) {
+      return [{ schritt: s.step, entitySet: s.entitySet, aktion: "gewarnt",
+        meldung: `${geoeffnet.length} Notiz(en) zur Wiedereröffnung nicht `
+          + `angelegt: ${e.message}` }];
+    }
   }
 
   /** Die heute vorhandenen Kinddatensätze eines Elterndatensatzes – aus
@@ -665,8 +743,14 @@ const LAUF = (() => {
        gehört benannt, nicht in „aktualisiert" versteckt. */
     if (!fehler && a.wiedereroeffnet) {
       e.wiedereroeffnet = true;
-      e.meldung = "War im CRM geschlossen und wurde wiedereröffnet, weil die "
-        + "Anfrage erneut in der Datei steht.";
+      e.vorher = a.vorher || null;
+      /* Der alte Grund gehört in die Meldung, nicht nur in den Zustand.
+         Er wird beim Wiedereröffnen überschrieben, und im CRM steht danach
+         nichts mehr davon: Abschlussaktivitäten gibt es zu diesen
+         Datensätzen nicht, die Änderungsverfolgung ist abgeschaltet. */
+      e.meldung = `War im CRM ${a.vorher?.zustand || "geschlossen"}`
+        + (a.vorher?.grund ? ` („${a.vorher.grund}“)` : "")
+        + " und wurde wiedereröffnet, weil die Anfrage erneut in der Datei steht.";
     }
 
     /* Warnungen gehören ins Protokoll, nicht nur in den Prüfbericht.

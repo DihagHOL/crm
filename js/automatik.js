@@ -402,7 +402,11 @@ const AUTOMATIK = (() => {
     const geoeffnet = eintraege
       .filter(e => e.wiedereroeffnet)
       .map(e => ({ kennung: String(e.schluessel ?? "?"), zeilen: [e.zeile],
-                   schritte: [e.schritt], zustand: "wiedereröffnet", erledigt: true }));
+                   schritte: [e.schritt], zustand: "wiedereröffnet", erledigt: true,
+                   /* Der alte Grund wird beim Öffnen überschrieben und ist
+                      danach im CRM nur noch in der Notiz zu finden. In den
+                      Bericht gehört er auch. */
+                   vorher: e.vorher || null }));
 
     for (const e of eintraege) {
       if (e.aktion !== "uebersprungen") continue;
@@ -435,8 +439,10 @@ const AUTOMATIK = (() => {
     return [
       "<b>Geschlossene Anfragen, die wieder in der Datei stehen:</b>",
       ...konflikte.map(k => k.erledigt
-        ? `↺ <b>${esc(k.kennung)}</b> war geschlossen und wurde `
-          + `<b>wiedereröffnet</b> (Zeile ${k.zeilen.join(", ")}).`
+        ? `↺ <b>${esc(k.kennung)}</b> war ${esc(k.vorher?.zustand || "geschlossen")}`
+          + (k.vorher?.grund ? ` („${esc(k.vorher.grund)}“)` : "")
+          + ` und wurde <b>wiedereröffnet</b> (Zeile ${k.zeilen.join(", ")}). `
+          + "Der alte Grund steht als Notiz an der Verkaufschance."
         : `⚠ <b>${esc(k.kennung)}</b> ist im CRM als <b>${esc(k.zustand)}</b> `
           + `abgeschlossen (Zeile ${k.zeilen.join(", ")}, `
           + `Schritt ${k.schritte.join(" und ")}). Unverändert geblieben.`),

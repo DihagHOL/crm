@@ -353,7 +353,8 @@ async function markieren(datei, felder) {
       const laufId = crypto.randomUUID();
       const start = new Date().toISOString();
       const ergebnis = await LAUF.ausfuehren(
-        { profil, mappe, aufl, werte: wz, entscheidungen },
+        { profil, mappe, aufl, werte: wz, entscheidungen,
+          quelle: { datei: datei.name, laufId } },
         { onFortschritt: p => process.stdout.write(`\r  ${p.text.slice(0, 90)}   `) });
       process.stdout.write("\n");
 

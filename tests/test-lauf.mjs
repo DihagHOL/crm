@@ -34,7 +34,13 @@ function baueLauf(antwortFuer) {
     istOffen: () => false,
     AUTH: { getToken: async () => "token" },
     DV: { basis: () => "https://test.crm4.dynamics.com/api/data/v9.2",
-          alle: async () => [], logischerName: async es => es.replace(/s$/, ""),
+          alle: async () => [],
+          /* „opportunities" → „opportunity", nicht „opportunitie". Genau
+             solche Ableitungen sind der Grund, warum die App den logischen
+             Namen aus den Metadaten liest und nicht aus dem Mengennamen
+             zurueckrechnet. */
+          logischerName: async es => es === "opportunities" ? "opportunity"
+                                   : es.replace(/ies$/, "y").replace(/s$/, ""),
           /* Der Statusgrund fuer "offen" ist mandantenspezifisch. In der
              DIHAG-Testumgebung ist es 100000000 ("In Arbeit") und nicht
              der Standardwert 1 - genau deshalb liest die App ihn aus den
@@ -772,7 +778,12 @@ console.log("\nEine verlorene Chance, die wieder in der Datei steht");
   // also ohne den Zustand "unveraendert".
   const bestand = k.aufl.treffer.get("opportunities|new_dagextopid").get("6440")[0];
   bestand.statecode = 2;
+  bestand.statuscode = 739170007;
   bestand.name = "Bestand";
+  k.aufl.statusGruende = new Map([["opportunities", new Map([
+    [739170007, { label: "Verloren - zu teuer", state: 2 }],
+    [4, { label: "Anfrage Zurückgezogen", state: 2 }]
+  ])]]);
 
   const e = await LAUF.ausfuehren({ profil: k.profil, mappe: k.mappe, aufl: k.aufl,
                                     werte: {}, entscheidungen: null });
@@ -793,6 +804,45 @@ console.log("\nEine verlorene Chance, die wieder in der Datei steht");
   const pos = e.eintraege.filter(x => x.schritt === 40 && x.aktion === "uebersprungen");
   gleich(pos.length, 0,
     "und die Positionen werden NICHT uebersprungen - die Chance ist jetzt offen");
+
+  /* Der alte Grund wird beim Oeffnen ueberschrieben, und im CRM bleibt
+     davon nichts: keine Abschlussaktivitaet, Aenderungsverfolgung aus.
+     Deshalb steht er in der Meldung UND in einer Notiz am Datensatz. */
+  pruefe(/Verloren - zu teuer/.test(chance.meldung || ""),
+    "die Meldung nennt den alten Statusgrund");
+  const notiz = gesendet.find(x => x.koerper.includes("/annotations"));
+  pruefe(!!notiz, "am Datensatz entsteht eine Notiz");
+  pruefe(/Verloren - zu teuer/.test(notiz.koerper),
+    "und sie haelt den alten Grund fest");
+  pruefe(/objectid_opportunity@odata.bind/.test(notiz.koerper),
+    "gebunden ueber den logischen Namen, nicht den Mengennamen");
+  pruefe(notiz.koerper.indexOf("/annotations") > 0,
+    "in einem EIGENEN Stapel nach dem Erfolg - im selben Batch staende sie "
+    + "auch da, wenn das Oeffnen scheitert");
+}
+
+console.log("\nEin zurueckgezogener Grund bleibt geschlossen");
+{
+  /* "Verloren" umfasst im CRM sieben Gruende, darunter "Anfrage
+     Zurueckgezogen" und drei Varianten "Kein Angebot". Die sind fachlich
+     kein verlorener Wettbewerb. */
+  const { LAUF, EXCEL } = baueLauf(() => antwort([{ status: 204 }, { status: 204 }]));
+  const k = kulisse(EXCEL);
+  k.profil.schritte[0].skipIfClosed = true;
+  k.profil.schritte[0].reopenIfClosed = "Verloren";
+  k.profil.schritte[0].reopenStatusCodes = "Verloren";
+  const b = k.aufl.treffer.get("opportunities|new_dagextopid").get("6440")[0];
+  b.statecode = 2;
+  b.statuscode = 4;
+  k.aufl.statusGruende = new Map([["opportunities", new Map([
+    [4, { label: "Anfrage Zurückgezogen", state: 2 }]
+  ])]]);
+
+  const e = await LAUF.ausfuehren({ profil: k.profil, mappe: k.mappe, aufl: k.aufl,
+                                    werte: {}, entscheidungen: null });
+  const chance = e.eintraege.find(x => x.schritt === 30 && x.schluessel === 6440);
+  gleich(chance.aktion, "uebersprungen",
+    "eine zurueckgezogene Anfrage lebt NICHT wieder auf");
 }
 
 console.log("\nOhne Regel bleibt geschlossen geschlossen");

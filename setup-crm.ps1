@@ -392,6 +392,11 @@ if ($ksite) {
         # Chance wieder zu oeffnen waere fast immer falsch.
         @{ name = "ReopenIfClosed";   kind = "choice"
            choices = @("Nie","Verloren","Gewonnen","Immer") },
+        # Grenzt das Wiedereroeffnen auf bestimmte Statusgruende ein.
+        # Zahlen oder Textstuecke, durch Komma getrennt. "Verloren" trifft
+        # die drei echten Verlustgruende, aber nicht "Anfrage
+        # Zurueckgezogen" und nicht die drei "Kein Angebot"-Gruende.
+        @{ name = "ReopenStatusCodes"; kind = "text" },
         # Positionen einer geschlossenen Chance lassen sich nicht ersetzen:
         # Dataverse weist schon das Loeschen ab (0x80040228), und weil
         # Loeschen und Anlegen ein Changeset sind, faellt die ganze Gruppe.
@@ -484,7 +489,7 @@ if ($ksite) {
         # im Laufeintrag war sonst nicht aufloesbar: welche, und warum?
         @{ name = "ErrorType";    kind = "choice"
            choices = @("Validierung","Lookup","Berechtigung","Dublette","API","Throttling",
-                       "Uebersprungen","Ausgeschlossen") },
+                       "Uebersprungen","Ausgeschlossen","Warnung") },
         @{ name = "HttpStatus";   kind = "number" },
         @{ name = "ErrorCode";    kind = "text"   },
         @{ name = "ErrorMessage"; kind = "note"   },
@@ -633,7 +638,8 @@ if ($ProfilLaden -and $ksite) {
                 # SharePoint legte sonst Leerstrings an, und "" ist etwas
                 # anderes als "nicht gesetzt".
                 foreach ($k in @("SourceSheet","MappingKey","AlternateKey",
-                                 "ParentField","ReplaceScope","ReopenIfClosed")) {
+                                 "ParentField","ReplaceScope","ReopenIfClosed",
+                                 "ReopenStatusCodes")) {
                     $v = W $s $k
                     if ($null -ne $v) { $body[$k] = $v }
                 }

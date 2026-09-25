@@ -29,6 +29,37 @@ quittiert bekommen. Gelesen wird er jetzt aus `DefaultStatus` der
 statecode-Optionen; gibt die Umgebung keinen her, wird die Zeile
 abgewiesen statt geraten.
 
+### Nachgeschärft: welcher Verlust zählt, und was vom alten bleibt
+
+Auf die Frage „was heisst das jetzt?" wurden zwei Dinge sichtbar, die der
+ersten Fassung fehlten.
+
+**„Verloren" ist breiter, als es klingt.** `statecode = 2` umfasst sieben
+Gründe: 2412 „Gründe unbekannt", 353 „zu teuer", 150 „andere Gründe" —
+aber auch **228 zurückgezogene Anfragen** und 63 bewusste Nicht-Angebote.
+Die letzten beiden sind kein verlorener Wettbewerb und sollen geschlossen
+bleiben. Neu deshalb `ReopenStatusCodes`, eine Liste aus Zahlen oder
+Textstücken; im Profil steht `Verloren` und trifft damit genau die drei
+echten Verlustgründe. Text statt Zahlen, weil die Statuscodes
+mandantenspezifisch sind.
+
+**Der alte Grund verschwand spurlos.** Beim Öffnen wird `statuscode`
+überschrieben. Zu 6428 und 6655 gibt es keine Abschlussaktivität, und die
+Änderungsverfolgung ist für Verkaufschancen abgeschaltet — niemand hätte
+hinterher sagen können, dass die Anfrage je als verloren galt. Jetzt steht
+er in der Protokollmeldung, im Bericht und als **Notiz am Datensatz**. Die
+Notiz geht in einem eigenen Stapel nach dem Erfolg raus; im selben Batch
+stünde sie auch da, wenn das Öffnen scheitert. Scheitert nur die Notiz,
+gilt die Zeile als `gewarnt` — geschrieben, aber etwas daneben ging
+schief.
+
+**Zwei eigene Stolperer dabei:** ein `await` in einer nicht-asynchronen
+Pfeilfunktion, und ein `BS n` im Testskript, das beim Schreiben zum echten
+Zeilenumbruch kollabierte. Beides beim Syntaxcheck aufgefallen. Der
+Test-Stub leitete ausserdem „opportunities" zu „opportunitie" ab — genau
+die Ableitung, wegen der die App den logischen Namen aus den Metadaten
+liest.
+
 ### „7442, 7443, 7445 sind wieder nicht heute aktualisiert"
 
 Nachgesehen: alle drei sind **offen**, nicht verloren — mit dem
