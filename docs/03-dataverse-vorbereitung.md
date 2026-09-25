@@ -162,7 +162,7 @@ Compressor* — ohne Spur, welches es war.
 | Welche Währung verbirgt sich hinter der GUID `be7f5393-…`? (B9) | **EUR.** Steht jetzt als ISO-Code im Profil statt als GUID. |
 | Zielfelder für Breite / Höhe / Zeichnungsnummer? (B8) | `dag_widemm`, `dag_heightmm`, `new_zeichnungsid` — **alle drei Textfelder.** Der geratene Name `dag_widthmm` existiert nicht. |
 | Zielfelder für Technische Prüfung / Produktgruppe? (B7) | `cr570_technicalaudit_lookup` und `cr570_productlinie_lookup` an der Verkaufschance. Falle: das Feld heißt `productLINIE`, die Zieltabelle `productLINE`. |
-| Preisliste? (A7) | Eine Preisliste namens „Default Price List für Verkaufschancenprodukte" **existiert nicht**. Der Text sieht nach einer Oberflächen-Beschriftung aus. Bleibt fachlich offen. |
+| Preisliste? (A7) | Eine Preisliste namens „Default Price List für Verkaufschancenprodukte" **existiert nicht** — unter 217 Preislisten trägt keine diesen Namen. Am 25.09.2026 geklärt: gemeint ist „Preisliste für individuelle Verkaufschancenprodukte" (aktiv, eindeutig). Eine Wertzuordnung im Profil bildet das ab. |
 | Sind `Länge`, `Einzelpreis`, `MTZ` richtig typisiert? | Teilweise nicht. `dag_lengthmm` ist **Text**, nicht Dezimal; `dag_einzelpreis` und `new_dag_materialteuerungszuschlagmtzabsolut` sind **Decimal**, nicht Money. Im Profil korrigiert. |
 
 Andere Tabellen brauchen keinen Schlüssel: `opportunityproducts` und

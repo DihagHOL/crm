@@ -1294,11 +1294,13 @@ scharf geschaltet werden.
       seit 04.09.2026 `Always` statt `OnCreateOnly` (§8), aktiv im Profil
 - [x] ~~Preisliste~~ (A7) — an der **Verkaufschance** zugeordnet
       (`pricelevelid`), nicht an der Position: die hat gar kein solches Feld.
-      **Offen bleibt der Wert:** die Datei nennt
-      `Default Price List für Verkaufschancenprodukte`, diesen Namen gibt es
-      unter den 209 Preislisten nicht — im Lauf `de9e4ad0` betraf das jede
-      der 29 Chancen. Bis das geklärt ist, bleibt das Feld leer und der
-      Prüflauf warnt.
+      Der Wert ist seit dem 25.09.2026 geklärt: die Datei nennt
+      `Default Price List für Verkaufschancenprodukte`, gemeint ist
+      `Preisliste für individuelle Verkaufschancenprodukte`. Eine
+      Wertzuordnung bildet das ab. Sie steht im Profil und nicht in der
+      Timeline-Vorlage: die gehört der Fachabteilung, und eine Änderung
+      dort müsste jede künftige Datei mitmachen. Fällt der Name irgendwann
+      richtig aus, greift die Zuordnung einfach nicht mehr.
 - [x] ~~Status / Win-Loss~~ (A5) — die Spalte mischt zwei Konzepte. Die
       **Phasen** gehen seit 03.09.2026 nach Schritt 50 (`SetStage`,
       `activestageid`); die **Abschlüsse** werden weiterhin nicht importiert,

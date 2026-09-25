@@ -1,5 +1,29 @@
 # Session-Log
 
+## 25.09.2026, mittags — Erster Lauf mit Wiedereröffnung, und die Preisliste
+
+Lauf `b73a675d`, Datei `Anfragen 2026-09-24_4.xlsx`, 48 Sekunden:
+**112 angelegt, 2 geändert, 100 unverändert, 112 ersetzt, 2 übersprungen,
+0 Fehler.**
+
+Die beiden Geänderten sind 6428 und 6655. Im CRM nachgeprüft: beide stehen
+auf *offen (In Arbeit)*, beide tragen genau eine Notiz mit dem alten Grund
+(„Verloren - Gründe unbekannt") und dem Dateinamen, und ihre Positionen
+sind geschrieben. In den Läufen davor wurden genau die übersprungen. Die
+zwei Auslassungen sind die bekannten `dummy@dihag.com` aus dem Profil.
+
+**Die Preisliste ist geklärt.** 26 von 26 Zeilen meldeten seit Wochen
+`pricelevelid: In pricelevels nicht gefunden`. Die Datei nennt
+durchgängig `Default Price List für Verkaufschancenprodukte`; unter 217
+Preislisten trägt keine diesen Namen. Gemeint ist **Preisliste für
+individuelle Verkaufschancenprodukte** (aktiv, eindeutig).
+
+Abgebildet als Wertzuordnung im Profil, nicht als Korrektur in der
+Timeline-Vorlage. Die Vorlage gehört der Fachabteilung, und eine Änderung
+dort müsste jede künftige Datei mitmachen. Fällt der Name irgendwann
+richtig aus, greift die Zuordnung einfach nicht mehr. Damit ist A7
+geschlossen.
+
 ## 25.09.2026 — Verlorene Anfragen leben wieder auf
 
 **„Wenn eine Anfrage von uns kommt, die im CRM schon verloren ist, soll

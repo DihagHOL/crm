@@ -535,6 +535,10 @@
       }
     },
     "OPPORTUNITY_STD": {
+      "$hinweis_pricelevelid": "Die Datei nennt durchgaengig 'Default Price List fuer Verkaufschancenprodukte'. Diese Preisliste gibt es nicht - unter 217 Preislisten in der Umgebung traegt keine diesen Namen, und deshalb blieb pricelevelid in JEDER Zeile leer (26 von 26 im Lauf b73a675d vom 25.09.2026). Gemeint ist 'Preisliste fuer individuelle Verkaufschancenprodukte' (bestaetigt am 25.09.2026, aktiv, eindeutig). Die Zuordnung steht hier und nicht in der Timeline-Vorlage: die Vorlage gehoert der Fachabteilung, und eine Aenderung dort muesste jede kuenftige Datei mitmachen. Faellt der Name in Timeline irgendwann richtig aus, laeuft der Import trotzdem weiter - dann greift die Zuordnung einfach nicht mehr.",
+      "pricelevelid": {
+        "Default Price List für Verkaufschancenprodukte": "Preisliste für individuelle Verkaufschancenprodukte"
+      },
       "cr570_technicalaudit_lookup": {
         "Ja": "Yes",
         "Nein": "No"
