@@ -1553,7 +1553,9 @@ const APP = (() => {
         <p class="hint">
           Blatt <b>${esc(s.sourceSheet || "—")}</b>
           ${s.alternateKey ? ` · Schlüssel <code>${esc(s.alternateKey)}</code>` : ""}
-          ${s.skipIfClosed ? " · geschlossene Chancen werden übersprungen" : ""}
+          ${PRUEFUNG.darfWiedereroeffnen(s, 2) || PRUEFUNG.darfWiedereroeffnen(s, 1)
+            ? ` · geschlossene Chancen (${esc(s.reopenIfClosed)}) werden wiedereröffnet`
+            : s.skipIfClosed ? " · geschlossene Chancen werden übersprungen" : ""}
           ${blatt ? ` · ${blatt.anzahl} Zeilen in der Datei` : ""}
         </p>
         ${fehlerText ? `<p class="err">Dataverse-Felder nicht lesbar: ${esc(fehlerText)}</p>` : ""}

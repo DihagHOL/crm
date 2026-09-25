@@ -59,7 +59,9 @@
       "Active": true,
       "$hinweis": "Upsert ohne Alternativschluessel - ENTSCHIEDEN am 10.09.2026: die Opp-ID ist fachlich eindeutig, ein Datenbankindex wird dafuer nicht angelegt (Befund B2 damit geschlossen). Adressiert wird nach der Drei-Faelle-Regel (CLAUDE.md): Phase 0 kennt die Chance -> PATCH ueber ihre GUID; kennt sie sie nicht -> POST, und new_dagextopid steht dann im Rumpf. Beides funktioniert ohne Index. Was den Dublettenschutz traegt, seit der Index entfaellt: (1) Phase 0 fragt new_dagextopid vorab ab, Bestehendes wird geaendert statt angelegt; (2) der Selbsttest zaehlt doppelte Werte im CRM und meldet sie als Fehler; (3) der Pruflauf weist doppelte Opp-IDs INNERHALB der Datei ab - ohne Index waeren daraus zwei Datensaetze in einem Lauf geworden, genau der Fall, den der Altflow 76-mal erzeugt hat. SkipIfClosed: geschlossene Chancen (statecode 1/2) sind schreibgeschuetzt, PATCH schlaegt fehl. Sie werden uebersprungen und gemeldet, NICHT automatisch wiedereroeffnet (Review A3). Schluesselfeld new_dagextopid (Integer), am 10.09.2026 nachgemessen: 1650 gesetzt, 0 doppelt, und alle 1646 Chancen mit #-Namen tragen es - die 213 Nachzupflegenden von damals sind erledigt.",
       "OnMissingKey": "Fail",
-      "SkipIfClosed": true
+      "SkipIfClosed": true,
+      "ReopenIfClosed": "Verloren",
+      "$reopenIfClosed": "Entschieden am 25.09.2026 durch die Fachseite: kommt eine Anfrage erneut aus Timeline, obwohl sie im CRM als VERLOREN geschlossen ist, wird sie wiedereroeffnet und aktualisiert - der Widerspruch wird zugunsten der DATEI aufgeloest. Das kehrt Review A3 um, wo geschlossen gleich schreibgeschuetzt hiess. Bewusst nur 'Verloren': eine GEWONNENE Chance wieder zu oeffnen, weil die Datei sie noch fuehrt, waere fast immer falsch - dort hat jemand im CRM einen Abschluss gebucht. Der Statusgrund fuer 'offen' kommt aus den Metadaten (DefaultStatus der statecode-Option); in dieser Umgebung ist das 100000000 'In Arbeit' und NICHT der Standardwert 1. SkipIfClosed bleibt stehen und greift weiter fuer gewonnene Chancen."
     },
     {
       "Step": 40,

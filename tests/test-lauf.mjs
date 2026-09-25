@@ -34,7 +34,13 @@ function baueLauf(antwortFuer) {
     istOffen: () => false,
     AUTH: { getToken: async () => "token" },
     DV: { basis: () => "https://test.crm4.dynamics.com/api/data/v9.2",
-          alle: async () => [], logischerName: async es => es.replace(/s$/, "") },
+          alle: async () => [], logischerName: async es => es.replace(/s$/, ""),
+          /* Der Statusgrund fuer "offen" ist mandantenspezifisch. In der
+             DIHAG-Testumgebung ist es 100000000 ("In Arbeit") und nicht
+             der Standardwert 1 - genau deshalb liest die App ihn aus den
+             Metadaten, und genau deshalb steht hier derselbe Wert. */
+          standardStatus: async (es, st) => (es === "opportunities" && st === 0)
+            ? 100000000 : null },
     console,
     setTimeout,
     crypto: { randomUUID: () => "11111111-2222-3333-4444-555555555555" },
@@ -742,6 +748,64 @@ console.log("\nEin gescheitertes Changeset nennt seine Ursache");
     "und die Meldung sagt, dass das Changeset gescheitert ist");
   pruefe(ohneAntwort.some(x => /0x80040228|geschlossen/.test(x.meldung)),
     "samt der eigentlichen Ursache");
+}
+
+console.log("\nEine verlorene Chance, die wieder in der Datei steht");
+{
+  /* Entschieden am 25.09.2026: die Datei gewinnt. Drei Dinge muessen
+     stimmen, sonst ist die Wiedereroeffnung eine Halbheit:
+       1. statecode UND statuscode gehen in DIESELBE Anfrage wie die Felder,
+       2. auch wenn sich sonst nichts geaendert hat,
+       3. und Schritt 40 darf die Positionen danach nicht mehr ueberspringen. */
+  const { LAUF, EXCEL, gesendet } = baueLauf(koerper =>
+    koerper.includes("/opportunityproducts")
+      ? antwort([{ status: 204 }, { status: 204 }])
+      : antwort([{ status: 204 },
+                 { status: 204, ort: `https://x/opportunities(${GUID_NEU})` }]));
+
+  const k = kulisse(EXCEL);
+  k.profil.schritte[0].skipIfClosed = true;
+  k.profil.schritte[0].reopenIfClosed = "Verloren";
+  k.profil.schritte[1].skipIfParentClosed = true;
+
+  // 6440 ist verloren – und traegt denselben Namen wie die Datei, waere
+  // also ohne den Zustand "unveraendert".
+  const bestand = k.aufl.treffer.get("opportunities|new_dagextopid").get("6440")[0];
+  bestand.statecode = 2;
+  bestand.name = "Bestand";
+
+  const e = await LAUF.ausfuehren({ profil: k.profil, mappe: k.mappe, aufl: k.aufl,
+                                    werte: {}, entscheidungen: null });
+
+  const chance = e.eintraege.find(x => x.schritt === 30 && x.schluessel === 6440);
+  gleich(chance.aktion, "aktualisiert", "die verlorene Chance wird geschrieben, nicht uebersprungen");
+  pruefe(chance.wiedereroeffnet === true, "und im Protokoll als Wiedereroeffnung benannt");
+  pruefe(/wiedereröffnet/i.test(chance.meldung || ""),
+    "mit einer Meldung im Klartext");
+
+  const opp = gesendet.find(x => x.koerper.includes("/opportunities("));
+  pruefe(/"statecode":0/.test(opp.koerper), "statecode 0 geht mit");
+  pruefe(/"statuscode":100000000/.test(opp.koerper),
+    "und der Statusgrund aus den METADATEN, nicht der Standardwert 1");
+  pruefe(/"name":"Bestand"/.test(opp.koerper),
+    "die Felder gehen in derselben Anfrage mit - kein zweiter Schreibvorgang");
+
+  const pos = e.eintraege.filter(x => x.schritt === 40 && x.aktion === "uebersprungen");
+  gleich(pos.length, 0,
+    "und die Positionen werden NICHT uebersprungen - die Chance ist jetzt offen");
+}
+
+console.log("\nOhne Regel bleibt geschlossen geschlossen");
+{
+  const { LAUF, EXCEL } = baueLauf(() => antwort([{ status: 204 }, { status: 204 }]));
+  const k = kulisse(EXCEL);
+  k.profil.schritte[0].skipIfClosed = true;
+  k.aufl.treffer.get("opportunities|new_dagextopid").get("6440")[0].statecode = 2;
+
+  const e = await LAUF.ausfuehren({ profil: k.profil, mappe: k.mappe, aufl: k.aufl,
+                                    werte: {}, entscheidungen: null });
+  const chance = e.eintraege.find(x => x.schritt === 30 && x.schluessel === 6440);
+  gleich(chance.aktion, "uebersprungen", "ohne ReopenIfClosed gilt Review A3 weiter");
 }
 
 console.log(fehler ? `\n${fehler} Pruefung(en) fehlgeschlagen.` : "\nAlle Pruefungen bestanden.");

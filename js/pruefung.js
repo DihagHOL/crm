@@ -152,6 +152,31 @@ const PRUEFUNG = (() => {
     return null;
   }
 
+  /** Darf dieser Schritt eine geschlossene Verkaufschance wieder öffnen?
+   *
+   *  Bis zum 25.09.2026 galt: geschlossen heisst schreibgeschützt, Punkt
+   *  (Review A3). Die Fachseite hat entschieden, dass eine Anfrage, die
+   *  erneut aus Timeline kommt, wieder aufleben soll — ein Widerspruch
+   *  zwischen den Systemen wird dann zugunsten der DATEI aufgelöst, nicht
+   *  mehr zugunsten des CRM.
+   *
+   *  Deshalb je Schritt einstellbar und nicht fest verdrahtet: „Verloren"
+   *  ist etwas anderes als „Gewonnen". Eine gewonnene Chance wieder zu
+   *  öffnen, weil die Datei sie noch führt, wäre in aller Regel falsch.
+   *
+   *  @param {object} s Schritt aus dem Profil
+   *  @param {number|string} statecode Zustand im CRM
+   *  @returns {boolean} */
+  function darfWiedereroeffnen(s, statecode) {
+    const regel = String(s?.reopenIfClosed || "").trim().toLowerCase();
+    const st = Number(statecode);
+    if (!regel || regel === "nie" || regel === "nein" || st === 0) return false;
+    if (regel === "immer" || regel === "ja") return true;
+    if (regel === "verloren") return st === 2;
+    if (regel === "gewonnen") return st === 1;
+    return false;
+  }
+
   function lauf(profil, mappe, aufl, werte = {}, entscheidungen = null) {
     const zusatzZeile = zusatzZeileFn(mappe);
     /* Was ein früherer Schritt anlegt, gibt es beim Import – auch wenn
@@ -176,6 +201,11 @@ const PRUEFUNG = (() => {
        „Zeile geschrieben, aber ein Feld blieb leer". Das sind zwei
        verschiedene Aussagen und gehören in zwei Listen. */
     const alleUebersprungen = [];
+
+    /* Welche Elterndatensätze werden in diesem Lauf wieder geöffnet? Ihre
+       Positionen dürfen dann nicht mehr als „übersprungen" angekündigt
+       werden — zum Zeitpunkt von Schritt 40 ist die Chance offen. */
+    const wirdGeoeffnet = new Set();
     const ueber = (z, s, zeile, meldung, extra = {}) => {
       z.uebersprungen++;
       alleUebersprungen.push({ schritt: s.step, entitySet: s.entitySet,
@@ -454,7 +484,17 @@ const PRUEFUNG = (() => {
         }
 
         // Geschlossene Verkaufschancen sind schreibgeschützt (Review A3)
-        if (s.skipIfClosed && bestand && Number(bestand.statecode) !== 0) {
+        /* Wiedereröffnen geht dem Überspringen vor: die Datei gewinnt. */
+        if (bestand && Number(bestand.statecode) !== 0
+            && darfWiedereroeffnen(s, bestand.statecode)) {
+          wirdGeoeffnet.add(AUFLOESUNG.vergleichbar(
+            bestand[AUFLOESUNG.idFeld(aufl, s.entitySet)] || ""));
+          alleWarnungen.push({ schritt: s.step, zeile: zeile._zeile,
+            wert: schluesselWert, klartext: klartext(zeile),
+            meldung: `Im CRM ${zustand(bestand.statecode)}, steht aber wieder in der `
+              + "Datei – wird WIEDERERÖFFNET und aktualisiert." });
+        }
+        else if (s.skipIfClosed && bestand && Number(bestand.statecode) !== 0) {
           ueber(z, s, zeile,
             `Verkaufschance ist im CRM ${zustand(bestand.statecode)} und damit `
               + "schreibgeschützt – wird übersprungen, nicht automatisch "
@@ -484,7 +524,9 @@ const PRUEFUNG = (() => {
                auf die Gesamtzahl zurück — sie kündigte dann genau die
                Löschungen an, die dieser Zweig gerade verhindert. */
             if (eid) elternIdFeld = eid;
-            if (s.skipIfParentClosed && p && Number(p.statecode) !== 0) {
+            const pid = p && eid ? AUFLOESUNG.vergleichbar(p[eid] || "") : null;
+            if (s.skipIfParentClosed && p && Number(p.statecode) !== 0
+                && !wirdGeoeffnet.has(pid)) {
               ueber(z, s, zeile, `${ez.lookupEntitySet} zu „${ew}“ ist geschlossen – `
                 + "ihre Positionen bleiben unverändert, sie lassen sich nicht ersetzen",
                 { spalte: ez.sourceColumn, wert: ew, klartext: klartext(zeile) });
@@ -553,5 +595,6 @@ const PRUEFUNG = (() => {
     + (g.geloescht ? ` · ${g.geloescht} werden ersetzt` : "")
     + (g.fehler ? ` · ${g.fehler} mit Fehler` : "");
 
-  return { lauf, zusammenfassung, ausschluss, ausgelassen, zusatzKonflikte, zustand };
+  return { lauf, zusammenfassung, ausschluss, ausgelassen, zusatzKonflikte, zustand,
+           darfWiedereroeffnen };
 })();

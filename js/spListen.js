@@ -81,6 +81,8 @@ const SPLISTEN = (() => {
         batchSize: zahl(r.BatchSize) ?? C.batchSize,
         stopOnError: r.StopOnError === true,
         skipIfClosed: r.SkipIfClosed === true,
+        // „Nie" (Standard), „Verloren", „Gewonnen" oder „Immer".
+        reopenIfClosed: r.ReopenIfClosed || "",
         skipIfParentClosed: r.SkipIfParentClosed === true,
         // Zeilen, die dieser Schritt auslassen soll, als JSON in einer
         // Spalte: {"Kontaktemail":["dummy@dihag.com"]}. Steht dort Unsinn,

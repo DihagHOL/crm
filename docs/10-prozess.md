@@ -337,8 +337,11 @@ Drei Gründe kommen fast immer vor:
 - **in einem früheren Schritt ausgeschlossen** — die Verkaufschance
   wurde nicht angelegt, also haben ihre Positionen nichts, woran sie
   hängen könnten. Der Grund steht beim früheren Schritt.
-- **Verkaufschance ist geschlossen** — an geschlossenen Chancen ändert der
-  Import nichts (siehe unten, Grenzen).
+- **Verkaufschance ist geschlossen** — seit dem 25.09.2026 gilt das nur
+  noch für **gewonnene** Chancen. Eine als *verloren* geschlossene Anfrage,
+  die erneut in der Datei steht, wird **wiedereröffnet** und aktualisiert;
+  im Bericht steht sie mit ↺ und im Protokoll mit einer eigenen Meldung.
+  Wer das anders will, stellt `ReopenIfClosed` am Schritt um.
 
 ---
 

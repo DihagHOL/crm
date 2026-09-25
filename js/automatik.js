@@ -393,6 +393,17 @@ const AUTOMATIK = (() => {
    *  @returns {Array<{kennung, zustand, zeilen:number[], schritte:number[]}>} */
   function geschlosseneKonflikte(eintraege = []) {
     const m = new Map();
+
+    /* Wiedereröffnete Chancen sind KEIN Konflikt mehr – sie waren einer
+       und sind erledigt. Trotzdem gehören sie in den Bericht: das CRM
+       sagt seit diesem Lauf etwas anderes über den Ausgang eines
+       Geschäfts als vorher, und das soll niemand nur im Protokoll
+       finden. */
+    const geoeffnet = eintraege
+      .filter(e => e.wiedereroeffnet)
+      .map(e => ({ kennung: String(e.schluessel ?? "?"), zeilen: [e.zeile],
+                   schritte: [e.schritt], zustand: "wiedereröffnet", erledigt: true }));
+
     for (const e of eintraege) {
       if (e.aktion !== "uebersprungen") continue;
       const t = String(e.meldung || "");
@@ -413,22 +424,27 @@ const AUTOMATIK = (() => {
       if (!g.zeilen.includes(e.zeile)) g.zeilen.push(e.zeile);
       if (!g.schritte.includes(e.schritt)) g.schritte.push(e.schritt);
     }
-    return [...m.values()].sort((a, b) => String(a.kennung).localeCompare(String(b.kennung)));
+    return [...geoeffnet, ...m.values()]
+      .sort((a, b) => String(a.kennung).localeCompare(String(b.kennung)));
   }
 
   /** Der Konfliktabschnitt als Zeilen für den Bericht. */
   function konfliktZeilen(konflikte) {
     if (!konflikte.length) return [];
+    const offen = konflikte.filter(k => !k.erledigt);
     return [
-      "<b>Geschlossen im CRM, in der Datei noch enthalten:</b>",
-      ...konflikte.map(k => `⚠ <b>${esc(k.kennung)}</b> ist im CRM als `
-        + `<b>${esc(k.zustand)}</b> abgeschlossen (Zeile ${k.zeilen.join(", ")}, `
-        + `Schritt ${k.schritte.join(" und ")}). Unverändert geblieben.`),
-      konflikte.length === 1
+      "<b>Geschlossene Anfragen, die wieder in der Datei stehen:</b>",
+      ...konflikte.map(k => k.erledigt
+        ? `↺ <b>${esc(k.kennung)}</b> war geschlossen und wurde `
+          + `<b>wiedereröffnet</b> (Zeile ${k.zeilen.join(", ")}).`
+        : `⚠ <b>${esc(k.kennung)}</b> ist im CRM als <b>${esc(k.zustand)}</b> `
+          + `abgeschlossen (Zeile ${k.zeilen.join(", ")}, `
+          + `Schritt ${k.schritte.join(" und ")}). Unverändert geblieben.`),
+      ...(offen.length ? [offen.length === 1
         ? "Die Anfrage bleibt bei jedem Lauf stehen, bis jemand entscheidet, "
           + "welches System recht hat."
         : "Diese Anfragen bleiben bei jedem Lauf stehen, bis jemand entscheidet, "
-          + "welches System recht hat."
+          + "welches System recht hat."] : [])
     ];
   }
 
@@ -448,6 +464,7 @@ const AUTOMATIK = (() => {
 
     const geprueft = abschnitte.filter(a => a.art === "hinweis").length;
     const konflikte = abschnitte.reduce((n, a) => n + (a.konflikte || 0), 0);
+    const geoeffnet = abschnitte.reduce((n, a) => n + (a.wiedereroeffnet || 0), 0);
     const teile = [fertig ? `${fertig} importiert` : null,
                    wartet ? `${wartet} wartet auf Freigabe` : null,
                    fehler ? `${fehler} fehlgeschlagen` : null].filter(Boolean);
@@ -460,6 +477,7 @@ const AUTOMATIK = (() => {
       + (teile.length ? teile.join(", ")
          : geprueft ? `${geprueft} geprüft, nichts geschrieben`
          : "nichts zu tun")
+      + (geoeffnet ? ` · ${geoeffnet} wiedereröffnet` : "")
       + (konflikte ? ` · ${konflikte} geschlossene Anfrage(n) prüfen` : "");
 
     const farbe = { importiert: "#2e7d32", freigabe: "#F08300", fehler: "#c62828",

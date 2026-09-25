@@ -1,5 +1,45 @@
 # Session-Log
 
+## 25.09.2026 — Verlorene Anfragen leben wieder auf
+
+**„Wenn eine Anfrage von uns kommt, die im CRM schon verloren ist, soll
+diese wieder aktiviert werden."** Damit ist Review A3 zur Hälfte gekippt:
+geschlossen hiess bisher schreibgeschützt, Punkt. Jetzt gewinnt bei einem
+Widerspruch die Datei — aber nur bei **verloren**. Eine gewonnene Chance
+wieder zu öffnen, weil ein Export sie noch führt, wäre fast immer falsch:
+dort hat jemand im CRM einen Abschluss gebucht.
+
+Einstellbar je Schritt (`ReopenIfClosed`: Nie · Verloren · Gewonnen ·
+Immer), im Profil steht `Verloren`. Drei Dinge mussten dafür
+zusammenkommen:
+
+- `statecode` und `statuscode` gehen in **dieselbe** Anfrage wie die
+  Felder. Ein eigener Aufruf könnte einzeln scheitern — dann stünde die
+  Chance offen, aber mit altem Inhalt.
+- Der Zustand zählt als Änderung, sonst gilt eine inhaltlich gleiche Zeile
+  als „unverändert" und die Chance bliebe zu.
+- Die Auflösung wird nach dem Erfolg nachgezogen, sonst überspringt
+  Schritt 40 die Positionen einer Chance, die Schritt 30 gerade geöffnet
+  hat.
+
+**Der Statusgrund war die Falle.** „Offen" heisst in dieser Umgebung nicht
+`1` wie im Standard, sondern `100000000` („In Arbeit") — die Statusgründe
+sind angepasst. Ein Import mit der Standard-`1` hätte jede Zeile
+quittiert bekommen. Gelesen wird er jetzt aus `DefaultStatus` der
+statecode-Optionen; gibt die Umgebung keinen her, wird die Zeile
+abgewiesen statt geraten.
+
+### „7442, 7443, 7445 sind wieder nicht heute aktualisiert"
+
+Nachgesehen: alle drei sind **offen**, nicht verloren — mit dem
+Wiedereröffnen hat das nichts zu tun. Ihre **Positionen** wurden am
+24.09. um 11:30 neu angelegt, die Anfragen selbst blieben unberührt, weil
+sich an ihren Feldern nichts geändert hat. Das ist so gewollt: eine Zeile
+ohne Abweichung wird nicht geschrieben, sonst überschreibt jeder Lauf die
+CRM-Pflege und flutet die Änderungshistorie (Review B2). Das Datum
+„Geändert am" an der Chance ist deshalb kein Beleg dafür, ob ein Import
+gelaufen ist — das steht im Protokoll.
+
 ## 24.09.2026, nachmittags — „Ich sehe keinen Bericht"
 
 Zwei Rückmeldungen nach dem ersten unbeaufsichtigten Import, und beide

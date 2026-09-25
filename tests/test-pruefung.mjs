@@ -495,5 +495,33 @@ console.log("\nUneindeutige Spalten aus einem anderen Blatt");
   gleich(inaktiv.length, 0, "inaktive Zuordnungen erzeugen keine Warnung");
 }
 
+console.log("\nWiedereroeffnen: die Datei gewinnt gegen das CRM");
+{
+  /* Entschieden am 25.09.2026: kommt eine Anfrage erneut aus Timeline,
+     obwohl sie im CRM als verloren geschlossen ist, wird sie wieder
+     geoeffnet. Das kehrt Review A3 um – aber nur fuer VERLOREN. Eine
+     gewonnene Chance wieder zu oeffnen, weil die Datei sie noch fuehrt,
+     waere fast immer falsch: dort hat jemand einen Abschluss gebucht. */
+  const P = PRUEFUNG;
+  const verloren = 2, gewonnen = 1, offen = 0;
+
+  pruefe(P.darfWiedereroeffnen({ reopenIfClosed: "Verloren" }, verloren),
+    "Regel Verloren oeffnet eine verlorene Chance");
+  pruefe(!P.darfWiedereroeffnen({ reopenIfClosed: "Verloren" }, gewonnen),
+    "aber keine gewonnene");
+  pruefe(!P.darfWiedereroeffnen({ reopenIfClosed: "Verloren" }, offen),
+    "und eine offene ist schon offen");
+  pruefe(P.darfWiedereroeffnen({ reopenIfClosed: "Immer" }, gewonnen),
+    "Regel Immer oeffnet auch eine gewonnene");
+  pruefe(P.darfWiedereroeffnen({ reopenIfClosed: "Gewonnen" }, gewonnen),
+    "Regel Gewonnen trifft genau die");
+  pruefe(!P.darfWiedereroeffnen({ reopenIfClosed: "Gewonnen" }, verloren),
+    "und nicht die verlorene");
+
+  for (const r of [undefined, "", "Nie", "nein", "unsinn"])
+    pruefe(!P.darfWiedereroeffnen({ reopenIfClosed: r }, verloren),
+      `ohne klare Regel (${JSON.stringify(r)}) bleibt geschlossen geschlossen`);
+}
+
 console.log(fehler ? `\n${fehler} Prüfung(en) fehlgeschlagen.\n` : "\nAlle Prüfungen bestanden.\n");
 process.exit(fehler ? 1 : 0);

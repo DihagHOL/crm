@@ -381,12 +381,16 @@ async function markieren(datei, felder) {
          Bericht, den jemand ENTSCHEIDEN muss. Alles andere ist Buchhaltung. */
       const konflikte = AUTOMATIK.geschlosseneKonflikte(l.eintraege);
       for (const k of konflikte)
-        sagen(`     ! ${k.kennung} ist im CRM ${k.zustand}, steht aber in der `
-          + `Datei (Zeile ${k.zeilen.join(", ")}) – unverändert geblieben.`);
+        sagen(k.erledigt
+          ? `     ↺ ${k.kennung} war geschlossen und wurde wiedereröffnet `
+            + `(Zeile ${k.zeilen.join(", ")}).`
+          : `     ! ${k.kennung} ist im CRM ${k.zustand}, steht aber in der `
+            + `Datei (Zeile ${k.zeilen.join(", ")}) – unverändert geblieben.`);
       abschnitte.push({
         art: l.gesamt.fehlgeschlagen ? "fehler" : "importiert",
         titel: `${datei.name} – importiert`,
-        konflikte: konflikte.length,
+        konflikte: konflikte.filter(k => !k.erledigt).length,
+        wiedereroeffnet: konflikte.filter(k => k.erledigt).length,
         zeilen: [
           zahlSatz(l.gesamt),
           `Dauer ${Math.round(l.dauerMs / 1000)} s · Lauf-ID <code>${esc(laufId)}</code>`

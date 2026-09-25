@@ -230,6 +230,13 @@ const LAUF = (() => {
          Die Zeilen werden vollständig aufgebaut, bevor der erste Stapel
          rausgeht; die zweite Zeile kann also nicht sehen, dass die erste
          gerade anlegt. Deshalb hier, beim Aufbauen. */
+      /* Einmal je Schritt: der Statusgrund, den „offen" in dieser
+         Umgebung trägt. `null` heisst „nicht ermittelbar" – dann wird
+         nicht geraten, sondern die Zeile abgewiesen. */
+      let offenStatus = null;
+      if (s.reopenIfClosed && String(s.reopenIfClosed).toLowerCase() !== "nie")
+        offenStatus = await DV.standardStatus(s.entitySet, 0);
+
       const angekuendigt = new Map();   // Vergleichsform → erste Zeile
       const legtAn = ["Upsert", "Create", "CreateIfMissing"].includes(s.mode);
 
@@ -308,10 +315,25 @@ const LAUF = (() => {
           angekuendigt.set(vk, zeile._zeile);
         }
 
-        if (s.skipIfClosed && bestand && Number(bestand.statecode) !== 0) {
+        /* Wiedereröffnen geht dem Überspringen vor: kommt die Anfrage
+           erneut aus Timeline, gewinnt die Datei. Der Statusgrund für
+           „offen" ist mandantenspezifisch (hier 100000000 statt 1) und
+           wurde vor der Schleife aus den Metadaten geholt. */
+        const oeffnen = bestand && Number(bestand.statecode) !== 0
+          && PRUEFUNG.darfWiedereroeffnen(s, bestand.statecode);
+
+        if (s.skipIfClosed && bestand && Number(bestand.statecode) !== 0 && !oeffnen) {
           notiere({ schritt: s.step, entitySet: s.entitySet, zeile: zeile._zeile,
             schluessel: sw, aktion: "uebersprungen",
             meldung: `im CRM ${PRUEFUNG.zustand(bestand.statecode)} und damit schreibgeschützt` });
+          continue;
+        }
+
+        if (oeffnen && offenStatus === null) {
+          notiere({ schritt: s.step, entitySet: s.entitySet, zeile: zeile._zeile,
+            schluessel: sw, aktion: "fehlgeschlagen",
+            meldung: "Wiedereröffnen verlangt einen Statusgrund für „offen“, und die "
+              + "Metadaten geben keinen her. Ohne ihn weist Dataverse die Änderung ab." });
           continue;
         }
 
@@ -327,6 +349,19 @@ const LAUF = (() => {
             meldung: r.fehler.map(f => f.meldung).join(" · ") });
           continue;
         }
+        /* Der Zustand gehört in DIESELBE Anfrage wie die Felder: ein
+           eigener Aufruf wäre ein zweiter Schreibvorgang, der auch
+           einzeln scheitern kann — dann stünde die Chance offen, aber mit
+           altem Inhalt. Und er muss VOR der Unverändert-Prüfung dazu:
+           sonst gilt eine Zeile, deren Felder alle passen, als
+           unverändert, und die Chance bliebe geschlossen. */
+        if (oeffnen) {
+          r.nutzlast.statecode = 0;
+          r.nutzlast.statuscode = offenStatus;
+          r.unveraendert = false;
+          if (Array.isArray(r.geaendert)) r.geaendert.push("statecode");
+        }
+
         if (r.unveraendert) {
           notiere({ schritt: s.step, entitySet: s.entitySet, zeile: zeile._zeile,
             schluessel: sw, aktion: "unveraendert",
@@ -335,7 +370,7 @@ const LAUF = (() => {
         }
 
         const auftrag = { zeile, sw, bestand, nutzlast: r.nutzlast, felder: r.felder,
-                          warnungen: r.warnungen,
+                          warnungen: r.warnungen, wiedereroeffnet: !!oeffnen,
                           schritt: s, zuordnungen: zu,
                           eigeneId: bestand ? bestand[AUFLOESUNG.idFeld(k.aufl, s.entitySet)] : null };
 
@@ -583,6 +618,18 @@ const LAUF = (() => {
           : "Keine Antwort im Batch"));
         continue;
       }
+      /* Hat der Aufruf eine geschlossene Chance geöffnet, muss das AUCH
+         in der Auflösung stehen: Schritt 40 liest von dort, ob der
+         Elterndatensatz offen ist, und würde die Positionen sonst
+         überspringen — obwohl die Chance eine Zeile weiter oben gerade
+         geöffnet wurde. Erst nach dem Erfolg, nicht vorher: bei einem
+         Fehlschlag ist sie weiterhin zu. */
+      if (BATCH.erfolg(a.status) && z.auftrag.wiedereroeffnet && z.auftrag.bestand) {
+        z.auftrag.bestand.statecode = 0;
+        if (z.auftrag.nutzlast.statuscode != null)
+          z.auftrag.bestand.statuscode = z.auftrag.nutzlast.statuscode;
+      }
+
       eintraege.push(BATCH.erfolg(a.status)
         ? protokoll(z, s, a.status, null, a.ort)
         : protokoll(z, s, a.status, BATCH.fehlertext(a)));
@@ -613,6 +660,14 @@ const LAUF = (() => {
             : z.art === "update" ? "aktualisiert" : "angelegt"
     };
     if (fehler) e.meldung = fehler;
+    /* Eine Wiedereröffnung ist keine gewöhnliche Aktualisierung. Sie
+       ändert, was das CRM über den Ausgang eines Geschäfts sagt — das
+       gehört benannt, nicht in „aktualisiert" versteckt. */
+    if (!fehler && a.wiedereroeffnet) {
+      e.wiedereroeffnet = true;
+      e.meldung = "War im CRM geschlossen und wurde wiedereröffnet, weil die "
+        + "Anfrage erneut in der Datei steht.";
+    }
 
     /* Warnungen gehören ins Protokoll, nicht nur in den Prüfbericht.
        Randbedingung 12: kein Datensatz wird geschrieben, ohne dass er im

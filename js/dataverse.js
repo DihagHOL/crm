@@ -311,6 +311,35 @@ const DV = (() => {
     return out;
   }
 
+  /** Der Statusgrund, den dieser Zustand standardmässig bekommt.
+   *
+   *  Wer eine verlorene Verkaufschance wieder öffnet, muss `statecode` UND
+   *  `statuscode` setzen — und der Statusgrund ist mandantenspezifisch.
+   *  In dieser Umgebung heisst „offen" nicht `1` wie im Standard, sondern
+   *  `100000000` („In Arbeit"); eine `1` quittiert Dataverse mit einem
+   *  ungültigen Statuscode. Deshalb aus `DefaultStatus` der
+   *  statecode-Optionen gelesen und nicht geraten — dieselbe Regel wie beim
+   *  Primärschlüssel (CLAUDE.md §8).
+   *
+   *  @returns {Promise<number|null>} `null`, wenn es dazu nichts gibt */
+  async function standardStatus(entitySet, statecode) {
+    const k = `status|${entitySet}|${statecode}`;
+    if (_meta[k] !== undefined) return _meta[k];
+    let wert = null;
+    try {
+      const ln = await logischerName(entitySet);
+      const d = await call(`/EntityDefinitions(LogicalName='${ln}')`
+        + `/Attributes(LogicalName='statecode')/Microsoft.Dynamics.CRM.StateAttributeMetadata`
+        + `?$select=LogicalName&$expand=OptionSet($select=Options)`);
+      const o = (d?.OptionSet?.Options || [])
+        .find(x => Number(x.Value) === Number(statecode));
+      wert = o && o.DefaultStatus != null ? Number(o.DefaultStatus) : null;
+    } catch { wert = null; }
+    _meta[k] = wert;
+    metaSichern();
+    return wert;
+  }
+
   /** Navigationsnamen der Verweisfelder.
    *
    *  `@odata.bind` verlangt den Namen der NAVIGATIONSEIGENSCHAFT, nicht den
@@ -392,5 +421,6 @@ const DV = (() => {
 
   return { call, alle, dubletten, whoAmI, basis, pruefeKonfiguration, beispielWerte,
            belegung, primaerName, primaerId, felder, logischerName, navigation, schluessel,
+           standardStatus,
            typPasst, metaLeeren };
 })();

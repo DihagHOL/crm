@@ -387,6 +387,11 @@ if ($ksite) {
         @{ name = "SecondPassFields"; kind = "text"    },
         @{ name = "StopOnError";      kind = "boolean" },
         @{ name = "SkipIfClosed";     kind = "boolean" },   # Review A3
+        # Geschlossene Chance wieder oeffnen, wenn die Datei sie erneut fuehrt.
+        # "Verloren" kehrt Review A3 um - bewusst nicht "Immer": eine gewonnene
+        # Chance wieder zu oeffnen waere fast immer falsch.
+        @{ name = "ReopenIfClosed";   kind = "choice"
+           choices = @("Nie","Verloren","Gewonnen","Immer") },
         # Positionen einer geschlossenen Chance lassen sich nicht ersetzen:
         # Dataverse weist schon das Loeschen ab (0x80040228), und weil
         # Loeschen und Anlegen ein Changeset sind, faellt die ganze Gruppe.
@@ -628,7 +633,7 @@ if ($ProfilLaden -and $ksite) {
                 # SharePoint legte sonst Leerstrings an, und "" ist etwas
                 # anderes als "nicht gesetzt".
                 foreach ($k in @("SourceSheet","MappingKey","AlternateKey",
-                                 "ParentField","ReplaceScope")) {
+                                 "ParentField","ReplaceScope","ReopenIfClosed")) {
                     $v = W $s $k
                     if ($null -ne $v) { $body[$k] = $v }
                 }

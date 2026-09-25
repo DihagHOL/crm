@@ -1010,6 +1010,40 @@ Datei, und die Automatik wäre keine. Wer es anders will, stellt
 `WarnungenBlockieren` auf `ja` — die Einstellung gibt es, weil beide
 Haltungen vertretbar sind.
 
+### Wiedereröffnen: wann die Datei gegen das CRM gewinnt
+
+Review A3 sagte: geschlossen heisst schreibgeschützt, und wiedereröffnet
+wird nichts automatisch — das wäre eine fachliche Entscheidung. Am
+25.09.2026 hat die Fachseite sie getroffen: **kommt eine Anfrage erneut
+aus Timeline, obwohl sie im CRM als verloren geschlossen ist, lebt sie
+wieder auf.** Der Widerspruch wird zugunsten der Datei aufgelöst.
+
+Einstellbar je Schritt (`ReopenIfClosed`: `Nie` · `Verloren` · `Gewonnen` ·
+`Immer`), und im Profil steht bewusst **`Verloren`**. Eine gewonnene
+Chance wieder zu öffnen, weil die Datei sie noch führt, wäre fast immer
+falsch: dort hat jemand im CRM einen Abschluss gebucht, und den kippt kein
+Export.
+
+Drei Dinge müssen dabei stimmen, sonst ist es eine Halbheit:
+
+1. **`statecode` und `statuscode` gehen in DIESELBE Anfrage wie die
+   Felder.** Ein eigener Aufruf wäre ein zweiter Schreibvorgang, der
+   einzeln scheitern kann — dann stünde die Chance offen, aber mit altem
+   Inhalt.
+2. **Der Zustand zählt als Änderung.** Sonst gilt eine Zeile, deren Felder
+   alle passen, als „unverändert", und die Chance bliebe zu.
+3. **Die Auflösung wird nachgezogen.** Schritt 40 liest von dort, ob der
+   Elterndatensatz offen ist. Ohne das überspringt er die Positionen einer
+   Chance, die eine Zeile weiter oben gerade geöffnet wurde — erst nach
+   dem Erfolg, versteht sich; bei einem Fehlschlag ist sie weiterhin zu.
+
+**Der Statusgrund ist mandantenspezifisch.** „Offen" heisst hier nicht `1`
+wie im Standard, sondern `100000000` („In Arbeit"). Deshalb aus
+`DefaultStatus` der `statecode`-Optionen gelesen (`DV.standardStatus`) und
+nicht geraten — dieselbe Regel wie beim Primärschlüssel. Gibt die Umgebung
+keinen her, wird die Zeile abgewiesen statt mit einer geratenen `1`
+verbrannt.
+
 ### Zwei Systeme, zwei Wahrheiten — der einzige Befund zum Entscheiden
 
 Eine im CRM geschlossene Verkaufschance, die in der Timeline-Datei weiter
