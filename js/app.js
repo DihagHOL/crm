@@ -208,6 +208,7 @@ const APP = (() => {
     }
 
     const f = AUTOMATIK.faellig(_auto.werte, new Date());
+    const termin = AUTOMATIK.fehlanzeigeTermin(_auto.werte, new Date());
     const an = AUTOMATIK.istJa(_auto.werte.Aktiv);
     $("auStatus").innerHTML = !_auto.vorhanden
       ? `<span class="fehlt">Die Liste <code>${esc(C.listen.automatik)}</code> gibt es
@@ -216,7 +217,17 @@ const APP = (() => {
       : `<b class="${an ? "ok" : ""}">${an ? "Eingeschaltet" : "Ausgeschaltet"}.</b>
          ${esc(f.grund)}${_auto.werte.LetzterLauf
            ? ` Letzter Lauf: ${esc(datum(_auto.werte.LetzterLauf))}.`
-           : " Noch kein Lauf verzeichnet."}`;
+           : " Noch kein Lauf verzeichnet."}
+         <br><b>Erwarteter Eingang:</b> ${esc(termin.grund)}
+         ${String(_auto.werte.ErwartetAn || "").trim()
+           ? `Bleibt die Mappe aus, geht eine Meldung an
+              <b>${esc(AUTOMATIK.fehlanzeigeEmpfaenger(_auto.werte))}</b> —
+              unabhängig davon, ob der Import eingeschaltet ist.`
+           : `Soll die Automatik melden, wenn <i>nichts</i> kommt, dann unten
+              <code>ErwartetAn</code> = <code>Do</code>,
+              <code>ErwartetBisUhr</code> = <code>14</code> und
+              <code>ErwartetEmpfaenger</code> = <code>ticket@dihag.com</code>
+              eintragen.`}`;
 
     renderFreigaben();
     renderBerichte();
@@ -387,7 +398,7 @@ const APP = (() => {
         <td>${k === "LetzterLauf"
           ? `<span class="hint">${esc(w[k] ? datum(w[k]) : "—")}</span>`
           : `<input data-einst="${esc(k)}" value="${esc(w[k] ?? "")}"
-               size="${k === "Empfaenger" || k === "Absender" ? 30 : 10}">`}</td>
+               size="${/Empfaenger|Absender/.test(k) ? 30 : 10}">`}</td>
         <td class="hint">${esc(AUTOMATIK.ERKLAERUNG[k] || "")}</td>
       </tr>`;
 

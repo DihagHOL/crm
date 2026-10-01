@@ -44,9 +44,13 @@ const AUTOMATIK = (() => {
     AbDatum:             "",
     MaxDateien:          "3",
     WarnungenBlockieren: "nein",
+    ErwartetAn:          "",
+    ErwartetBisUhr:      "14",
+    ErwartetEmpfaenger:  "",
     Empfaenger:          "administrator@dihag.com",
     Absender:            "administrator@dihag.com",
-    LetzterLauf:         ""
+    LetzterLauf:         "",
+    LetzteFehlanzeige:   ""
   };
 
   /** Was jede Einstellung bedeutet – die Oberfläche zeigt es an, damit
@@ -63,9 +67,18 @@ const AUTOMATIK = (() => {
     MaxDateien:          "Wie viele Dateien höchstens in EINEM Lauf verarbeitet werden.",
     WarnungenBlockieren: "ja | nein — sollen Warnungen (z. B. „Besitzer nicht gefunden“) "
                        + "eine Freigabe erzwingen statt nur im Bericht zu stehen?",
+    ErwartetAn:          "An welchen Tagen eine neue Mappe erwartet wird — „Do“, "
+                       + "„Mo,Do“, „täglich“. LEER heisst: keine Erwartung, keine "
+                       + "Fehlanzeige.",
+    ErwartetBisUhr:      "Bis zu dieser Stunde muss sie da sein (deutsche Zeit). "
+                       + "Danach meldet die Automatik den ausbleibenden Eingang.",
+    ErwartetEmpfaenger:  "Wer die Fehlanzeige bekommt, z. B. ticket@dihag.com. "
+                       + "Leer heisst: wie Empfaenger.",
     Empfaenger:          "Wer den Bericht bekommt. Mehrere durch Semikolon.",
     Absender:            "Postfach, aus dem gesendet wird (App-Berechtigung Mail.Send).",
-    LetzterLauf:         "Schreibt der Cron selbst. Von Hand leeren erzwingt den nächsten Lauf."
+    LetzterLauf:         "Schreibt der Cron selbst. Von Hand leeren erzwingt den nächsten Lauf.",
+    LetzteFehlanzeige:   "Schreibt der Cron selbst — damit die Fehlanzeige einmal am Tag "
+                       + "kommt und nicht viermal je Stunde."
   };
 
   const jaNein = v => String(v ?? "").trim().toLowerCase();
@@ -225,6 +238,147 @@ const AUTOMATIK = (() => {
     if (!Number.isFinite(importiert) || !Number.isFinite(geaendert)) return false;
     return geaendert - importiert > minuten * 60000;
   }
+
+  /* ── Der Eingang, der nicht kam ───────────────────────────────────
+
+     Alles bisher dreht sich um Dateien, die DA sind. Der stillste Fehler
+     ist der andere: eine Mappe, die nie geliefert wurde. Dann schreibt der
+     Import nichts, es gibt keinen Bericht, keine Warnung, keine Zeile im
+     Protokoll — Ausbleiben sieht genauso aus wie „alles in Ordnung“. Genau
+     deshalb fällt es erst Wochen später auf, wenn Zahlen im CRM fehlen.
+
+     Timeline liefert donnerstags. Die Automatik soll deshalb sagen können:
+     „Donnerstag, 14 Uhr, nichts eingegangen.“ Tag, Uhrzeit und Empfänger
+     stehen in SharePoint — eine ausbleibende Lieferung geht an die Stelle,
+     die ihr nachgeht (ticket@dihag.com), und nicht zwangsläufig an die,
+     die Importberichte liest.
+
+     EIGENER SCHALTER, bewusst getrennt von `Aktiv`: die Erwartung gilt der
+     DATEI, nicht der Automatik. Wer den Import abschaltet, um etwas
+     umzustellen, will nicht gleichzeitig blind dafür werden, dass nichts
+     kommt. Leeres `ErwartetAn` heisst: keine Erwartung, keine Mail — auch
+     hier schaltet sich nichts von selbst ein.                          */
+
+  /** Der Abstand der deutschen Zeit zu UTC in Millisekunden, am gegebenen
+   *  Augenblick: im Sommer zwei Stunden, im Winter eine. */
+  function berlinAbstand(d) {
+    const p = new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Europe/Berlin", hourCycle: "h23",
+      year: "numeric", month: "2-digit", day: "2-digit",
+      hour: "2-digit", minute: "2-digit", second: "2-digit"
+    }).formatToParts(d);
+    const g = t => Number((p.find(x => x.type === t) || {}).value);
+    return Date.UTC(g("year"), g("month") - 1, g("day"),
+                    g("hour"), g("minute"), g("second")) - d.getTime();
+  }
+
+  /** „Donnerstag, 14 Uhr deutsche Zeit“ als echter Augenblick.
+   *
+   *  Zwei Durchgänge, weil der Abstand zu UTC vom gesuchten Augenblick
+   *  selbst abhängt. Wer mit dem Abstand von heute rechnet, liegt über eine
+   *  Zeitumstellung hinweg um eine Stunde daneben — und das Rückfenster
+   *  reicht bei einem Wochenplan über eine Woche. */
+  function deutscherAugenblick(jahr, monat, tag, stunde) {
+    const roh = Date.UTC(jahr, monat - 1, tag, stunde, 0, 0);
+    const erst = roh - berlinAbstand(new Date(roh));
+    return roh - berlinAbstand(new Date(erst));
+  }
+
+  /** Datum, Stunde und Wochentag in deutscher Zeit, zerlegt. */
+  function deutschesDatum(jetzt) {
+    const d = new Date(jetzt.getTime() + berlinAbstand(jetzt));
+    const p = n => String(n).padStart(2, "0");
+    return {
+      jahr: d.getUTCFullYear(), monat: d.getUTCMonth() + 1, tag: d.getUTCDate(),
+      stunde: d.getUTCHours(), wochentag: TAGE[d.getUTCDay()],
+      datum: `${d.getUTCFullYear()}-${p(d.getUTCMonth() + 1)}-${p(d.getUTCDate())}`
+    };
+  }
+
+  /** Müsste jetzt eine Lieferung da sein?
+   *
+   *  Das Rückfenster beginnt beim VORIGEN erwarteten Termin und nicht um
+   *  Mitternacht: kommt die Mappe am Mittwochabend für den Donnerstag, ist
+   *  sie da, und eine Fehlanzeige wäre falsch. Bei „Do“ ist das Fenster
+   *  damit eine Woche, bei „Mo-Fr“ ein Tag — es stellt sich aus dem Plan
+   *  selbst ein, ohne zweite Einstellung.
+   *
+   *  Antwortet wie `faellig()` immer mit einem Grund, auch beim Nein.
+   *
+   *  @returns {{dran:boolean, grund:string, seit:number|null, bis:number,
+   *             termin:string, heute:string}} */
+  function fehlanzeigeTermin(werte, jetzt = new Date()) {
+    const plan = String(werte.ErwartetAn || "").trim();
+    const bis = zahl(werte.ErwartetBisUhr, 14);
+    const d = deutschesDatum(jetzt);
+    const nein = grund => ({ dran: false, grund, seit: null, bis,
+                             termin: "", heute: d.datum });
+
+    if (!plan) return nein("Kein Eingang erwartet — ErwartetAn ist leer.");
+    if (!tagErlaubt(plan, d.wochentag))
+      return nein(`${d.wochentag} ist kein erwarteter Eingangstag (${plan}).`);
+    if (d.stunde < bis)
+      return nein(`${d.wochentag} erwartet, Frist ${bis} Uhr — es ist erst `
+        + `${String(d.stunde).padStart(2, "0")} Uhr.`);
+    if (String(werte.LetzteFehlanzeige || "").slice(0, 10) === d.datum)
+      return nein(`Für heute ist die Fehlanzeige schon gemeldet.`);
+
+    /* Zurück zum vorigen erwarteten Tag. Vierzehn Tage reichen für jeden
+       Plan, der überhaupt einen Tag nennt; findet sich keiner, gilt eine
+       Woche — lieber ein zu weites Fenster als eine Fehlanzeige, nur weil
+       niemand den Plan lesen konnte. */
+    let seit = null;
+    for (let n = 1; n <= 14 && seit === null; n++) {
+      const v = new Date(Date.UTC(d.jahr, d.monat - 1, d.tag - n, 12));
+      if (tagErlaubt(plan, TAGE[v.getUTCDay()]))
+        seit = deutscherAugenblick(v.getUTCFullYear(), v.getUTCMonth() + 1,
+                                   v.getUTCDate(), bis);
+    }
+    if (seit === null) seit = jetzt.getTime() - 7 * 86400000;
+
+    return { dran: true, seit, bis, heute: d.datum,
+             termin: `${d.wochentag} ${bis} Uhr`,
+             grund: `${d.wochentag}, Frist ${bis} Uhr ist vorbei — jetzt müsste `
+               + `eine Mappe da sein.` };
+  }
+
+  /** Was ist seit `seit` eingegangen, und was war das Letzte überhaupt?
+   *
+   *  WANN IST EINE MAPPE EINGEGANGEN? Im Regelfall, als sie angelegt wurde.
+   *  Das Änderungsdatum taugt dafür nicht: der Statusvermerk der Automatik
+   *  fasst den Bibliothekseintrag selbst an, und eine Mappe von vorletzter
+   *  Woche sähe damit taufrisch aus — die Fehlanzeige käme nie.
+   *
+   *  Umgekehrt genauso falsch, und schlimmer: legt Timeline eine neue
+   *  Fassung unter DEMSELBEN Namen ab, bleibt das Anlagedatum von damals
+   *  stehen. Wer nur darauf sieht, meldet jede Woche „nichts eingegangen“,
+   *  obwohl die Datei pünktlich da war. Eine Fehlanzeige, die regelmässig
+   *  falsch ist, liest nach dem dritten Mal niemand mehr.
+   *
+   *  Deshalb zählt das Änderungsdatum mit, solange der Vermerk es nicht
+   *  erklärt: bei einer Datei ohne Importvermerk, und bei einer, die nach
+   *  ihrem eigenen Import noch verändert wurde (`seitImportGeaendert`,
+   *  dieselbe Regel, nach der die Automatik sie erneut aufgreift).
+   *
+   *  @returns {{imFenster:Array<{name,wann}>, letzte:{name,wann}|null}} */
+  function eingangsLage(dateien = [], seit = 0) {
+    const wann = x => {
+      const unberuehrt = !x.status || x.status === "Neu";
+      const zeiten = [Date.parse(x.erstellt || "")];
+      if (unberuehrt || seitImportGeaendert(x)) zeiten.push(Date.parse(x.geaendert || ""));
+      const gut = zeiten.filter(Number.isFinite);
+      return gut.length ? Math.max(...gut) : NaN;
+    };
+    const alle = (dateien || [])
+      .map(x => ({ name: x.name, wann: wann(x) }))
+      .filter(x => Number.isFinite(x.wann))
+      .sort((a, b) => b.wann - a.wann);
+    return { imFenster: alle.filter(x => x.wann >= seit), letzte: alle[0] || null };
+  }
+
+  /** Wer die Fehlanzeige bekommt. Leer heisst: wie der Bericht. */
+  const fehlanzeigeEmpfaenger = werte =>
+    String(werte.ErwartetEmpfaenger || "").trim() || werte.Empfaenger;
 
   /* ── Darf ohne Rückfrage importiert werden? ───────────────────────── */
 
@@ -479,15 +633,15 @@ const AUTOMATIK = (() => {
        Postfachübersicht steht – er muss stimmen. */
     /* Der Konflikt gehört in den Betreff. Er ist das Einzige im Bericht,
        das jemand entscheiden MUSS – alles andere ist Buchhaltung. */
-    const betreff = `CRM-Import ${C.umgebung}: `
+    const betreff = opt.betreff || (`CRM-Import ${C.umgebung}: `
       + (teile.length ? teile.join(", ")
          : geprueft ? `${geprueft} geprüft, nichts geschrieben`
          : "nichts zu tun")
       + (geoeffnet ? ` · ${geoeffnet} wiedereröffnet` : "")
-      + (konflikte ? ` · ${konflikte} geschlossene Anfrage(n) prüfen` : "");
+      + (konflikte ? ` · ${konflikte} geschlossene Anfrage(n) prüfen` : ""));
 
     const farbe = { importiert: "#2e7d32", freigabe: "#F08300", fehler: "#c62828",
-                    hinweis: "#424241" };
+                    warnung: "#F08300", hinweis: "#424241" };
 
     const html = `<!doctype html><html><body style="font-family:Segoe UI,Arial,sans-serif;
       font-size:14px;color:#424241;line-height:1.5">
@@ -507,6 +661,33 @@ const AUTOMATIK = (() => {
       </body></html>`;
 
     return { betreff, html };
+  }
+
+  /** Die Fehlanzeige als Mail.
+   *
+   *  Kurz, weil sie einen Auftrag auslöst statt Buchhaltung zu melden:
+   *  jemand soll nachsehen, warum nichts geliefert wurde. Der Betreff sagt
+   *  das Wesentliche schon in der Postfachübersicht — eine Mail über etwas,
+   *  das NICHT passiert ist, wird sonst zuverlässig übersehen. */
+  function fehlanzeigeMail(termin, lage, werte, opt = {}) {
+    const wann = t => t
+      ? new Date(t).toLocaleString("de-DE", { timeZone: "Europe/Berlin" }) + " Uhr"
+      : "—";
+    const zeilen = [
+      `Erwartet war eine neue Timeline-Mappe bis <b>${esc(termin.termin)}</b> `
+        + `(Plan: ${esc(werte.ErwartetAn)}).`,
+      `Im Quellordner ist seit ${esc(wann(termin.seit))} keine neue Mappe `
+        + "eingegangen.",
+      lage.letzte
+        ? `Zuletzt eingegangen: <b>${esc(lage.letzte.name)}</b> am `
+          + `${esc(wann(lage.letzte.wann))}.`
+        : "Im Quellordner liegt überhaupt keine Mappe.",
+      "Das ist kein Fehler des Imports — es ist nichts da, was zu importieren "
+        + "wäre. Zu prüfen ist die Lieferung aus Timeline."
+    ];
+    return bericht([{ art: "warnung", titel: "Erwarteter Eingang fehlt", zeilen }],
+      { ...opt, betreff: `CRM-Import ${C.umgebung}: keine neue Mappe eingegangen `
+          + `(Stand ${termin.termin})` });
   }
 
   /** Den Bericht ablegen, bevor er verschickt wird.
@@ -576,6 +757,8 @@ const AUTOMATIK = (() => {
 
   return { STANDARD, ERKLAERUNG, FREI, istJa, zahl, nachStichtag,
            seitImportGeaendert, auslassungen, auslassungsSatz,
+           deutschesDatum, fehlanzeigeTermin, eingangsLage,
+           fehlanzeigeEmpfaenger, fehlanzeigeMail,
            geschlosseneKonflikte, konfliktZeilen, berichtAblegen, berichte,
            einstellungen, einstellungSetzen, faellig, deutscheZeit, tagErlaubt,
            torschluss, hatArbeit, warnungsGruppen,

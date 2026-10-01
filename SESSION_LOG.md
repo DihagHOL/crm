@@ -1,5 +1,51 @@
 # Session-Log
 
+## 01.10.2026 — Die Meldung über das, was nicht passiert ist
+
+„Mail einstellbar, z. B. an ticket@dihag.com — Info donnerstags, dass
+nichts eingegangen ist, z. B. bis 14 Uhr."
+
+Der Empfänger des Berichts war schon einstellbar (`Empfaenger` in
+`CRM_Automatik`). Neu ist der zweite Teil, und er schliesst die einzige
+Lücke, die dieses Werkzeug noch hatte: **wenn nichts geliefert wird, gibt
+es nichts zu melden.** Kein Import, kein Bericht, keine Protokollzeile —
+Ausbleiben sieht genauso aus wie „alles in Ordnung", und auffallen würde es
+erst, wenn im CRM Zahlen fehlen.
+
+Drei neue Einstellungen, eigener Schalter, eigene Adresse:
+`ErwartetAn = Do`, `ErwartetBisUhr = 14`,
+`ErwartetEmpfaenger = ticket@dihag.com`. Eine ausbleibende Lieferung geht
+an die Stelle, die ihr nachgeht, nicht an die, die Importberichte liest.
+
+**Bewusst nicht an `Aktiv` gehängt.** Die Erwartung gilt der Datei, nicht
+der Automatik. Wer den Import für eine Umstellung abschaltet, soll nicht
+gleichzeitig blind dafür werden, dass nichts kommt.
+
+**Das Rückfenster beginnt beim vorigen Termin**, nicht um Mitternacht: eine
+Mappe, die Mittwochabend für den Donnerstag kommt, ist pünktlich. Bei `Do`
+ist das Fenster eine Woche, bei `Mo-Fr` ein Tag — es stellt sich aus dem
+Plan selbst ein, ohne zweite Einstellung. Über eine Zeitumstellung hinweg
+wird der Abstand des gesuchten Augenblicks gerechnet, nicht der von heute;
+mit Test für Sommer und Winter.
+
+**Beim Prüfen gegen den echten Ordner eine eigene Fehlannahme gefunden.**
+Erster Entwurf: eingegangen = angelegt. Das Änderungsdatum taugt
+tatsächlich nicht (der Statusvermerk fasst den Eintrag selbst an, zwei
+Sekunden nach dem Import). Aber umgekehrt ist es schlimmer: legt Timeline
+eine neue Fassung unter demselben Namen ab, bleibt das Anlagedatum von
+damals stehen — die Fehlanzeige käme jede Woche falsch, und eine Meldung,
+die regelmässig falsch ist, liest nach dem dritten Mal niemand mehr. Jetzt
+zählt das Änderungsdatum mit, solange kein Importvermerk es erklärt.
+
+**Am Ordnerinhalt nachgerechnet** (74 Mappen, Stand heute): Timeline
+liefert donnerstags zwischen 06:00 und 06:33 deutscher Zeit, jede Woche
+unter neuem Namen. Die Frist 14 Uhr lässt also acht Stunden Luft. Für
+heute, letzten Donnerstag und einen Freitag durchgerechnet: Mail nur dort,
+wo tatsächlich nichts kam.
+
+Einzurichten ist es im Reiter **Automatik** — drei Felder, ein Speichern,
+kein Deploy. Bis dahin ist die Erwartung leer und damit aus.
+
 ## 25.09.2026, nachmittags — Der Protokoll-Reiter wertet aus
 
 „Pass den Reiter Protokoll so an, dass die Auswertungen dort sichtbar

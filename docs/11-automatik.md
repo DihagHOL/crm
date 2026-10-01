@@ -40,9 +40,13 @@ Alles im Reiter **Automatik** einstellbar:
 | `AbDatum` | Tag der Einrichtung | **Stichtag.** Ältere Mappen bleiben liegen. Leer = alle. |
 | `MaxDateien` | `3` | Höchstzahl Mappen je Lauf. |
 | `WarnungenBlockieren` | `nein` | Sollen Warnungen eine Freigabe erzwingen? |
+| `ErwartetAn` | — (leer) | **Fehlanzeige.** Tage, an denen eine Mappe erwartet wird, z. B. `Do`. Leer = keine Erwartung. |
+| `ErwartetBisUhr` | `14` | Bis zu dieser Stunde muss sie da sein (deutsche Zeit). |
+| `ErwartetEmpfaenger` | — (leer) | Wer die Fehlanzeige bekommt, z. B. `ticket@dihag.com`. Leer = wie `Empfaenger`. |
 | `Empfaenger` | `administrator@dihag.com` | Mehrere durch Semikolon. |
 | `Absender` | `administrator@dihag.com` | Postfach für den Versand. |
 | `LetzterLauf` | — | Schreibt der Cron. **Von Hand leeren erzwingt den nächsten Lauf.** |
+| `LetzteFehlanzeige` | — | Schreibt der Cron. Sorgt dafür, dass die Fehlanzeige einmal am Tag kommt und nicht viermal je Stunde. |
 
 ---
 
@@ -220,6 +224,58 @@ selben Bildschirm.
 
 ---
 
+## Wenn nichts kommt — die Fehlanzeige
+
+Der Import meldet, was er getan hat. Die teuerste Lücke ist die andere:
+**wurde nichts geliefert, gibt es nichts zu melden.** Kein Bericht, keine
+Warnung, keine Protokollzeile — und niemand merkt es, bis im CRM Zahlen
+fehlen. Ausbleiben sieht genauso aus wie „alles in Ordnung".
+
+Timeline liefert donnerstags. Gemessen am 01.10.2026 am Ordnerinhalt: 74
+Mappen, jede Woche eine, angelegt zwischen 06:00 und 06:33 deutscher Zeit,
+jede unter neuem Namen (`Anfragen 2026-10-01.xlsx`). Drei Eingaben im
+Reiter **Automatik** machen daraus eine Erwartung:
+
+```
+ErwartetAn         = Do
+ErwartetBisUhr     = 14
+ErwartetEmpfaenger = ticket@dihag.com
+```
+
+Donnerstags ab 14 Uhr geschieht dann genau eines:
+
+- **Eine Mappe ist eingegangen** → nichts. Keine Mail, nur eine Zeile im
+  Actions-Protokoll („2 Mappe(n) im Zeitfenster eingegangen").
+- **Es ist keine eingegangen** → eine Mail an `ticket@dihag.com`, Betreff
+  `CRM-Import PROD: keine neue Mappe eingegangen (Stand Do 14 Uhr)`. Darin
+  steht, welche Mappe zuletzt kam und wann, und dass die Lieferung aus
+  Timeline zu prüfen ist. **Einmal am Tag**, nicht viermal je Stunde.
+
+Was als eingegangen zählt:
+
+- **Zeitraum:** ab dem **vorigen erwarteten Termin**, bei `Do` also ab
+  letztem Donnerstag 14 Uhr. Eine Mappe, die Mittwochabend für den
+  Donnerstag kommt, ist damit pünktlich. Bei `Mo-Fr` ist das Fenster ein
+  Tag — es stellt sich aus dem Plan selbst ein.
+- **Zeitpunkt:** wann die Datei **angelegt** wurde. Das Änderungsdatum
+  zählt nur mit, solange kein Importvermerk es erklärt. Sonst machte der
+  Statusvermerk der Automatik jede alte Mappe taufrisch (Fehlanzeige käme
+  nie) — oder eine unter gleichem Namen überschriebene Mappe würde
+  übersehen (Fehlanzeige käme jede Woche falsch).
+- **Jede Arbeitsmappe im Quellordner**, nicht nur eine mit dem Namen
+  `Anfragen …`. Der Ordner ist der Eingang des Werkzeugs: liegt dort eine
+  neue Mappe, ist etwas zu importieren da. Die zwei Fremddateien von 2025
+  (`OppID-FirmaMapping.xlsx`, `Test.xlsx`) zählen nur an einem Tag, an dem
+  jemand sie verändert.
+
+Die Fehlanzeige hängt **nicht** an `Aktiv`: die Erwartung gilt der Datei,
+nicht der Automatik. Wer den Import für eine Umstellung abschaltet, soll
+nicht gleichzeitig blind dafür werden, dass nichts geliefert wird.
+Umgekehrt heisst `ErwartetAn` leer: keine Erwartung, keine Mail — auch
+diese Meldung schaltet sich nicht von selbst ein.
+
+---
+
 ## Wer freigeben darf
 
 **Rolle `editor`.** Sonst nur ansehen — und das ist der einzige Ort in der
@@ -267,6 +323,17 @@ berichten — keine neue Datei.
 Scheitert der Versand selbst, schlägt der Lauf in Actions sichtbar fehl
 statt still zu schweigen; meist fehlt dann `Mail.Send` oder das
 Absenderpostfach gibt es nicht.
+
+**Die Fehlanzeige kommt nicht.** Im Reiter **Automatik** steht in der
+zweiten Zeile der Grund: „Fr ist kein erwarteter Eingangstag (Do)", „Do
+erwartet, Frist 14 Uhr — es ist erst 11 Uhr", „Kein Eingang erwartet —
+ErwartetAn ist leer". War heute schon eine, steht das Datum in
+`LetzteFehlanzeige`; von Hand leeren erzwingt eine zweite.
+
+**Die Fehlanzeige kam, obwohl die Datei da ist.** Dann liegt sie nicht im
+Quellordner (`Austausch` ▸ `Projekt CRM-Timeline` auf `/sites/IT`), oder
+sie wurde dorthin verschoben, ohne verändert zu werden — verschobene
+Dateien behalten ihr Anlagedatum. Einmal öffnen und speichern genügt.
 
 **Ein Lauf hat Mist gebaut.** Jeder Lauf schreibt Protokoll wie der
 Import von Hand: Eintrag in `CRM_ImportRuns`, Fehlerzeilen in

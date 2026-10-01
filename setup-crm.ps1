@@ -541,6 +541,11 @@ if ($ksite) {
                                 "Stichtag JJJJ-MM-TT. Aeltere Mappen bleiben liegen. Leer = alle.")
         MaxDateien          = @("3",    "Hoechstzahl Dateien je Lauf.")
         WarnungenBlockieren = @("nein", "ja | nein - erzwingen Warnungen eine Freigabe?")
+        # Erwarteter Eingang: meldet, wenn NICHTS kommt. Leer = keine
+        # Erwartung - auch diese Meldung schaltet sich nicht von selbst ein.
+        ErwartetAn          = @("",     "Tage, an denen eine Mappe erwartet wird, z.B. 'Do'. Leer = keine Erwartung.")
+        ErwartetBisUhr      = @("14",   "Bis zu dieser Stunde muss sie da sein (deutsche Zeit).")
+        ErwartetEmpfaenger  = @("",     "Wer die Fehlanzeige bekommt, z.B. ticket@dihag.com. Leer = wie Empfaenger.")
         Empfaenger          = @("administrator@dihag.com", "Wer den Bericht bekommt.")
         Absender            = @("administrator@dihag.com", "Postfach fuer den Versand (Mail.Send).")
     }

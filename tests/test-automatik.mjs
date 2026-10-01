@@ -334,5 +334,129 @@ console.log("\nGeschlossen im CRM, in der Datei noch aktiv");
     "ohne Konflikt bleibt er kurz");
 }
 
+console.log("\nDer Eingang, der nicht kam");
+{
+  /* Der stillste Fehler: eine Mappe, die nie geliefert wurde. Kein Import,
+     kein Bericht, keine Protokollzeile — Ausbleiben sieht genauso aus wie
+     „alles in Ordnung“. Timeline liefert donnerstags; die Frist ist 14 Uhr.
+
+     Alle Zeitpunkte hier in UTC, die Erwartung in deutscher Zeit — genau
+     die Umrechnung ist der Teil, der still falsch sein kann. */
+  const { AUTOMATIK: A } = ladeAlles();
+  const E = { ...A.STANDARD, ErwartetAn: "Do", ErwartetBisUhr: "14",
+              ErwartetEmpfaenger: "ticket@dihag.com" };
+
+  // Donnerstag, 01.10.2026. Sommerzeit: 12:00 UTC = 14:00 deutsche Zeit.
+  const do13 = new Date("2026-10-01T11:00:00Z");
+  const do14 = new Date("2026-10-01T12:00:00Z");
+
+  gleich(A.deutschesDatum(do14).wochentag, "Do", "der Wochentag kommt aus der deutschen Zeit");
+  gleich(A.deutschesDatum(do14).stunde, 14, "und die Stunde auch");
+  gleich(A.deutschesDatum(do14).datum, "2026-10-01", "mit dem Datum als Schlüssel für den Tag");
+
+  pruefe(!A.fehlanzeigeTermin(A.STANDARD, do14).dran,
+    "ohne ErwartetAn gibt es keine Erwartung und keine Mail");
+  pruefe(!A.fehlanzeigeTermin(E, do13).dran, "13 Uhr: die Frist läuft noch");
+  pruefe(A.fehlanzeigeTermin(E, do14).dran, "14 Uhr: jetzt müsste sie da sein");
+  pruefe(!A.fehlanzeigeTermin(E, new Date("2026-09-30T12:00:00Z")).dran,
+    "Mittwoch ist kein erwarteter Eingangstag");
+
+  // Das Rückfenster beginnt beim VORIGEN Termin, nicht um Mitternacht.
+  gleich(A.fehlanzeigeTermin(E, do14).seit,
+    Date.parse("2026-09-24T12:00:00Z"),
+    "bei „Do“ reicht das Fenster eine Woche zurück, bis Do 14 Uhr");
+  gleich(A.fehlanzeigeTermin({ ...E, ErwartetAn: "Mo-Fr" }, do14).seit,
+    Date.parse("2026-09-30T12:00:00Z"),
+    "bei „Mo-Fr“ nur einen Tag — das Fenster stellt sich aus dem Plan selbst ein");
+
+  /* Winter: 14 Uhr deutsche Zeit ist dann 13:00 UTC. Wer mit einem festen
+     Abstand rechnet, liegt zweimal im Jahr eine Stunde daneben. */
+  const winter = new Date("2026-01-15T13:00:00Z");   // Donnerstag
+  const w = A.fehlanzeigeTermin(E, winter);
+  pruefe(w.dran, "im Winter greift die Frist eine Stunde später in UTC");
+  gleich(w.seit, Date.parse("2026-01-08T13:00:00Z"),
+    "und das Rückfenster rechnet die Umstellung mit");
+
+  // Einmal am Tag, nicht viermal je Stunde.
+  pruefe(!A.fehlanzeigeTermin({ ...E, LetzteFehlanzeige: "2026-10-01" }, do14).dran,
+    "ist die Fehlanzeige für heute gemeldet, kommt sie nicht noch dreimal");
+  pruefe(A.fehlanzeigeTermin({ ...E, LetzteFehlanzeige: "2026-09-24" }, do14).dran,
+    "die von letzter Woche hält die von heute nicht auf");
+
+  // Jede Antwort nennt einen Grund – wie bei faellig().
+  for (const v of [A.STANDARD, E, { ...E, ErwartetAn: "Mi" }])
+    pruefe(A.fehlanzeigeTermin(v, do14).grund.length > 10, "die Antwort nennt einen Grund");
+
+  /* Die Erwartung gilt der DATEI, nicht der Automatik: ein abgeschalteter
+     Import darf nicht blind machen für eine ausbleibende Lieferung. */
+  pruefe(A.fehlanzeigeTermin({ ...E, Aktiv: "nein" }, do14).dran,
+    "sie greift auch, wenn der Import ausgeschaltet ist");
+
+  gleich(A.fehlanzeigeEmpfaenger(E), "ticket@dihag.com",
+    "die Fehlanzeige geht an die Stelle, die ihr nachgeht");
+  gleich(A.fehlanzeigeEmpfaenger({ ...E, ErwartetEmpfaenger: "" }),
+    A.STANDARD.Empfaenger, "leer heisst: wie der Bericht");
+}
+
+console.log("\nIst etwas eingegangen?");
+{
+  const { AUTOMATIK: A } = ladeAlles();
+  const seit = Date.parse("2026-09-24T12:00:00Z");
+
+  /* Mittwochabend für den Donnerstag ist pünktlich — eine Fehlanzeige wäre
+     hier falsch. Deshalb beginnt das Fenster beim vorigen Termin. */
+  const mittwochs = A.eingangsLage(
+    [{ name: "Anfragen 2026-10-01.xlsx", erstellt: "2026-09-30T17:40:00Z" }], seit);
+  gleich(mittwochs.imFenster.length, 1, "die Mappe von Mittwochabend zählt");
+
+  /* Das Änderungsdatum taugt als Eingang NICHT, solange der Vermerk es
+     erklärt: der Statusvermerk der Automatik fasst den Bibliothekseintrag
+     selbst an (gemessen am 24.09.2026: zwei Sekunden nach dem Import), und
+     eine Mappe von vorletzter Woche sähe damit taufrisch aus. */
+  const alt = A.eingangsLage([{ name: "Anfragen 2026-09-17.xlsx",
+    erstellt: "2026-09-17T05:00:00Z", status: "Importiert",
+    importiertAm: "2026-10-01T06:25:00Z", geaendert: "2026-10-01T06:25:02Z" }], seit);
+  gleich(alt.imFenster.length, 0, "ein Statusvermerk von heute ist kein Eingang");
+
+  /* Umgekehrt genauso falsch, und schlimmer: legt Timeline eine neue
+     Fassung unter demselben Namen ab, bleibt das Anlagedatum von damals
+     stehen. Wer nur darauf sieht, meldet jede Woche „nichts eingegangen“,
+     obwohl die Datei da war — und eine Fehlanzeige, die regelmässig falsch
+     ist, liest nach dem dritten Mal niemand mehr. */
+  const ueberschrieben = A.eingangsLage([{ name: "Anfragen.xlsx",
+    erstellt: "2025-05-02T05:00:00Z", status: "Importiert",
+    importiertAm: "2026-09-24T05:25:00Z", geaendert: "2026-09-30T17:40:00Z" }], seit);
+  gleich(ueberschrieben.imFenster.length, 1,
+    "eine neue Fassung unter altem Namen ist ein Eingang");
+
+  const unberuehrt = A.eingangsLage([{ name: "Anfragen neu.xlsx", status: "Neu",
+    erstellt: "2025-05-02T05:00:00Z", geaendert: "2026-09-30T17:40:00Z" }], seit);
+  gleich(unberuehrt.imFenster.length, 1,
+    "und eine verschobene Mappe ohne Importvermerk auch");
+  gleich(alt.letzte.name, "Anfragen 2026-09-17.xlsx",
+    "die letzte Lieferung steht trotzdem im Bericht — sie beantwortet „seit wann“");
+
+  const leer = A.eingangsLage([], seit);
+  gleich(leer.imFenster.length, 0, "ein leerer Ordner ist auch nichts");
+  gleich(leer.letzte, null, "und hat keine letzte Lieferung");
+
+  // Ohne lesbares Datum wird nichts behauptet.
+  gleich(A.eingangsLage([{ name: "x.xlsx", erstellt: "" }], seit).imFenster.length, 0,
+    "ohne Datum zählt eine Datei nicht als Eingang");
+
+  // Die Mail: der Betreff muss ohne Öffnen verständlich sein.
+  const termin = A.fehlanzeigeTermin({ ...A.STANDARD, ErwartetAn: "Do" },
+    new Date("2026-10-01T12:00:00Z"));
+  const m = A.fehlanzeigeMail(termin, alt, { ...A.STANDARD, ErwartetAn: "Do" },
+    { appUrl: "https://crm.dihag.de/" });
+  pruefe(/keine neue Mappe eingegangen/.test(m.betreff),
+    "der Betreff sagt, dass nichts kam");
+  pruefe(/Do 14 Uhr/.test(m.betreff), "und zu welchem Termin");
+  pruefe(/TEST/.test(m.betreff), "die Umgebung steht davor wie bei jedem Bericht");
+  pruefe(/Anfragen 2026-09-17\.xlsx/.test(m.html),
+    "die Mail nennt die letzte Lieferung");
+  pruefe(/Timeline/.test(m.html), "und sagt, wo zu suchen ist");
+}
+
 console.log(fehler ? `\n${fehler} Prüfung(en) fehlgeschlagen.\n` : "\nAlle Prüfungen bestanden.\n");
 process.exit(fehler ? 1 : 0);

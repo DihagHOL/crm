@@ -150,6 +150,7 @@ if (process.env.CRM_UMGEBUNG)      CRM_CONFIG.umgebung     = process.env.CRM_UMG
 /* ── Hilfen ───────────────────────────────────────────────────────────── */
 
 const sagen = (...t) => console.log(...t);
+const APP_URL = "https://crm.dihag.de/";
 const esc = t => String(t ?? "").replace(/[&<>]/g,
   c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
 const zahlSatz = g => `${g.angelegt || 0} angelegt · ${g.aktualisiert || 0} geändert · `
@@ -211,10 +212,51 @@ async function markieren(datei, felder) {
 
   const f = AUTOMATIK.faellig(e, new Date());
   sagen(`Automatik: ${f.grund}`);
+
+  /* ── Der Eingang, der nicht kam ──
+     VOR dem Takt-Tor, und ohne Rücksicht auf `Aktiv`: die Erwartung gilt
+     der Datei, nicht der Automatik. Ein ausbleibender Eingang ist genau
+     dann zu melden, wenn es sonst nichts zu melden gibt – und wer den
+     Import für eine Umstellung abschaltet, soll nicht gleichzeitig blind
+     dafür werden, dass nichts geliefert wird.
+
+     Die Dateiliste wird hier gegebenenfalls schon geholt und weiter unten
+     wiederverwendet: an Tagen ohne Erwartung kostet die Prüfung keine
+     einzige Abfrage, weil die Uhrzeit allein schon entscheidet. */
+  let dateien = null;
+  const termin = AUTOMATIK.fehlanzeigeTermin(e, new Date());
+  sagen(`Erwarteter Eingang: ${termin.grund}`);
+  if (termin.dran) {
+    dateien = await SPFILES.liste();
+    const lage = AUTOMATIK.eingangsLage(dateien, termin.seit);
+    const an = AUTOMATIK.fehlanzeigeEmpfaenger(e);
+    if (lage.imFenster.length) {
+      sagen(`  ${lage.imFenster.length} Mappe(n) im Zeitfenster eingegangen, `
+        + `zuletzt ${lage.imFenster[0].name} – keine Fehlanzeige.`);
+    } else if (TROCKEN) {
+      sagen(`  CRM_TROCKEN=1: die Fehlanzeige würde an ${an} gehen.`);
+    } else {
+      const m = AUTOMATIK.fehlanzeigeMail(termin, lage, e, { appUrl: APP_URL });
+      await AUTOMATIK.berichtAblegen(m.betreff, m.html);
+      try {
+        await AUTOMATIK.mailSenden(e.Absender, an, m.betreff, m.html);
+        /* Vermerkt wird ERST nach dem Versand. Scheitert die Mail, soll der
+           nächste Blick auf die Uhr es erneut versuchen – ein Vermerk ohne
+           Mail wäre das Schlimmste von beidem: nichts gesendet und für
+           heute abgehakt. */
+        await AUTOMATIK.einstellungSetzen("LetzteFehlanzeige", termin.heute, ids);
+        sagen(`  Fehlanzeige an ${an}: ${m.betreff}`);
+      } catch (er) {
+        sagen(`  ! Fehlanzeige NICHT versendet: ${er.message}`);
+        process.exitCode = 1;
+      }
+    }
+  }
+
   if (!f.ja && !ERZWINGEN) return;
   if (!f.ja) sagen("CRM_ERZWINGEN=1 – Takt und Zeitfenster werden übergangen.");
 
-  const dateien = await SPFILES.liste();
+  dateien = dateien || await SPFILES.liste();
   const vorgaenge = (await AUTOMATIK.freigaben()) || [];
 
   /* Was ist zu tun?
@@ -430,8 +472,7 @@ async function markieren(datei, felder) {
     return;
   }
 
-  const { betreff, html } = AUTOMATIK.bericht(abschnitte,
-    { appUrl: "https://crm.dihag.de/" });
+  const { betreff, html } = AUTOMATIK.bericht(abschnitte, { appUrl: APP_URL });
 
   /* ZUERST ablegen, dann verschicken. Eine Mail ist ein Kanal, kein
      Archiv – scheitert der Versand oder landet sie im Spam, steht der

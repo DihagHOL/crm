@@ -995,6 +995,53 @@ eingetragenen Importzeitpunkt. Ohne Abstand hielte sich jede Datei für
 geändert und würde bei jedem Lauf erneut importiert — eine Schleife, die
 sich selbst füttert.
 
+### Der Eingang, der nicht kam
+
+Alles bisher dreht sich um Dateien, die **da** sind. Der stillste Fehler
+ist der andere: eine Mappe, die nie geliefert wurde. Dann schreibt der
+Import nichts, es gibt keinen Bericht, keine Warnung, keine Protokollzeile
+— **Ausbleiben sieht genauso aus wie „alles in Ordnung".** Genau deshalb
+fällt es erst Wochen später auf, wenn im CRM Zahlen fehlen.
+
+Timeline liefert donnerstags (geprüft am 01.10.2026 am Ordnerinhalt: 74
+Mappen, jede Woche eine, angelegt zwischen 06:00 und 06:33 deutscher Zeit).
+Seit dem 01.10.2026 kann die Automatik melden, wenn donnerstags bis 14 Uhr
+keine Mappe da ist — an eine **eigene** Adresse: eine ausbleibende
+Lieferung geht an die Stelle, die ihr nachgeht (`ticket@dihag.com`), nicht
+an die, die Importberichte liest. Drei Entscheidungen prägen das:
+
+**Eigener Schalter, getrennt von `Aktiv`.** Die Erwartung gilt der DATEI,
+nicht der Automatik. Wer den Import abschaltet, um etwas umzustellen, will
+nicht gleichzeitig blind dafür werden, dass nichts kommt. `ErwartetAn`
+leer heisst: keine Erwartung — auch diese Meldung schaltet sich nicht von
+selbst ein.
+
+**Das Rückfenster beginnt beim vorigen Termin, nicht um Mitternacht.**
+Kommt die Mappe am Mittwochabend für den Donnerstag, ist sie da, und eine
+Fehlanzeige wäre falsch. Bei `Do` reicht das Fenster eine Woche zurück, bei
+`Mo-Fr` einen Tag — es stellt sich aus dem Plan selbst ein, ohne zweite
+Einstellung. Gerechnet wird in deutscher Zeit mit dem Abstand **des
+gesuchten Augenblicks**, nicht dem von heute: über eine Zeitumstellung
+hinweg läge man sonst eine Stunde daneben, und das Fenster reicht bei einem
+Wochenplan über eine Woche.
+
+**Eingegangen = angelegt, nicht geändert — mit einer Ausnahme.** Das
+Änderungsdatum allein taugt nicht: der Statusvermerk fasst den
+Bibliothekseintrag selbst an, jede importierte Mappe sähe taufrisch aus,
+und die Fehlanzeige käme nie. Umgekehrt ist es schlimmer: legt Timeline
+eine neue Fassung unter DEMSELBEN Namen ab, bleibt das Anlagedatum von
+damals stehen, und die Fehlanzeige käme jede Woche falsch — eine Meldung,
+die regelmässig falsch ist, liest nach dem dritten Mal niemand mehr.
+Deshalb zählt das Änderungsdatum mit, solange der Vermerk es nicht erklärt:
+bei einer Datei ohne Importvermerk, und bei einer, die nach ihrem eigenen
+Import noch verändert wurde — dieselbe Regel, nach der die Automatik sie
+erneut aufgreift (`seitImportGeaendert`).
+
+Vermerkt wird **erst nach** dem Versand (`LetzteFehlanzeige`, ein Datum).
+Scheitert die Mail, versucht es der nächste Blick auf die Uhr erneut; ein
+Vermerk ohne Mail wäre das Schlimmste von beidem — nichts gesendet und für
+heute abgehakt.
+
 ### Das Tor: was einen Menschen stutzen liesse, hält an
 
 `AUTOMATIK.torschluss()` lässt genau dann durch, wenn der Prüflauf nichts

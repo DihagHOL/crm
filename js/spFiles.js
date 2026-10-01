@@ -38,7 +38,7 @@ const SPFILES = (() => {
    *  `$expand=listItem($expand=fields)` gleich mit – sonst bräuchte es je
    *  Datei einen zweiten Aufruf.
    *
-   *  @returns {Promise<Array<{id,name,groesse,geaendert,geaendertVon,
+   *  @returns {Promise<Array<{id,name,groesse,erstellt,geaendert,geaendertVon,
    *                           status,laufId,importiertAm,webUrl}>>} */
   async function liste() {
     const dId = await bibliothek();
@@ -56,6 +56,9 @@ const SPFILES = (() => {
           name:          k.name,
           bytes:         k.size || 0,
           groesse:       groesse(k.size || 0),
+          // Angelegt = EINGEGANGEN. Das Änderungsdatum taugt dafür nicht:
+          // der Statusvermerk der Automatik fasst den Eintrag selbst an.
+          erstellt:      k.createdDateTime || "",
           geaendert:     k.lastModifiedDateTime || "",
           geaendertVon:  k.lastModifiedBy?.user?.displayName || "",
           webUrl:        k.webUrl || "",
