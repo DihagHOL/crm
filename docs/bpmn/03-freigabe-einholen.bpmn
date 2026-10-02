@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:bioc="http://bpmn.io/schema/bpmn/biocolor/1.0" xmlns:color="http://www.omg.org/spec/BPMN/non-normative/color/1.0" id="Definitions_freigabe" targetNamespace="https://crm.dihag.de/bpmn" exporter="DIHAG BPMN-Generator (scripts/bpmn/generate-bpmn.js)" exporterVersion="2.0">
+  <bpmn:collaboration id="Collab_freigabe">
+    <bpmn:participant id="P_Frei" name="DIHAG · Freigabe einholen" processRef="Process_CRM_Timeline_Freigabe" />
+  </bpmn:collaboration>
+  <bpmn:process id="Process_CRM_Timeline_Freigabe" name="Freigabe einholen" isExecutable="false">
+    <bpmn:documentation>Was einen Menschen stutzen liesse, hält die Automatik an: ein Fehler im Prüflauf, ein fehlendes Blatt, eine Mehrdeutigkeit mit mehreren aktiven Datensätzen. Die Frage wartet in der Liste CRM_Freigaben und im Reiter „Automatik&quot;, die Antwort gilt für den nächsten Lauf. Freigeben darf nur, wer die Rolle „editor&quot; hat – eine Freigabe lässt den Anwendungsbenutzer schreiben, also an den eigenen CRM-Rechten vorbei.
+Eingebunden in: Anfragen aus TimeLine ins CRM übernehmen.
+Anwender-Ansicht: https://crm.dihag.de/prozess.html#uebernahme
+Im Einklang mit den Richtlinien: Konzernfachregelung Prozessmanagement; ISMS-Richtlinie Sichere Softwareentwicklung
+[[rms:policies=120,111]]</bpmn:documentation>
+    <bpmn:laneSet id="LaneSet_P_Frei">
+      <bpmn:lane id="LA" name="CRM-Schnittstelle (Automatik)"><bpmn:flowNodeRef>F_start</bpmn:flowNodeRef><bpmn:flowNodeRef>F_vorgang</bpmn:flowNodeRef><bpmn:flowNodeRef>F_mail</bpmn:flowNodeRef><bpmn:flowNodeRef>F_ab</bpmn:flowNodeRef><bpmn:flowNodeRef>F_endAb</bpmn:flowNodeRef></bpmn:lane>
+      <bpmn:lane id="LB" name="CRM-Betreuung"><bpmn:flowNodeRef>F_antw</bpmn:flowNodeRef><bpmn:flowNodeRef>F_gw</bpmn:flowNodeRef><bpmn:flowNodeRef>F_end</bpmn:flowNodeRef></bpmn:lane>
+    </bpmn:laneSet>
+      <bpmn:startEvent id="F_start" name="Prüflauf hat eine offene Frage"><bpmn:outgoing>Flow_F_start_F_vorgang</bpmn:outgoing></bpmn:startEvent>
+      <bpmn:serviceTask id="F_vorgang" name="Vorgang anlegen und Mappe auf „Wartet auf Freigabe&quot; setzen"><bpmn:incoming>Flow_F_start_F_vorgang</bpmn:incoming><bpmn:outgoing>Flow_F_vorgang_F_mail</bpmn:outgoing></bpmn:serviceTask>
+      <bpmn:serviceTask id="F_mail" name="Bericht mit den offenen Fragen versenden"><bpmn:incoming>Flow_F_vorgang_F_mail</bpmn:incoming><bpmn:outgoing>Flow_F_mail_F_antw</bpmn:outgoing></bpmn:serviceTask>
+      <bpmn:userTask id="F_antw" name="Offene Fragen im Reiter „Automatik&quot; beantworten"><bpmn:incoming>Flow_F_mail_F_antw</bpmn:incoming><bpmn:outgoing>Flow_F_antw_F_gw</bpmn:outgoing></bpmn:userTask>
+      <bpmn:exclusiveGateway id="F_gw" name="Freigegeben?"><bpmn:incoming>Flow_F_antw_F_gw</bpmn:incoming><bpmn:outgoing>Flow_F_gw_F_end</bpmn:outgoing><bpmn:outgoing>Flow_F_gw_F_ab</bpmn:outgoing></bpmn:exclusiveGateway>
+      <bpmn:endEvent id="F_end" name="freigegeben – der nächste Lauf importiert"><bpmn:incoming>Flow_F_gw_F_end</bpmn:incoming></bpmn:endEvent>
+      <bpmn:serviceTask id="F_ab" name="Mappe auf „Abgelehnt&quot; setzen"><bpmn:incoming>Flow_F_gw_F_ab</bpmn:incoming><bpmn:outgoing>Flow_F_ab_F_endAb</bpmn:outgoing></bpmn:serviceTask>
+      <bpmn:endEvent id="F_endAb" name="abgelehnt – die Mappe bleibt liegen"><bpmn:incoming>Flow_F_ab_F_endAb</bpmn:incoming></bpmn:endEvent>
+      <bpmn:sequenceFlow id="Flow_F_start_F_vorgang" sourceRef="F_start" targetRef="F_vorgang" />
+      <bpmn:sequenceFlow id="Flow_F_vorgang_F_mail" sourceRef="F_vorgang" targetRef="F_mail" />
+      <bpmn:sequenceFlow id="Flow_F_mail_F_antw" sourceRef="F_mail" targetRef="F_antw" />
+      <bpmn:sequenceFlow id="Flow_F_antw_F_gw" sourceRef="F_antw" targetRef="F_gw" />
+      <bpmn:sequenceFlow id="Flow_F_gw_F_end" sourceRef="F_gw" targetRef="F_end" name="ja" />
+      <bpmn:sequenceFlow id="Flow_F_gw_F_ab" sourceRef="F_gw" targetRef="F_ab" name="nein" />
+      <bpmn:sequenceFlow id="Flow_F_ab_F_endAb" sourceRef="F_ab" targetRef="F_endAb" />
+      <bpmn:textAnnotation id="An_rolle"><bpmn:text>Bei mehreren Treffern gewinnt der aktive Datensatz – das entscheidet die Automatik selbst.</bpmn:text></bpmn:textAnnotation>
+      <bpmn:association id="Assoc_An_rolle" associationDirection="None" sourceRef="F_antw" targetRef="An_rolle" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="Diagram_freigabe">
+    <bpmndi:BPMNPlane id="Plane_freigabe" bpmnElement="Collab_freigabe">
+      <bpmndi:BPMNShape id="P_Frei_di" bpmnElement="P_Frei" isHorizontal="true" bioc:stroke="#1A2644" bioc:fill="#FFFFFF" color:background-color="#FFFFFF" color:border-color="#1A2644"><dc:Bounds x="100" y="60" width="1300" height="520" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="LA_di" bpmnElement="LA" isHorizontal="true" bioc:stroke="#17509E" bioc:fill="#F3F8FE" color:background-color="#F3F8FE" color:border-color="#17509E"><dc:Bounds x="130" y="60" width="1270" height="260" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="LB_di" bpmnElement="LB" isHorizontal="true" bioc:stroke="#C2410C" bioc:fill="#FFF8F1" color:background-color="#FFF8F1" color:border-color="#C2410C"><dc:Bounds x="130" y="320" width="1270" height="260" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="F_start_di" bpmnElement="F_start" bioc:stroke="#1E7B3A" bioc:fill="#DDF3E4" color:background-color="#DDF3E4" color:border-color="#1E7B3A"><dc:Bounds x="247" y="112" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="205" y="153" width="120" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="F_vorgang_di" bpmnElement="F_vorgang" bioc:stroke="#17509E" bioc:fill="#D8E8F8" color:background-color="#D8E8F8" color:border-color="#17509E"><dc:Bounds x="369" y="88" width="132" height="84" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="F_mail_di" bpmnElement="F_mail" bioc:stroke="#17509E" bioc:fill="#D8E8F8" color:background-color="#D8E8F8" color:border-color="#17509E"><dc:Bounds x="539" y="88" width="132" height="84" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="F_antw_di" bpmnElement="F_antw" bioc:stroke="#C2410C" bioc:fill="#FFE3C8" color:background-color="#FFE3C8" color:border-color="#C2410C"><dc:Bounds x="709" y="348" width="132" height="84" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="F_gw_di" bpmnElement="F_gw" isMarkerVisible="true" bioc:stroke="#8A6100" bioc:fill="#FFF8DB" color:background-color="#FFF8DB" color:border-color="#8A6100"><dc:Bounds x="920" y="365" width="50" height="50" /><bpmndi:BPMNLabel><dc:Bounds x="845" y="346" width="96" height="15" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="F_end_di" bpmnElement="F_end" bioc:stroke="#1E7B3A" bioc:fill="#DDF3E4" color:background-color="#DDF3E4" color:border-color="#1E7B3A"><dc:Bounds x="1097" y="372" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="1055" y="413" width="120" height="41" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="F_ab_di" bpmnElement="F_ab" bioc:stroke="#17509E" bioc:fill="#D8E8F8" color:background-color="#D8E8F8" color:border-color="#17509E"><dc:Bounds x="1049" y="208" width="132" height="84" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="F_endAb_di" bpmnElement="F_endAb" bioc:stroke="#A65F00" bioc:fill="#FFF1CC" color:background-color="#FFF1CC" color:border-color="#A65F00"><dc:Bounds x="1267" y="232" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="1225" y="273" width="120" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_F_start_F_vorgang_di" bpmnElement="Flow_F_start_F_vorgang"><di:waypoint x="283" y="130" /><di:waypoint x="369" y="130" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_F_vorgang_F_mail_di" bpmnElement="Flow_F_vorgang_F_mail"><di:waypoint x="501" y="130" /><di:waypoint x="539" y="130" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_F_mail_F_antw_di" bpmnElement="Flow_F_mail_F_antw"><di:waypoint x="671" y="130" /><di:waypoint x="690" y="130" /><di:waypoint x="690" y="390" /><di:waypoint x="709" y="390" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_F_antw_F_gw_di" bpmnElement="Flow_F_antw_F_gw"><di:waypoint x="841" y="390" /><di:waypoint x="920" y="390" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_F_gw_F_end_di" bpmnElement="Flow_F_gw_F_end"><di:waypoint x="970" y="390" /><di:waypoint x="1097" y="390" /><bpmndi:BPMNLabel><dc:Bounds x="976" y="373" width="25" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_F_gw_F_ab_di" bpmnElement="Flow_F_gw_F_ab"><di:waypoint x="945" y="365" /><di:waypoint x="945" y="250" /><di:waypoint x="1049" y="250" /><bpmndi:BPMNLabel><dc:Bounds x="953" y="233" width="38" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_F_ab_F_endAb_di" bpmnElement="Flow_F_ab_F_endAb"><di:waypoint x="1181" y="250" /><di:waypoint x="1267" y="250" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="An_rolle_di" bpmnElement="An_rolle" bioc:stroke="#6B7280" bioc:fill="#FFFFFF" color:background-color="#FFFFFF" color:border-color="#6B7280"><dc:Bounds x="700" y="486" width="220" height="48" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Assoc_An_rolle_di" bpmnElement="Assoc_An_rolle"><di:waypoint x="775" y="432" /><di:waypoint x="775" y="486" /></bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

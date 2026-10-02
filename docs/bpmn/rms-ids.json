@@ -1,0 +1,11 @@
+{
+  "hinweis": "Kennungen der Modelle im RMS, nach dem Import dort einzutragen. Danach einmal node scripts/bpmn/generate-bpmn.js laufen lassen - dann verlinkt prozess.html das fuehrende Modell statt nur das RMS. Anleitung: docs/12-prozessmodell.md.",
+  "ablage": "Prozesse/KONZERN",
+  "driveId": "",
+  "modelle": {
+    "uebernahme": "",
+    "import": "",
+    "freigabe": "",
+    "eingang": ""
+  }
+}

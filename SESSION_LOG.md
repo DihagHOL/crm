@@ -1,5 +1,53 @@
 # Session-Log
 
+## 02.10.2026 — Der Prozess, als Modell und nicht als Erzählung
+
+Zwei Word-Dateien aus TimeLine als Vorlage, dazu der Auftrag: Prozessbeschreibung
+auf der Seite, mit BPMN, verlinkt mit dem RMS, nach dessen Regeln.
+
+**Was in den Word-Dateien stand** (beide gelesen, auch die Screenshots): Der
+Dienst `CRM Export` im TimeLine-Anwendungsserver läuft donnerstags um 6 Uhr und
+exportiert alle seit dem letzten Export geänderten Anfragen; OneDrive bringt die
+Mappe nach SharePoint. Das bestätigt die Frist von gestern unabhängig — die
+Fehlanzeige um 14 Uhr lässt acht Stunden Luft. Die ältere Datei von 2023
+beschreibt denselben Vorgang von Hand: als `dba` anmelden, Hilfsfunktion
+„Dihag Anfragen Export", Datei auf ein Laufwerk, von dort von Hand nach
+SharePoint und einzeln freigeben. Daraus wurde der Abschnitt „Woher der Prozess
+kommt".
+
+**Die Regeln standen schon da.** Das RMS hat ein Hausschema für BPMN
+(`js/prozessschema.js`): zehn Bausteine, zehn Regeln, von „genau ein Auslöser"
+bis „ein Unterprozess wird eingebunden, nicht abgeschrieben". Danach sind es
+**vier** Modelle und nicht eines: die Eingangsüberwachung beginnt mit einer
+Uhrzeit statt mit einer Datei und ist damit ein eigener Prozess (R1). Import
+und Freigabe hängen als ⊞ im Hauptprozess.
+
+Den Generator-Motor (Raster, Kantenführung, BPMN-DI) stellt die E-Rechnung
+bereit; er ist wörtlich übernommen, die Modelle sind neu. `tests/test-prozess.mjs`
+prüft die erzeugten Dateien gegen R1–R10 — eine Regel fiel sofort: „Mappe
+prüfen: Pflichtfelder, Zuordnungen, Mehrfachtreffer" endet nicht auf einem Verb
+(R8). Jetzt „Mappe auf Pflichtfelder, Zuordnungen und Mehrfachtreffer prüfen".
+
+**Beim Ansehen im Browser ein zweiter Fehler**, der kein Testfall war: beim
+ersten Laden hat die Leinwand noch keine Breite, `fit-viewport` rechnet mit
+Null und wirft — das Diagramm blieb mit einer Fehlermeldung leer, nach einem
+Neuladen war alles gut. Die tückischste Sorte. Jetzt wird gefragt statt
+angenommen, mit Wiederholung.
+
+**Verlinkt, nicht behauptet.** Drei Regelwerke aus dem RMS hängen an den
+Modellen (120 Prozessmanagement, 111 Sichere Softwareentwicklung, 119
+Aufbewahrungsfristen), mit dem Marker `[[rms:policies=…]]`, den das RMS selbst
+schreibt. Der Steckbrief nutzt die Felder des RMS-Prozessmodells; was dort noch
+nicht entschieden ist — Prozesseigner, Standardisierungsgrad, Reifegrad —
+steht als Vorschlag in Orange. Eine Fachanwendung zeigt so etwas an, sie
+beschliesst es nicht.
+
+**Offen:** Die Modelle liegen noch nicht im RMS. Die ISMS-Bibliothek ist von
+hier aus nicht lesbar (403), hochladen kann sie nur jemand mit Zugriff. Der
+Weg steht in `docs/12-prozessmodell.md`: Datei auf der Seite herunterladen, im
+RMS unter Prozesse importieren, Kennungen in `rms-ids.json` eintragen, Generator
+erneut laufen lassen. Danach zeigt jeder Knopf auf das führende Modell.
+
 ## 01.10.2026 — Die Meldung über das, was nicht passiert ist
 
 „Mail einstellbar, z. B. an ticket@dihag.com — Info donnerstags, dass

@@ -1,0 +1,74 @@
+{
+  "hinweis": "Erzeugt von scripts/bpmn/generate-bpmn.js. Führend sind die Modelle im RMS.",
+  "rms": {
+    "url": "https://rms.dihag.de",
+    "ablage": "Prozesse/KONZERN",
+    "driveId": ""
+  },
+  "modelle": [
+    {
+      "key": "uebernahme",
+      "name": "Anfragen aus TimeLine ins CRM übernehmen",
+      "kennung": "Process_CRM_Timeline_Uebernahme",
+      "datei": "docs/bpmn/01-anfragen-uebernehmen.bpmn",
+      "tab": "uebernahme",
+      "haupt": true,
+      "von": "",
+      "unter": [
+        "freigabe",
+        "import"
+      ],
+      "policies": [
+        "120",
+        "111",
+        "119"
+      ],
+      "itemId": ""
+    },
+    {
+      "key": "import",
+      "name": "Datensätze ins CRM schreiben",
+      "kennung": "Process_CRM_Timeline_Import",
+      "datei": "docs/bpmn/02-datensaetze-schreiben.bpmn",
+      "tab": "uebernahme",
+      "haupt": false,
+      "von": "uebernahme",
+      "unter": [],
+      "policies": [
+        "111",
+        "119"
+      ],
+      "itemId": ""
+    },
+    {
+      "key": "freigabe",
+      "name": "Freigabe einholen",
+      "kennung": "Process_CRM_Timeline_Freigabe",
+      "datei": "docs/bpmn/03-freigabe-einholen.bpmn",
+      "tab": "uebernahme",
+      "haupt": false,
+      "von": "uebernahme",
+      "unter": [],
+      "policies": [
+        "120",
+        "111"
+      ],
+      "itemId": ""
+    },
+    {
+      "key": "eingang",
+      "name": "Eingang der TimeLine-Mappe überwachen",
+      "kennung": "Process_CRM_Timeline_Eingang",
+      "datei": "docs/bpmn/04-eingang-ueberwachen.bpmn",
+      "tab": "eingang",
+      "haupt": true,
+      "von": "",
+      "unter": [],
+      "policies": [
+        "120",
+        "111"
+      ],
+      "itemId": ""
+    }
+  ]
+}

@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:bioc="http://bpmn.io/schema/bpmn/biocolor/1.0" xmlns:color="http://www.omg.org/spec/BPMN/non-normative/color/1.0" id="Definitions_uebernahme" targetNamespace="https://crm.dihag.de/bpmn" exporter="DIHAG BPMN-Generator (scripts/bpmn/generate-bpmn.js)" exporterVersion="2.0">
+  <bpmn:collaboration id="Collab_uebernahme">
+    <bpmn:participant id="P_Haupt" name="DIHAG · Anfragen aus TimeLine ins CRM" processRef="Process_CRM_Timeline_Uebernahme" />
+    <bpmn:participant id="P_Dyn" name="Dynamics 365 (Dataverse)" />
+    <bpmn:messageFlow id="Msg_C_imp_P_Dyn" name="Firmen, Kontakte, Verkaufschancen, Positionen" sourceRef="C_imp" targetRef="P_Dyn" />
+  </bpmn:collaboration>
+  <bpmn:process id="Process_CRM_Timeline_Uebernahme" name="Anfragen aus TimeLine ins CRM übernehmen" isExecutable="false">
+    <bpmn:documentation>Jeden Donnerstag um 6 Uhr exportiert der TimeLine-Anwendungsserver der Schmiedeberger Guss alle Anfragen, die seit dem letzten Export geändert wurden. Die Mappe erreicht über OneDrive den SharePoint-Ordner „Austausch/Projekt CRM-Timeline&quot;. Die CRM-Schnittstelle greift sie auf, prüft sie und schreibt die unstrittigen Zeilen nach Dynamics 365. Was sie nicht allein entscheiden kann, legt sie der CRM-Betreuung zur Freigabe vor.
+Anwender-Ansicht: https://crm.dihag.de/prozess.html#uebernahme
+Im Einklang mit den Richtlinien: Konzernfachregelung Prozessmanagement; ISMS-Richtlinie Sichere Softwareentwicklung; ISMS-Richtlinie Aufbewahrungsfristen und -pflichten
+[[rms:policies=120,111,119]]</bpmn:documentation>
+    <bpmn:laneSet id="LaneSet_P_Haupt">
+      <bpmn:lane id="LA" name="TimeLine Anwendungsserver"><bpmn:flowNodeRef>A_start</bpmn:flowNodeRef><bpmn:flowNodeRef>A_exp</bpmn:flowNodeRef><bpmn:flowNodeRef>A_file</bpmn:flowNodeRef></bpmn:lane>
+      <bpmn:lane id="LB" name="SharePoint-Ablage (Austausch)"><bpmn:flowNodeRef>B_sync</bpmn:flowNodeRef></bpmn:lane>
+      <bpmn:lane id="LC" name="CRM-Schnittstelle (Automatik)"><bpmn:flowNodeRef>C_find</bpmn:flowNodeRef><bpmn:flowNodeRef>C_pruef</bpmn:flowNodeRef><bpmn:flowNodeRef>C_gw</bpmn:flowNodeRef><bpmn:flowNodeRef>C_imp</bpmn:flowNodeRef><bpmn:flowNodeRef>C_prot</bpmn:flowNodeRef><bpmn:flowNodeRef>C_mark</bpmn:flowNodeRef><bpmn:flowNodeRef>C_mail</bpmn:flowNodeRef></bpmn:lane>
+      <bpmn:lane id="LD" name="CRM-Betreuung"><bpmn:flowNodeRef>D_frei</bpmn:flowNodeRef><bpmn:flowNodeRef>D_endFrei</bpmn:flowNodeRef><bpmn:flowNodeRef>D_lesen</bpmn:flowNodeRef><bpmn:flowNodeRef>D_end</bpmn:flowNodeRef></bpmn:lane>
+    </bpmn:laneSet>
+      <bpmn:startEvent id="A_start" name="Donnerstag 6 Uhr erreicht"><bpmn:outgoing>Flow_A_start_A_exp</bpmn:outgoing><bpmn:timerEventDefinition id="A_start_def" /></bpmn:startEvent>
+      <bpmn:serviceTask id="A_exp" name="Seit dem letzten Export geänderte Anfragen exportieren"><bpmn:incoming>Flow_A_start_A_exp</bpmn:incoming><bpmn:outgoing>Flow_A_exp_A_file</bpmn:outgoing></bpmn:serviceTask>
+      <bpmn:serviceTask id="A_file" name="Mappe „Anfragen JJJJ-MM-TT.xlsx&quot; im Austauschordner ablegen"><bpmn:incoming>Flow_A_exp_A_file</bpmn:incoming><bpmn:outgoing>Flow_A_file_B_sync</bpmn:outgoing></bpmn:serviceTask>
+      <bpmn:serviceTask id="B_sync" name="Mappe über OneDrive nach SharePoint übertragen"><bpmn:incoming>Flow_A_file_B_sync</bpmn:incoming><bpmn:outgoing>Flow_B_sync_C_find</bpmn:outgoing></bpmn:serviceTask>
+      <bpmn:serviceTask id="C_find" name="Neue oder seit dem Import geänderte Mappe erkennen"><bpmn:incoming>Flow_B_sync_C_find</bpmn:incoming><bpmn:outgoing>Flow_C_find_C_pruef</bpmn:outgoing></bpmn:serviceTask>
+      <bpmn:serviceTask id="C_pruef" name="Mappe auf Pflichtfelder, Zuordnungen und Mehrfachtreffer prüfen"><bpmn:incoming>Flow_C_find_C_pruef</bpmn:incoming><bpmn:outgoing>Flow_C_pruef_C_gw</bpmn:outgoing></bpmn:serviceTask>
+      <bpmn:exclusiveGateway id="C_gw" name="Alles unstrittig?"><bpmn:incoming>Flow_C_pruef_C_gw</bpmn:incoming><bpmn:outgoing>Flow_C_gw_C_imp</bpmn:outgoing><bpmn:outgoing>Flow_C_gw_D_frei</bpmn:outgoing></bpmn:exclusiveGateway>
+      <bpmn:callActivity id="D_frei" name="Freigabe einholen" calledElement="Process_CRM_Timeline_Freigabe"><bpmn:documentation>Unterprozess: Freigabe einholen</bpmn:documentation><bpmn:incoming>Flow_C_gw_D_frei</bpmn:incoming><bpmn:outgoing>Flow_D_frei_D_endFrei</bpmn:outgoing></bpmn:callActivity>
+      <bpmn:endEvent id="D_endFrei" name="zur Freigabe vorgelegt"><bpmn:incoming>Flow_D_frei_D_endFrei</bpmn:incoming></bpmn:endEvent>
+      <bpmn:callActivity id="C_imp" name="Datensätze ins CRM schreiben" calledElement="Process_CRM_Timeline_Import"><bpmn:documentation>Unterprozess: Datensätze ins CRM schreiben</bpmn:documentation><bpmn:incoming>Flow_C_gw_C_imp</bpmn:incoming><bpmn:outgoing>Flow_C_imp_C_prot</bpmn:outgoing></bpmn:callActivity>
+      <bpmn:serviceTask id="C_prot" name="Lauf, Zeilen und Vollprotokoll schreiben"><bpmn:incoming>Flow_C_imp_C_prot</bpmn:incoming><bpmn:outgoing>Flow_C_prot_C_mark</bpmn:outgoing></bpmn:serviceTask>
+      <bpmn:serviceTask id="C_mark" name="Mappe als importiert vermerken"><bpmn:incoming>Flow_C_prot_C_mark</bpmn:incoming><bpmn:outgoing>Flow_C_mark_C_mail</bpmn:outgoing></bpmn:serviceTask>
+      <bpmn:serviceTask id="C_mail" name="Bericht ablegen und versenden"><bpmn:incoming>Flow_C_mark_C_mail</bpmn:incoming><bpmn:outgoing>Flow_C_mail_D_lesen</bpmn:outgoing></bpmn:serviceTask>
+      <bpmn:userTask id="D_lesen" name="Bericht lesen und offene Konflikte entscheiden"><bpmn:incoming>Flow_C_mail_D_lesen</bpmn:incoming><bpmn:outgoing>Flow_D_lesen_D_end</bpmn:outgoing></bpmn:userTask>
+      <bpmn:endEvent id="D_end" name="Anfragen stehen im CRM"><bpmn:incoming>Flow_D_lesen_D_end</bpmn:incoming></bpmn:endEvent>
+      <bpmn:sequenceFlow id="Flow_A_start_A_exp" sourceRef="A_start" targetRef="A_exp" />
+      <bpmn:sequenceFlow id="Flow_A_exp_A_file" sourceRef="A_exp" targetRef="A_file" />
+      <bpmn:sequenceFlow id="Flow_A_file_B_sync" sourceRef="A_file" targetRef="B_sync" />
+      <bpmn:sequenceFlow id="Flow_B_sync_C_find" sourceRef="B_sync" targetRef="C_find" />
+      <bpmn:sequenceFlow id="Flow_C_find_C_pruef" sourceRef="C_find" targetRef="C_pruef" />
+      <bpmn:sequenceFlow id="Flow_C_pruef_C_gw" sourceRef="C_pruef" targetRef="C_gw" />
+      <bpmn:sequenceFlow id="Flow_C_gw_C_imp" sourceRef="C_gw" targetRef="C_imp" name="ja" />
+      <bpmn:sequenceFlow id="Flow_C_gw_D_frei" sourceRef="C_gw" targetRef="D_frei" name="nein" />
+      <bpmn:sequenceFlow id="Flow_D_frei_D_endFrei" sourceRef="D_frei" targetRef="D_endFrei" />
+      <bpmn:sequenceFlow id="Flow_C_imp_C_prot" sourceRef="C_imp" targetRef="C_prot" />
+      <bpmn:sequenceFlow id="Flow_C_prot_C_mark" sourceRef="C_prot" targetRef="C_mark" />
+      <bpmn:sequenceFlow id="Flow_C_mark_C_mail" sourceRef="C_mark" targetRef="C_mail" />
+      <bpmn:sequenceFlow id="Flow_C_mail_D_lesen" sourceRef="C_mail" targetRef="D_lesen" />
+      <bpmn:sequenceFlow id="Flow_D_lesen_D_end" sourceRef="D_lesen" targetRef="D_end" />
+      <bpmn:textAnnotation id="An_job"><bpmn:text>Dienst „CRM Export&quot; im TimeLine AppSrv (192.168.100.163), Filter Woche: Donnerstag, Startzeit 06:00.</bpmn:text></bpmn:textAnnotation>
+      <bpmn:association id="Assoc_An_job" associationDirection="None" sourceRef="A_start" targetRef="An_job" />
+      <bpmn:textAnnotation id="An_takt"><bpmn:text>Zeitplan sieht alle 15 Minuten nach. Takt, Zeitfenster und Schalter stehen in der Liste CRM_Automatik.</bpmn:text></bpmn:textAnnotation>
+      <bpmn:association id="Assoc_An_takt" associationDirection="None" sourceRef="C_find" targetRef="An_takt" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="Diagram_uebernahme">
+    <bpmndi:BPMNPlane id="Plane_uebernahme" bpmnElement="Collab_uebernahme">
+      <bpmndi:BPMNShape id="P_Haupt_di" bpmnElement="P_Haupt" isHorizontal="true" bioc:stroke="#1A2644" bioc:fill="#FFFFFF" color:background-color="#FFFFFF" color:border-color="#1A2644"><dc:Bounds x="100" y="60" width="2320" height="920" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="LA_di" bpmnElement="LA" isHorizontal="true" bioc:stroke="#424241" bioc:fill="#F7F7F6" color:background-color="#F7F7F6" color:border-color="#424241"><dc:Bounds x="130" y="60" width="2290" height="260" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="LB_di" bpmnElement="LB" isHorizontal="true" bioc:stroke="#0F766E" bioc:fill="#F1FAF8" color:background-color="#F1FAF8" color:border-color="#0F766E"><dc:Bounds x="130" y="320" width="2290" height="140" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="LC_di" bpmnElement="LC" isHorizontal="true" bioc:stroke="#17509E" bioc:fill="#F3F8FE" color:background-color="#F3F8FE" color:border-color="#17509E"><dc:Bounds x="130" y="460" width="2290" height="260" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="LD_di" bpmnElement="LD" isHorizontal="true" bioc:stroke="#C2410C" bioc:fill="#FFF8F1" color:background-color="#FFF8F1" color:border-color="#C2410C"><dc:Bounds x="130" y="720" width="2290" height="260" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="P_Dyn_di" bpmnElement="P_Dyn" isHorizontal="true" bioc:stroke="#1A2644" bioc:fill="#F3F6FB" color:background-color="#F3F6FB" color:border-color="#1A2644"><dc:Bounds x="100" y="1050" width="2320" height="70" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="A_start_di" bpmnElement="A_start" bioc:stroke="#1E7B3A" bioc:fill="#DDF3E4" color:background-color="#DDF3E4" color:border-color="#1E7B3A"><dc:Bounds x="247" y="112" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="205" y="153" width="120" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="A_exp_di" bpmnElement="A_exp" bioc:stroke="#424241" bioc:fill="#E6E6E4" color:background-color="#E6E6E4" color:border-color="#424241"><dc:Bounds x="369" y="88" width="132" height="84" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="A_file_di" bpmnElement="A_file" bioc:stroke="#424241" bioc:fill="#E6E6E4" color:background-color="#E6E6E4" color:border-color="#424241"><dc:Bounds x="539" y="88" width="132" height="84" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="B_sync_di" bpmnElement="B_sync" bioc:stroke="#0F766E" bioc:fill="#D2EEE8" color:background-color="#D2EEE8" color:border-color="#0F766E"><dc:Bounds x="709" y="348" width="132" height="84" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="C_find_di" bpmnElement="C_find" bioc:stroke="#17509E" bioc:fill="#D8E8F8" color:background-color="#D8E8F8" color:border-color="#17509E"><dc:Bounds x="879" y="488" width="132" height="84" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="C_pruef_di" bpmnElement="C_pruef" bioc:stroke="#17509E" bioc:fill="#D8E8F8" color:background-color="#D8E8F8" color:border-color="#17509E"><dc:Bounds x="1049" y="488" width="132" height="84" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="C_gw_di" bpmnElement="C_gw" isMarkerVisible="true" bioc:stroke="#8A6100" bioc:fill="#FFF8DB" color:background-color="#FFF8DB" color:border-color="#8A6100"><dc:Bounds x="1260" y="505" width="50" height="50" /><bpmndi:BPMNLabel><dc:Bounds x="1185" y="473" width="96" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="D_frei_di" bpmnElement="D_frei" bioc:stroke="#C2410C" bioc:fill="#FFE3C8" color:background-color="#FFE3C8" color:border-color="#C2410C"><dc:Bounds x="1389" y="868" width="132" height="84" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="D_endFrei_di" bpmnElement="D_endFrei" bioc:stroke="#A65F00" bioc:fill="#FFF1CC" color:background-color="#FFF1CC" color:border-color="#A65F00"><dc:Bounds x="1607" y="892" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="1565" y="933" width="120" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="C_imp_di" bpmnElement="C_imp" bioc:stroke="#17509E" bioc:fill="#D8E8F8" color:background-color="#D8E8F8" color:border-color="#17509E"><dc:Bounds x="1389" y="488" width="132" height="84" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="C_prot_di" bpmnElement="C_prot" bioc:stroke="#17509E" bioc:fill="#D8E8F8" color:background-color="#D8E8F8" color:border-color="#17509E"><dc:Bounds x="1559" y="488" width="132" height="84" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="C_mark_di" bpmnElement="C_mark" bioc:stroke="#17509E" bioc:fill="#D8E8F8" color:background-color="#D8E8F8" color:border-color="#17509E"><dc:Bounds x="1729" y="488" width="132" height="84" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="C_mail_di" bpmnElement="C_mail" bioc:stroke="#17509E" bioc:fill="#D8E8F8" color:background-color="#D8E8F8" color:border-color="#17509E"><dc:Bounds x="1899" y="488" width="132" height="84" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="D_lesen_di" bpmnElement="D_lesen" bioc:stroke="#C2410C" bioc:fill="#FFE3C8" color:background-color="#FFE3C8" color:border-color="#C2410C"><dc:Bounds x="2069" y="748" width="132" height="84" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="D_end_di" bpmnElement="D_end" bioc:stroke="#1E7B3A" bioc:fill="#DDF3E4" color:background-color="#DDF3E4" color:border-color="#1E7B3A"><dc:Bounds x="2287" y="772" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="2245" y="813" width="120" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_A_start_A_exp_di" bpmnElement="Flow_A_start_A_exp"><di:waypoint x="283" y="130" /><di:waypoint x="369" y="130" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_A_exp_A_file_di" bpmnElement="Flow_A_exp_A_file"><di:waypoint x="501" y="130" /><di:waypoint x="539" y="130" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_A_file_B_sync_di" bpmnElement="Flow_A_file_B_sync"><di:waypoint x="671" y="130" /><di:waypoint x="690" y="130" /><di:waypoint x="690" y="390" /><di:waypoint x="709" y="390" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_B_sync_C_find_di" bpmnElement="Flow_B_sync_C_find"><di:waypoint x="841" y="390" /><di:waypoint x="860" y="390" /><di:waypoint x="860" y="530" /><di:waypoint x="879" y="530" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_C_find_C_pruef_di" bpmnElement="Flow_C_find_C_pruef"><di:waypoint x="1011" y="530" /><di:waypoint x="1049" y="530" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_C_pruef_C_gw_di" bpmnElement="Flow_C_pruef_C_gw"><di:waypoint x="1181" y="530" /><di:waypoint x="1260" y="530" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_C_gw_C_imp_di" bpmnElement="Flow_C_gw_C_imp"><di:waypoint x="1310" y="530" /><di:waypoint x="1389" y="530" /><bpmndi:BPMNLabel><dc:Bounds x="1316" y="513" width="25" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_C_gw_D_frei_di" bpmnElement="Flow_C_gw_D_frei"><di:waypoint x="1285" y="555" /><di:waypoint x="1285" y="838" /><di:waypoint x="1455" y="838" /><di:waypoint x="1455" y="868" /><bpmndi:BPMNLabel><dc:Bounds x="1293" y="821" width="38" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_D_frei_D_endFrei_di" bpmnElement="Flow_D_frei_D_endFrei"><di:waypoint x="1521" y="910" /><di:waypoint x="1607" y="910" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_C_imp_C_prot_di" bpmnElement="Flow_C_imp_C_prot"><di:waypoint x="1521" y="530" /><di:waypoint x="1559" y="530" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_C_prot_C_mark_di" bpmnElement="Flow_C_prot_C_mark"><di:waypoint x="1691" y="530" /><di:waypoint x="1729" y="530" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_C_mark_C_mail_di" bpmnElement="Flow_C_mark_C_mail"><di:waypoint x="1861" y="530" /><di:waypoint x="1899" y="530" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_C_mail_D_lesen_di" bpmnElement="Flow_C_mail_D_lesen"><di:waypoint x="2031" y="530" /><di:waypoint x="2050" y="530" /><di:waypoint x="2050" y="790" /><di:waypoint x="2069" y="790" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_D_lesen_D_end_di" bpmnElement="Flow_D_lesen_D_end"><di:waypoint x="2201" y="790" /><di:waypoint x="2287" y="790" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="An_job_di" bpmnElement="An_job" bioc:stroke="#6B7280" bioc:fill="#FFFFFF" color:background-color="#FFFFFF" color:border-color="#6B7280"><dc:Bounds x="190" y="219" width="210" height="62" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Assoc_An_job_di" bpmnElement="Assoc_An_job"><di:waypoint x="265" y="148" /><di:waypoint x="265" y="219" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="An_takt_di" bpmnElement="An_takt" bioc:stroke="#6B7280" bioc:fill="#FFFFFF" color:background-color="#FFFFFF" color:border-color="#6B7280"><dc:Bounds x="870" y="619" width="210" height="62" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Assoc_An_takt_di" bpmnElement="Assoc_An_takt"><di:waypoint x="945" y="572" /><di:waypoint x="945" y="619" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Msg_C_imp_P_Dyn_di" bpmnElement="Msg_C_imp_P_Dyn"><di:waypoint x="1455" y="572" /><di:waypoint x="1455" y="1050" /><bpmndi:BPMNLabel><dc:Bounds x="1463" y="1001" width="170" height="27" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

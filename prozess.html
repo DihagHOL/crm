@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prozess · CRM-Schnittstelle · DIHAG Foundry Group</title>
+<link rel="icon" href="assets/dihag-logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Exo:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/styles.css?v=dev">
+<link rel="stylesheet" href="js/vendor/bpmn/diagram-js.css?v=dev">
+<link rel="stylesheet" href="js/vendor/bpmn/bpmn-js.css?v=dev">
+<style>
+  /* Farben der Bahnen — dieselben wie im Generator (scripts/bpmn/generate-bpmn.js).
+     Steht die Legende auf anderen Farben als das Bild, ist sie schlimmer als keine. */
+  .sym { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; }
+  .sym .kasten {
+    width: 30px; height: 20px; border-radius: 4px; border: 2px solid; flex: none;
+    display: flex; align-items: center; justify-content: center; font-size: 11px;
+  }
+  .b-erp    { background: #E6E6E4; border-color: #424241; color: #424241; }
+  .b-archiv { background: #D2EEE8; border-color: #0F766E; color: #0F766E; }
+  .b-auto   { background: #D8E8F8; border-color: #17509E; color: #17509E; }
+  .b-mensch { background: #FFE3C8; border-color: #C2410C; color: #C2410C; }
+  .b-app    { background: #DCE5F2; border-color: #1A2644; color: #1A2644; }
+  .b-ok     { background: #DDF3E4; border-color: #1E7B3A; color: #1E7B3A; }
+  .b-gate   { background: #FFF8DB; border-color: #8A6100; color: #8A6100; }
+  .b-warn   { background: #FFF1CC; border-color: #A65F00; color: #A65F00; }
+
+  .legende { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 9px 18px; }
+
+  /* Reiter über dem Bild */
+  .ptabs { display: flex; gap: 6px; flex-wrap: wrap; margin: 0 0 -1px; }
+  .ptab {
+    appearance: none; border: 1px solid var(--border); border-bottom-color: transparent;
+    background: #f7fafd; font: inherit; font-size: 13.5px; color: var(--navy);
+    padding: 9px 15px; border-radius: 10px 10px 0 0; cursor: pointer;
+  }
+  .ptab:hover { background: #eef3f9; }
+  .ptab.active { background: #fff; font-weight: 700; box-shadow: inset 0 3px 0 var(--orange); }
+
+  .bild-kopf { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-start; justify-content: space-between; }
+  .bild-kopf h4 { margin: 0 0 3px; font-size: 16px; color: var(--navy); }
+  .bild-kopf p { margin: 0; font-size: 13px; color: var(--muted); max-width: 640px; }
+  .leinwand {
+    height: 540px; border: 1px solid var(--border); border-radius: 0 0 10px 10px;
+    background: #fff; position: relative; overflow: hidden;
+  }
+  .leinwand:fullscreen { height: 100%; border-radius: 0; }
+  .leinwand .laedt {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    color: var(--muted); font-size: 14px; text-align: center; padding: 20px;
+  }
+  .bjs-powered-by { opacity: .45; }
+  .krumen { font-size: 13px; color: var(--muted); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+  table.tbl th.feld { width: 230px; }
+  .steckbrief td b { color: var(--navy); }
+  .vorschlag { color: var(--orange); font-weight: 600; }
+  dl.schritte { margin: 0; }
+  dl.schritte dt { font-weight: 600; color: var(--navy); margin-top: 10px; }
+  dl.schritte dd { margin: 2px 0 0 0; color: var(--text); font-size: 14px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hdr-top">
+    <div class="hdr-brand">
+      <img src="assets/dihag-logo.png" alt="DIHAG Foundry Group">
+      <div class="hdr-sep"></div>
+      <div class="hdr-title">
+        <h1>CRM-Schnittstelle</h1>
+        <span>Prozessbeschreibung</span>
+      </div>
+    </div>
+    <div class="hdr-spacer"></div>
+    <div class="row">
+      <a class="btn ghost sm" href="https://rms.dihag.de/" target="_blank" rel="noopener">Regelwerk (RMS)</a>
+      <a class="btn ghost sm" href="index.html">Zur Anwendung</a>
+    </div>
+  </div>
+</header>
+
+<main>
+
+<div class="page-head">
+  <h2>Anfragen aus TimeLine ins CRM</h2>
+  <p>Jeden Donnerstag um 6 Uhr exportiert TimeLine bei der Schmiedeberger Guss alle
+     Anfragen, die sich seit dem letzten Export geändert haben. Diese Seite beschreibt,
+     was danach passiert — als Modell nach dem Hausschema des
+     <a href="https://rms.dihag.de/" target="_blank" rel="noopener">RMS</a>, nicht als
+     Erzählung. Wer den Ablauf ändern will, ändert das Modell dort; diese Seite zeigt
+     ihn, und die Anwendung führt ihn aus.</p>
+</div>
+
+<!-- ══ Steckbrief ══════════════════════════════════════════════════ -->
+<h3 class="section">Steckbrief</h3>
+<div class="card">
+  <div class="tbl-wrap"><table class="tbl steckbrief">
+    <tbody>
+      <tr><th class="feld">Prozess</th>
+          <td><b>Anfragen aus TimeLine ins CRM übernehmen</b>
+              <span class="hint">· Kennung <code>Process_CRM_Timeline_Uebernahme</code></span></td></tr>
+      <tr><th>Zweck</th>
+          <td>Anfragen und ihre Positionen aus dem ERP TimeLine stehen ohne Abtippen
+              in Dynamics 365 — vollständig, nachvollziehbar und ohne dass jemand
+              danebensteht.</td></tr>
+      <tr><th>Geltungsbereich</th>
+          <td>Schmiedeberger Guss (TimeLine-Mandant SBG). Andere Gesellschaften
+              liefern keine Timeline-Mappen in diesen Ordner.</td></tr>
+      <tr><th>Status</th>
+          <td><b>POC läuft.</b> Geschrieben wird in die Umgebung
+              <code>dihag-test.crm4.dynamics.com</code>. Mit der Umstellung auf PROD
+              wird daraus <i>freigegeben</i>.</td></tr>
+      <tr><th>Prozesseigner</th>
+          <td><span class="vorschlag">noch nicht benannt</span> — im RMS zu setzen.
+              Fachlich zuständig ist der Vertrieb der Schmiedeberger Guss, technisch
+              die IT.</td></tr>
+      <tr><th>Standardisierungsgrad</th>
+          <td><span class="vorschlag">werksspezifisch</span> (Vorschlag). TimeLine
+              steht nur bei der Schmiedeberger Guss; ein gruppeneinheitlicher Ablauf
+              hätte hier nichts zu vereinheitlichen.</td></tr>
+      <tr><th>Reifegrad</th>
+          <td><span class="vorschlag">2 — gesteuert</span> (Selbsteinschätzung nach
+              ISO/IEC 33020). Der Lauf wird geplant, protokolliert und überwacht; ein
+              freigegebener Standardprozess (Stufe 3) ist er erst nach der Freigabe.</td></tr>
+      <tr><th>Nächste Überprüfung</th>
+          <td>02.10.2027 — oder früher, wenn sich das Importprofil ändert.</td></tr>
+      <tr><th>Werkzeuge</th>
+          <td>TimeLine Anwendungsserver · OneDrive/SharePoint
+              (<code>sites/IT</code> ▸ <code>Austausch</code> ▸ <code>Projekt CRM-Timeline</code>) ·
+              <a href="index.html">CRM-Schnittstelle</a> (GitHub Actions) · Dynamics 365</td></tr>
+    </tbody>
+  </table></div>
+  <p class="hint">Die Felder sind die des Prozessmodells im RMS (Lebenszyklus,
+     Prozesseigner, Standardisierungsgrad, Reifegrad, Überprüfung). Was hier
+     <span class="vorschlag">orange</span> steht, ist ein Vorschlag und im RMS noch
+     einzutragen — diese Seite kann ihn anzeigen, aber nicht beschliessen.</p>
+</div>
+
+<!-- ══ Takt ════════════════════════════════════════════════════════ -->
+<h3 class="section">Was wann passiert</h3>
+<div class="card">
+  <div class="tbl-wrap"><table class="tbl">
+    <thead><tr><th>Zeit</th><th>Wer</th><th>Was</th></tr></thead>
+    <tbody>
+      <tr><td><b>Do 06:00</b></td><td>TimeLine Anwendungsserver</td>
+          <td>Dienst <code>CRM Export</code> läuft (Filter Woche: Donnerstag, Startzeit 06:00)
+              und exportiert alle seit dem letzten Export geänderten Anfragen.</td></tr>
+      <tr><td><b>Do ca. 06:05</b></td><td>OneDrive</td>
+          <td>Die Mappe <code>Anfragen JJJJ-MM-TT.xlsx</code> wird aus dem Austauschordner
+              des Servers nach SharePoint übertragen.</td></tr>
+      <tr><td><b>alle 15 min</b></td><td>CRM-Schnittstelle</td>
+          <td>Der Zeitplan sieht nach. Ob er arbeitet, entscheidet die Liste
+              <code>CRM_Automatik</code>: Schalter, Takt, Zeitfenster, Wochentage.</td></tr>
+      <tr><td><b>Do 14:00</b></td><td>CRM-Schnittstelle</td>
+          <td>Ist bis dahin nichts eingegangen, geht eine <b>Fehlanzeige</b> an den
+              IT-Service. Diese Erwartung gilt der Datei, nicht der Automatik —
+              sie greift auch bei abgeschaltetem Import.</td></tr>
+      <tr><td>nach jedem Lauf</td><td>CRM-Schnittstelle</td>
+          <td>Protokoll in <code>CRM_ImportRuns</code>, Vollprotokoll als JSON,
+              Bericht als Datei und per Mail.</td></tr>
+    </tbody>
+  </table></div>
+</div>
+
+<!-- ══ Kennzahlen ══════════════════════════════════════════════════ -->
+<h3 class="section">Kennzahlen</h3>
+<div class="card">
+  <div class="tbl-wrap"><table class="tbl">
+    <thead><tr><th>Kennzahl</th><th>Ziel</th><th>Zuletzt gemessen</th><th>Woher</th></tr></thead>
+    <tbody>
+      <tr><td>Mappe donnerstags eingegangen</td><td>mindestens 1 je Donnerstag, bis 14 Uhr</td>
+          <td><b>01.10.2026, 06:33 Uhr</b></td><td>Quellordner, Anlagezeitpunkt</td></tr>
+      <tr><td>Zeit von Lieferung bis CRM</td><td>höchstens 2 Stunden</td>
+          <td><b>1 h 41 min</b> (01.10.2026)</td><td>Anlagezeit gegen Laufbeginn</td></tr>
+      <tr><td>Läufe ohne Fehler</td><td>mindestens 95 %</td>
+          <td><b>6 von 6</b> seit dem 17.09.2026</td><td><code>CRM_ImportRuns</code></td></tr>
+    </tbody>
+  </table></div>
+  <p class="hint">ISO 9001 verlangt je Prozess Kriterien und Leistungsindikatoren
+     (4.4 c). Drei reichen, solange sie gemessen werden: Kommt die Lieferung? Kommt
+     sie an? Geht der Lauf durch? Die Werte stehen hier mit Stand — im Reiter
+     <a href="index.html">Protokoll</a> stehen sie je Lauf.</p>
+</div>
+
+<!-- ══ Diagramme ═══════════════════════════════════════════════════ -->
+<h3 class="section" id="modelle">Der Ablauf als Modell</h3>
+<div id="ptabs" class="ptabs"></div>
+<div class="card" style="border-radius:0 10px 10px 10px">
+  <div class="bild-kopf">
+    <div>
+      <h4 id="mName">Wird geladen …</h4>
+      <p id="mDoku"></p>
+    </div>
+    <div class="row">
+      <button class="btn sec sm" id="mFit">Einpassen</button>
+      <button class="btn sec sm" id="mVoll">Vollbild</button>
+      <a class="btn sec sm" id="mDatei" href="#" download>Modell (.bpmn)</a>
+      <a class="btn sm" id="mRms" href="https://rms.dihag.de/" target="_blank" rel="noopener">Im RMS öffnen</a>
+    </div>
+  </div>
+  <div class="krumen" id="mKrumen" style="margin:10px 0"></div>
+  <div class="leinwand" id="leinwand"><div class="laedt">Diagramm wird geladen …</div></div>
+  <p class="hint" style="margin-top:12px">Ein Klick auf einen Kasten mit <b>⊞</b>
+     öffnet den eingebundenen Unterprozess. Ziehen verschiebt, Mausrad zoomt.</p>
+</div>
+
+<h3 class="section">Legende</h3>
+<div class="card">
+  <div class="legende">
+    <span class="sym"><span class="kasten b-ok">○</span> Auslöser — ein Ereignis, kein Tun</span>
+    <span class="sym"><span class="kasten b-ok">◎</span> Ergebnis — wie der Prozess ausgeht</span>
+    <span class="sym"><span class="kasten b-gate">◇</span> Entscheidung — eine Frage, jeder Ausgang beschriftet</span>
+    <span class="sym"><span class="kasten b-auto">⚙</span> Automatik — läuft ohne Zutun</span>
+    <span class="sym"><span class="kasten b-mensch">👤</span> Aufgabe — ein Mensch tut etwas</span>
+    <span class="sym"><span class="kasten b-auto">⊞</span> Unterprozess — eigenes Modell, hier eingebunden</span>
+    <span class="sym"><span class="kasten b-erp"></span> Bahn: TimeLine (ERP)</span>
+    <span class="sym"><span class="kasten b-archiv"></span> Bahn: SharePoint-Ablage</span>
+    <span class="sym"><span class="kasten b-auto"></span> Bahn: CRM-Schnittstelle</span>
+    <span class="sym"><span class="kasten b-mensch"></span> Bahn: Mensch (CRM-Betreuung, IT-Service)</span>
+    <span class="sym"><span class="kasten b-app"></span> Dynamics 365 — geschlossener Pool</span>
+    <span class="sym"><span class="kasten b-warn">!</span> Abweichung vom geraden Weg</span>
+  </div>
+  <p class="hint" style="margin-top:12px">BPMN kennt über hundert Symbole. Das
+     Hausschema des RMS lässt zehn zu und legt fest, wie sie benannt werden: Aufgaben
+     als Verb im Infinitiv, Entscheidungen als Frage, Ergebnisse als Zustand. Eine
+     Bahn ist eine <b>Rolle</b>, nie eine Person — Personen wechseln, Rollen bleiben.</p>
+</div>
+
+<!-- ══ Rollen ══════════════════════════════════════════════════════ -->
+<h3 class="section">Wer was tut</h3>
+<div class="card">
+  <div class="tbl-wrap"><table class="tbl">
+    <thead><tr><th>Rolle</th><th>Im Prozess</th><th>Entscheidet</th></tr></thead>
+    <tbody>
+      <tr><td><b>TimeLine Anwendungsserver</b></td>
+          <td>Exportiert donnerstags und legt die Mappe ab.</td>
+          <td>Welche Anfragen geändert sind.</td></tr>
+      <tr><td><b>SharePoint-Ablage</b></td>
+          <td>Nimmt die Mappe auf und trägt den Importvermerk.</td>
+          <td>Nichts — sie ist der Umschlagplatz.</td></tr>
+      <tr><td><b>CRM-Schnittstelle (Automatik)</b></td>
+          <td>Prüft, schreibt, protokolliert, berichtet, überwacht den Eingang.</td>
+          <td>Alles Unstrittige. Bei mehreren Treffern gewinnt der <b>aktive</b>
+              Datensatz, ohne Rückfrage.</td></tr>
+      <tr><td><b>CRM-Betreuung</b> (Rolle <code>editor</code>)</td>
+          <td>Beantwortet offene Fragen, liest den Bericht, entscheidet Konflikte.</td>
+          <td>Freigabe oder Ablehnung einer Mappe; welcher Datensatz bei mehreren
+              aktiven gemeint ist.</td></tr>
+      <tr><td><b>IT-Service Desk</b></td>
+          <td>Bekommt die Fehlanzeige, wenn donnerstags nichts kommt.</td>
+          <td>Ob die Lieferung aus TimeLine nachzufassen ist.</td></tr>
+    </tbody>
+  </table></div>
+  <p class="hint">Freigeben darf nur die Rolle <code>editor</code>. Eine Freigabe lässt
+     den Anwendungsbenutzer schreiben — also an den CRM-Rechten des Freigebenden
+     vorbei. „Nur zusehen" wäre damit „schreiben lassen".</p>
+</div>
+
+<!-- ══ Regelwerke ══════════════════════════════════════════════════ -->
+<h3 class="section">Regelwerke im RMS</h3>
+<div class="card">
+  <p class="hint" style="margin-top:0">Ein Ablauf ohne Regelwerk ist Gewohnheit, keine
+     Vorgabe (Hausschema R9). Diese drei sind an den Modellen verknüpft und öffnen
+     direkt im RMS:</p>
+  <div class="tbl-wrap"><table class="tbl">
+    <tbody>
+      <tr><td><a href="https://rms.dihag.de/?richtlinie=120" target="_blank" rel="noopener">
+              <b>Konzernfachregelung Prozessmanagement</b></a></td>
+          <td>Rollen, Lebenszyklus und Standardisierungsgrad — danach ist dieser
+              Steckbrief aufgebaut.</td></tr>
+      <tr><td><a href="https://rms.dihag.de/?richtlinie=111" target="_blank" rel="noopener">
+              <b>ISMS-Richtlinie Sichere Softwareentwicklung</b></a></td>
+          <td>Die Schnittstelle ist Eigenentwicklung: Prüfungen bei jedem Push,
+              Vier-Augen-Blick auf Änderungen, kein Geheimnis im Programmcode.</td></tr>
+      <tr><td><a href="https://rms.dihag.de/?richtlinie=119" target="_blank" rel="noopener">
+              <b>ISMS-Richtlinie Aufbewahrungsfristen und -pflichten</b></a></td>
+          <td>Protokolle, Vollprotokolle und Berichte sind Nachweise und bleiben
+              auffindbar.</td></tr>
+    </tbody>
+  </table></div>
+</div>
+
+<!-- ══ Unterlagen ══════════════════════════════════════════════════ -->
+<h3 class="section">Mitgeltende Unterlagen</h3>
+<div class="card">
+  <ul style="margin:0;padding-left:20px;line-height:1.9">
+    <li><a href="https://dihag.sharepoint.com/sites/IT/Austausch/Projekt%20CRM-Timeline" target="_blank" rel="noopener">Quellordner <code>Austausch ▸ Projekt CRM-Timeline</code></a>
+        — dort liegen die Mappen und die beiden Beschreibungen aus TimeLine
+        (<i>Projekt CRM-Timeline.docx</i>, <i>Export Anfragen in TimeLineStand.docx</i>).</li>
+    <li><a href="https://github.com/dfedorov12/crm/blob/main/docs/11-automatik.md" target="_blank" rel="noopener">docs/11-automatik.md</a>
+        — Einrichtung und Betrieb des unbeaufsichtigten Laufs, Einstellungen der
+        Liste <code>CRM_Automatik</code>.</li>
+    <li><a href="https://github.com/dfedorov12/crm/blob/main/docs/10-prozess.md" target="_blank" rel="noopener">docs/10-prozess.md</a>
+        — die fachlichen Regeln je Schritt (Schlüssel, Auflösung, Schreibweisen).</li>
+    <li><a href="https://github.com/dfedorov12/crm" target="_blank" rel="noopener">Quellcode</a>
+        — die Anwendung, die den Prozess ausführt.</li>
+  </ul>
+</div>
+
+<!-- ══ Offene Punkte ═══════════════════════════════════════════════ -->
+<h3 class="section">Was noch nicht so läuft</h3>
+<div class="card">
+  <dl class="schritte">
+    <dt>Die Mappe wird teilweise noch von Hand veröffentlicht</dt>
+    <dd>Die TimeLine-Dokumentation hält fest: „Zusätzlich wird derzeit noch manuell
+        die Excel-Datei in SharePoint für die Weiterverarbeitung veröffentlicht."
+        Solange das so ist, hängt der Eingang an einer Person. Die Fehlanzeige
+        donnerstags um 14 Uhr deckt genau diesen Fall ab — sie ersetzt ihn nicht.</dd>
+    <dt>Der Prozesseigner ist nicht benannt</dt>
+    <dd>Ohne Eigner gibt es niemanden, der über Abweichungen entscheidet. Einzutragen
+        im RMS an der Kachel dieses Prozesses.</dd>
+    <dt>Geschrieben wird in die TEST-Umgebung</dt>
+    <dd>Der Ablauf ist vollständig, das Ziel noch nicht das produktive CRM. Mit der
+        Umstellung wird aus dem POC ein freigegebener Prozess.</dd>
+  </dl>
+</div>
+
+<!-- ══ Herkunft ════════════════════════════════════════════════════ -->
+<h3 class="section">Woher der Prozess kommt</h3>
+<div class="card">
+  <dl class="schritte">
+    <dt>Bis 2023 — von Hand</dt>
+    <dd>Alle Excel-Dateien schliessen, als <code>dba</code> in TimeLine anmelden,
+        unter <i>Hilfsfunktionen</i> den <i>Dihag Anfragen Export</i> starten. Die
+        Datei landete als <code>DIHAG_ANFRAGEN_SCH_offen.XLSX</code> auf einem
+        Laufwerk und wurde von Hand nach SharePoint geladen und einzeln freigegeben.</dd>
+    <dt>Seit 2024 — Zeitplan im ERP</dt>
+    <dd>Der Dienst <code>CRM Export</code> im TimeLine-Anwendungsserver übernimmt den
+        Export. OneDrive bringt die Mappe nach SharePoint. Gelesen und ins CRM
+        geschrieben hat sie ein Power-Automate-Flow
+        (<code>TestumgebungExpImpCRMTimeline</code>).</dd>
+    <dt>Seit September 2026 — diese Anwendung</dt>
+    <dd>Der Flow ist abgelöst. Geprüft wird vor dem Schreiben, protokolliert wird
+        jede Zeile mit Grund, und was nicht entscheidbar ist, wird vorgelegt statt
+        stillschweigend übersprungen.</dd>
+  </dl>
+</div>
+
+</main>
+
+<footer>
+  DIHAG Foundry Group · CRM-Schnittstelle ·
+  Führend sind die Modelle im <a href="https://rms.dihag.de/" target="_blank" rel="noopener">RMS</a>;
+  diese Seite zeigt den Stand aus dem Repository ·
+  <a href="https://github.com/dfedorov12/crm" target="_blank" rel="noopener">Quellcode</a>
+</footer>
+
+<script src="js/vendor/bpmn/bpmn-navigated-viewer.production.min.js?v=dev"></script>
+<script>
+/* ── Die Modelle anzeigen ──────────────────────────────────────────────
+   Gelesen wird docs/bpmn/modelle.json: welche Datei, welche Kennung, wo im
+   RMS. Namen und Reiter stehen deshalb genau einmal da — hier würden sie
+   beim nächsten Umbau auseinanderlaufen.
+
+   Angezeigt wird die Kopie aus dem Repository. Führend ist das Modell im
+   RMS; der Knopf daneben führt hin. Live von dort zu lesen hiesse, diese
+   Seite an eine Anmeldung zu hängen — eine Prozessbeschreibung, die erst
+   nach dem Anmelden etwas zeigt, liest niemand im Vorbeigehen.          */
+
+var MODELLE = {}, HAUPT = [], AKTIV = { tab: '', key: '', zurueck: '' };
+var viewer = null;
+
+var esc = function (s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+};
+var $ = function (id) { return document.getElementById(id); };
+
+fetch('docs/bpmn/modelle.json', { cache: 'no-cache' })
+  .then(function (r) { return r.json(); })
+  .then(function (j) {
+    j.modelle.forEach(function (m) { MODELLE[m.key] = m; });
+    HAUPT = j.modelle.filter(function (m) { return m.haupt; });
+    $('ptabs').innerHTML = HAUPT.map(function (m) {
+      return '<button class="ptab" data-tab="' + esc(m.tab) + '" data-key="' + esc(m.key) + '">'
+        + esc(m.name) + '</button>';
+    }).join('');
+    Array.prototype.forEach.call($('ptabs').querySelectorAll('.ptab'), function (b) {
+      b.onclick = function () { zeige(b.dataset.key); };
+    });
+    var start = location.hash.replace('#', '');
+    var treffer = HAUPT.filter(function (m) { return m.tab === start || m.key === start; })[0];
+    zeige(treffer ? treffer.key : HAUPT[0].key);
+  })
+  .catch(function (e) {
+    $('leinwand').innerHTML = '<div class="laedt">Die Modell-Liste ist nicht lesbar: '
+      + esc(e.message) + '</div>';
+  });
+
+function zeige(key, zurueck) {
+  var m = MODELLE[key];
+  if (!m) return;
+  AKTIV = { tab: m.tab, key: key, zurueck: zurueck || '' };
+
+  Array.prototype.forEach.call($('ptabs').querySelectorAll('.ptab'), function (b) {
+    b.classList.toggle('active', b.dataset.tab === m.tab);
+  });
+  if (m.haupt) history.replaceState(null, '', '#' + m.tab);
+
+  $('mName').textContent = m.name;
+  $('mDoku').textContent = '';
+  $('mDatei').href = m.datei;
+  $('mDatei').setAttribute('download', m.datei.split('/').pop());
+  var rms = $('mRms');
+  if (m.itemId) {
+    rms.href = 'https://rms.dihag.de/?modell=' + encodeURIComponent(m.itemId);
+    rms.textContent = 'Im RMS öffnen';
+    rms.title = 'Das führende Modell im Regelwerkmanagement';
+  } else {
+    rms.href = 'https://rms.dihag.de/';
+    rms.textContent = 'RMS öffnen';
+    rms.title = 'Dieses Modell ist im RMS noch nicht abgelegt. Datei herunterladen '
+      + 'und dort unter Prozesse importieren.';
+  }
+
+  var krumen = [];
+  if (zurueck) {
+    krumen.push('<button class="btn sec sm" id="mBack">← ' + esc(MODELLE[zurueck].name) + '</button>');
+    krumen.push('<span>Unterprozess, eingebunden über ⊞</span>');
+  } else if (m.unter && m.unter.length) {
+    krumen.push('<span>Bindet ein: ' + m.unter.map(function (u) {
+      return '<a href="#" data-unter="' + esc(u) + '">' + esc(MODELLE[u] ? MODELLE[u].name : u) + '</a>';
+    }).join(' · ') + '</span>');
+  }
+  $('mKrumen').innerHTML = krumen.join(' ');
+  if ($('mBack')) $('mBack').onclick = function () { zeige(zurueck); };
+  Array.prototype.forEach.call($('mKrumen').querySelectorAll('a[data-unter]'), function (a) {
+    a.onclick = function (ev) { ev.preventDefault(); zeige(a.dataset.unter, key); };
+  });
+
+  laden(m);
+}
+
+function laden(m) {
+  if (!viewer) {
+    $('leinwand').innerHTML = '';
+    viewer = new BpmnJS({ container: $('leinwand') });
+    viewer.on('element.click', function (e) {
+      var bo = e.element.businessObject;
+      if (!bo || e.element.type !== 'bpmn:CallActivity') return;
+      var ziel = null;
+      Object.keys(MODELLE).forEach(function (k) {
+        if (MODELLE[k].kennung === bo.calledElement) ziel = k;
+      });
+      if (ziel) zeige(ziel, AKTIV.zurueck || AKTIV.key);
+    });
+  }
+  fetch(m.datei, { cache: 'no-cache' })
+    .then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.text();
+    })
+    .then(function (xml) {
+      return viewer.importXML(xml).then(function () {
+        einpassen(0);
+        var doku = (xml.match(/<bpmn:documentation>([\s\S]*?)<\/bpmn:documentation>/) || [])[1] || '';
+        doku = doku.replace(/\[\[[^\]]*\]\]/g, '').split('\n')[0]
+          .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+          .replace(/&quot;/g, '"').replace(/&apos;/g, "'");
+        $('mDoku').textContent = doku;
+      });
+    })
+    .catch(function (e) {
+      $('leinwand').innerHTML = '<div class="laedt">Das Modell ist nicht lesbar: '
+        + esc(e.message) + '<br>Die Datei liegt unter <code>' + esc(m.datei) + '</code>.</div>';
+      viewer = null;
+    });
+}
+
+/* Einpassen, sobald die Leinwand eine Breite hat.
+   Beim ersten Aufruf kann das Modell fertig geladen sein, bevor der Browser
+   die Seite gelegt hat. `fit-viewport` rechnet dann mit Breite 0 und wirft
+   („non-finite float"), das Diagramm bliebe mit einer Fehlermeldung leer —
+   gesehen beim ersten Laden am 02.10.2026. Also fragen statt annehmen. */
+function einpassen(versuch) {
+  if (!viewer) return;
+  var el = $('leinwand');
+  var nochmal = function () {
+    if ((versuch || 0) < 20) setTimeout(function () { einpassen((versuch || 0) + 1); }, 100);
+  };
+  if (!el.clientWidth || !el.clientHeight) return nochmal();
+  try { viewer.get('canvas').zoom('fit-viewport', 'auto'); } catch (e) { nochmal(); }
+}
+
+$('mFit').onclick = function () { einpassen(0); };
+$('mVoll').onclick = function () {
+  var el = $('leinwand');
+  if (document.fullscreenElement) document.exitFullscreen();
+  else if (el.requestFullscreen) el.requestFullscreen();
+};
+document.addEventListener('fullscreenchange', function () {
+  setTimeout(function () { einpassen(0); }, 80);
+});
+window.addEventListener('resize', function () {
+  if (viewer) viewer.get('canvas').resized();
+});
+</script>
+</body>
+</html>

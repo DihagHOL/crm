@@ -117,6 +117,12 @@ Neue Spalten sind dafür nicht nötig, die Liste gibt es schon.
 Reihenfolge: auflösen (Phase 0) → Konto suchen → Kontakt → Verkaufschance →
 Positionen ersetzen → Vertriebsprozess → Abschlüsse.
 
+Den ganzen Ablauf — vom Export in TimeLine donnerstags um 6 Uhr bis zum
+Datensatz im CRM — zeigt [`prozess.html`](https://crm.dihag.de/prozess.html)
+als BPMN nach dem Hausschema des [RMS](https://rms.dihag.de/), mit Steckbrief,
+Kennzahlen und den verknüpften Regelwerken. Wie die Modelle entstehen und ins
+RMS kommen: [`docs/12-prozessmodell.md`](docs/12-prozessmodell.md).
+
 ---
 
 ## Dokumente
@@ -132,6 +138,7 @@ Positionen ersetzen → Vertriebsprozess → Abschlüsse.
 | `docs/01`–`03` | App-Registrierung, SharePoint, Dataverse einrichten |
 | `docs/09-rechte-eintragen.md` | Zugriff freischalten — Kurzanleitung zu `AppPermissions` |
 | `docs/11-automatik.md` | **Unbeaufsichtigter Import: Einrichtung, Takt, Freigaben** |
+| `docs/12-prozessmodell.md` | **Der Ablauf als BPMN nach dem Hausschema des RMS** |
 | `config/import-profile.dihag.json` | Echtes Profil, aus dem Flow-Export abgeleitet |
 
 ---

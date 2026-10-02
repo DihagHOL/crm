@@ -69,5 +69,8 @@ jobs:
       - name: Protokoll (ausgelassene Zeilen, Vollprotokoll zurücklesen)
         run: node tests/test-protokoll.mjs
 
+      - name: Prozessmodelle gegen das Hausschema des RMS (R1-R10)
+        run: node tests/test-prozess.mjs
+
       - name: Konfiguration, Ladereihenfolge und Doku auf Konsistenz prüfen
         run: node tests/test-konsistenz.mjs

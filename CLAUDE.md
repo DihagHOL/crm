@@ -1042,6 +1042,32 @@ Scheitert die Mail, versucht es der nächste Blick auf die Uhr erneut; ein
 Vermerk ohne Mail wäre das Schlimmste von beidem — nichts gesendet und für
 heute abgehakt.
 
+### Der Ablauf als Modell, und wo er wohnt
+
+Seit dem 02.10.2026 gibt es `prozess.html`: Steckbrief, Takt, Kennzahlen und
+vier BPMN-Modelle. Drei Entscheidungen dahinter:
+
+**Die Regeln kommen aus dem RMS, nicht von hier.** Das Hausschema
+(`richtlinienmanagementsystem/js/prozessschema.js`) lässt zehn BPMN-Bausteine
+zu und prüft gegen zehn Regeln. `tests/test-prozess.mjs` prüft die erzeugten
+Dateien gegen dieselben Regeln — ein Verstoss soll beim Push auffallen und
+nicht beim Import ins RMS, wenn das Modell schon verteilt ist. Den Motor des
+Generators (Raster, Kantenführung, DI) stellt `e-rechnung` schon bereit; er
+ist wörtlich übernommen, weil zwei Layout-Engines zwei Bildsprachen wären.
+
+**Vier Modelle, weil R1 es so will.** Ein Modell hat genau einen Auslöser. Die
+Eingangsüberwachung beginnt mit einer Uhrzeit und nicht mit einer gelieferten
+Datei — als Zweig im Hauptprozess wäre sie ein zweiter Auslöser und damit ein
+zweiter Prozess. Import und Freigabe sind Unterprozesse: eingebunden (⊞),
+nicht abgeschrieben (R10).
+
+**Eine eigene Seite, keine Anmeldung.** `prozess.html` liegt neben der
+Anwendung und zeigt die Repository-Fassung der Modelle. Live aus dem RMS zu
+lesen hiesse, eine Prozessbeschreibung an eine stille Anmeldung mit Zugriff
+auf die ISMS-Bibliothek zu hängen; ohne die bliebe sie leer. Stattdessen sagt
+die Seite, woher ihr Stand kommt, und verlinkt das führende Modell im RMS.
+Einzelheiten: `docs/12-prozessmodell.md`.
+
 ### Das Tor: was einen Menschen stutzen liesse, hält an
 
 `AUTOMATIK.torschluss()` lässt genau dann durch, wenn der Prüflauf nichts

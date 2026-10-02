@@ -459,10 +459,15 @@ const APP = (() => {
     $("main").innerHTML = `
       <div class="page-head">
         <h2>Anleitung</h2>
-        <p>Die vollständige Prozessbeschreibung, geschrieben für alle, die
-           den Import ausführen oder verantworten. Sie wird beim Öffnen frisch
+        <p>Die fachlichen Regeln je Schritt, geschrieben für alle, die den
+           Import ausführen oder verantworten. Sie wird beim Öffnen frisch
            aus <code>docs/10-prozess.md</code> geladen — hier steht also
            derselbe Stand wie im Repository, nie eine Kopie davon.</p>
+        <p class="hint" style="margin-top:8px">Den <b>Ablauf als Modell</b>
+           — wer wann was tut, vom Export in TimeLine bis zum Datensatz im
+           CRM — zeigt die <a href="prozess.html">Prozessseite</a>: BPMN nach
+           dem Hausschema des RMS, mit Steckbrief, Kennzahlen und den
+           verknüpften Regelwerken.</p>
       </div>
       <div class="card doku" id="dokuText"><p class="hint">Wird geladen …</p></div>`;
 

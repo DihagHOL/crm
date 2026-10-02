@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:bioc="http://bpmn.io/schema/bpmn/biocolor/1.0" xmlns:color="http://www.omg.org/spec/BPMN/non-normative/color/1.0" id="Definitions_eingang" targetNamespace="https://crm.dihag.de/bpmn" exporter="DIHAG BPMN-Generator (scripts/bpmn/generate-bpmn.js)" exporterVersion="2.0">
+  <bpmn:collaboration id="Collab_eingang">
+    <bpmn:participant id="P_Ein" name="DIHAG · Eingang überwachen" processRef="Process_CRM_Timeline_Eingang" />
+  </bpmn:collaboration>
+  <bpmn:process id="Process_CRM_Timeline_Eingang" name="Eingang der TimeLine-Mappe überwachen" isExecutable="false">
+    <bpmn:documentation>Der stillste Fehler ist der ausbleibende Eingang: kein Import, kein Bericht, keine Protokollzeile – Ausbleiben sieht aus wie „alles in Ordnung&quot;. Deshalb ein eigener Auslöser: donnerstags um 14 Uhr fragt die Automatik, ob seit dem vorigen Termin eine Mappe eingegangen ist, und meldet die Fehlanzeige an den IT-Service. Die Erwartung gilt der Datei, nicht der Automatik: sie greift auch, wenn der Import abgeschaltet ist.
+Anwender-Ansicht: https://crm.dihag.de/prozess.html#eingang
+Im Einklang mit den Richtlinien: Konzernfachregelung Prozessmanagement; ISMS-Richtlinie Sichere Softwareentwicklung
+[[rms:policies=120,111]]</bpmn:documentation>
+    <bpmn:laneSet id="LaneSet_P_Ein">
+      <bpmn:lane id="LA" name="CRM-Schnittstelle (Automatik)"><bpmn:flowNodeRef>E_start</bpmn:flowNodeRef><bpmn:flowNodeRef>E_gw</bpmn:flowNodeRef><bpmn:flowNodeRef>E_ok</bpmn:flowNodeRef><bpmn:flowNodeRef>E_mail</bpmn:flowNodeRef></bpmn:lane>
+      <bpmn:lane id="LB" name="IT-Service Desk"><bpmn:flowNodeRef>E_klaeren</bpmn:flowNodeRef><bpmn:flowNodeRef>E_end</bpmn:flowNodeRef></bpmn:lane>
+    </bpmn:laneSet>
+      <bpmn:startEvent id="E_start" name="Donnerstag 14 Uhr erreicht"><bpmn:outgoing>Flow_E_start_E_gw</bpmn:outgoing><bpmn:timerEventDefinition id="E_start_def" /></bpmn:startEvent>
+      <bpmn:exclusiveGateway id="E_gw" name="Seit dem vorigen Termin eine Mappe eingegangen?"><bpmn:incoming>Flow_E_start_E_gw</bpmn:incoming><bpmn:outgoing>Flow_E_gw_E_ok</bpmn:outgoing><bpmn:outgoing>Flow_E_gw_E_mail</bpmn:outgoing></bpmn:exclusiveGateway>
+      <bpmn:endEvent id="E_ok" name="Lieferung ist da"><bpmn:incoming>Flow_E_gw_E_ok</bpmn:incoming></bpmn:endEvent>
+      <bpmn:serviceTask id="E_mail" name="Fehlanzeige an den IT-Service senden"><bpmn:incoming>Flow_E_gw_E_mail</bpmn:incoming><bpmn:outgoing>Flow_E_mail_E_klaeren</bpmn:outgoing></bpmn:serviceTask>
+      <bpmn:userTask id="E_klaeren" name="Lieferung aus TimeLine klären"><bpmn:incoming>Flow_E_mail_E_klaeren</bpmn:incoming><bpmn:outgoing>Flow_E_klaeren_E_end</bpmn:outgoing></bpmn:userTask>
+      <bpmn:endEvent id="E_end" name="Lieferung geklärt"><bpmn:incoming>Flow_E_klaeren_E_end</bpmn:incoming></bpmn:endEvent>
+      <bpmn:sequenceFlow id="Flow_E_start_E_gw" sourceRef="E_start" targetRef="E_gw" />
+      <bpmn:sequenceFlow id="Flow_E_gw_E_ok" sourceRef="E_gw" targetRef="E_ok" name="ja" />
+      <bpmn:sequenceFlow id="Flow_E_gw_E_mail" sourceRef="E_gw" targetRef="E_mail" name="nein" />
+      <bpmn:sequenceFlow id="Flow_E_mail_E_klaeren" sourceRef="E_mail" targetRef="E_klaeren" />
+      <bpmn:sequenceFlow id="Flow_E_klaeren_E_end" sourceRef="E_klaeren" targetRef="E_end" />
+      <bpmn:textAnnotation id="An_erw"><bpmn:text>Tag, Frist und Empfänger stehen in CRM_Automatik: ErwartetAn, ErwartetBisUhr, ErwartetEmpfaenger. Leer heisst: keine Erwartung.</bpmn:text></bpmn:textAnnotation>
+      <bpmn:association id="Assoc_An_erw" associationDirection="None" sourceRef="E_gw" targetRef="An_erw" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="Diagram_eingang">
+    <bpmndi:BPMNPlane id="Plane_eingang" bpmnElement="Collab_eingang">
+      <bpmndi:BPMNShape id="P_Ein_di" bpmnElement="P_Ein" isHorizontal="true" bioc:stroke="#1A2644" bioc:fill="#FFFFFF" color:background-color="#FFFFFF" color:border-color="#1A2644"><dc:Bounds x="100" y="60" width="960" height="400" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="LA_di" bpmnElement="LA" isHorizontal="true" bioc:stroke="#17509E" bioc:fill="#F3F8FE" color:background-color="#F3F8FE" color:border-color="#17509E"><dc:Bounds x="130" y="60" width="930" height="260" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="LB_di" bpmnElement="LB" isHorizontal="true" bioc:stroke="#C2410C" bioc:fill="#FFF8F1" color:background-color="#FFF8F1" color:border-color="#C2410C"><dc:Bounds x="130" y="320" width="930" height="140" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="E_start_di" bpmnElement="E_start" bioc:stroke="#1E7B3A" bioc:fill="#DDF3E4" color:background-color="#DDF3E4" color:border-color="#1E7B3A"><dc:Bounds x="247" y="112" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="205" y="153" width="120" height="28" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="E_gw_di" bpmnElement="E_gw" isMarkerVisible="true" bioc:stroke="#8A6100" bioc:fill="#FFF8DB" color:background-color="#FFF8DB" color:border-color="#8A6100"><dc:Bounds x="410" y="105" width="50" height="50" /><bpmndi:BPMNLabel><dc:Bounds x="335" y="60" width="96" height="41" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="E_ok_di" bpmnElement="E_ok" bioc:stroke="#1E7B3A" bioc:fill="#DDF3E4" color:background-color="#DDF3E4" color:border-color="#1E7B3A"><dc:Bounds x="587" y="112" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="545" y="153" width="120" height="15" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="E_mail_di" bpmnElement="E_mail" bioc:stroke="#A65F00" bioc:fill="#FFF1CC" color:background-color="#FFF1CC" color:border-color="#A65F00"><dc:Bounds x="539" y="208" width="132" height="84" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="E_klaeren_di" bpmnElement="E_klaeren" bioc:stroke="#C2410C" bioc:fill="#FFE3C8" color:background-color="#FFE3C8" color:border-color="#C2410C"><dc:Bounds x="709" y="348" width="132" height="84" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="E_end_di" bpmnElement="E_end" bioc:stroke="#1E7B3A" bioc:fill="#DDF3E4" color:background-color="#DDF3E4" color:border-color="#1E7B3A"><dc:Bounds x="927" y="372" width="36" height="36" /><bpmndi:BPMNLabel><dc:Bounds x="885" y="413" width="120" height="15" /></bpmndi:BPMNLabel></bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_E_start_E_gw_di" bpmnElement="Flow_E_start_E_gw"><di:waypoint x="283" y="130" /><di:waypoint x="410" y="130" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_E_gw_E_ok_di" bpmnElement="Flow_E_gw_E_ok"><di:waypoint x="460" y="130" /><di:waypoint x="587" y="130" /><bpmndi:BPMNLabel><dc:Bounds x="466" y="113" width="25" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_E_gw_E_mail_di" bpmnElement="Flow_E_gw_E_mail"><di:waypoint x="435" y="155" /><di:waypoint x="435" y="178" /><di:waypoint x="605" y="178" /><di:waypoint x="605" y="208" /><bpmndi:BPMNLabel><dc:Bounds x="443" y="161" width="38" height="14" /></bpmndi:BPMNLabel></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_E_mail_E_klaeren_di" bpmnElement="Flow_E_mail_E_klaeren"><di:waypoint x="671" y="250" /><di:waypoint x="690" y="250" /><di:waypoint x="690" y="390" /><di:waypoint x="709" y="390" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_E_klaeren_E_end_di" bpmnElement="Flow_E_klaeren_E_end"><di:waypoint x="841" y="390" /><di:waypoint x="927" y="390" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="An_erw_di" bpmnElement="An_erw" bioc:stroke="#6B7280" bioc:fill="#FFFFFF" color:background-color="#FFFFFF" color:border-color="#6B7280"><dc:Bounds x="190" y="219" width="220" height="62" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Assoc_An_erw_di" bpmnElement="Assoc_An_erw"><di:waypoint x="435" y="155" /><di:waypoint x="398" y="219" /></bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>
