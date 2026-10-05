@@ -24,6 +24,11 @@ on:
         description: "Stichtag nur fuer DIESEN Lauf (JJJJ-MM-TT), z. B. um eine aeltere Mappe zu pruefen"
         type: string
         default: ""
+      umgebung:
+        description: "Zielumgebung nur fuer DIESEN Lauf"
+        type: choice
+        options: ["wie in js/config.js", "TEST", "PROD"]
+        default: "wie in js/config.js"
 
 # Solange die Secrets fehlen, steigt das Skript sauber aus (Exit 0) statt zu
 # scheitern: ein roter Lauf viermal je Stunde waere eine Fehlermail fuer
@@ -56,4 +61,9 @@ jobs:
           # Nur beim manuellen Start gesetzt - ein Zeitplanlauf haelt sich
           # immer an das, was in SharePoint steht.
           CRM_ABDATUM:   ${{ github.event_name == 'workflow_dispatch' && inputs.stichtag || '' }}
+          # Umlenken gilt nur fuer DIESEN Lauf. Ein Zeitplanlauf schreibt
+          # immer dorthin, wo js/config.js hinzeigt - eine Umgebung, die vom
+          # zuletzt gewaehlten Knopf abhaengt, waere nicht nachvollziehbar.
+          CRM_DATAVERSE_URL: ${{ (github.event_name == 'workflow_dispatch' && inputs.umgebung == 'TEST') && 'https://dihag-test.crm4.dynamics.com' || ((github.event_name == 'workflow_dispatch' && inputs.umgebung == 'PROD') && 'https://dihag-prod.crm4.dynamics.com' || '') }}
+          CRM_UMGEBUNG:      ${{ (github.event_name == 'workflow_dispatch' && inputs.umgebung != 'wie in js/config.js') && inputs.umgebung || '' }}
         run: node automatik.mjs

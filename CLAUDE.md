@@ -1313,7 +1313,8 @@ scharf geschaltet werden.
 
 **Blockierend für den Bau:**
 
-- [x] ~~`dataverseUrl`~~ — `https://dihag-test.crm4.dynamics.com`, eingetragen
+- [x] ~~`dataverseUrl`~~ — seit 05.10.2026 `https://dihag-prod.crm4.dynamics.com`
+      (vorher `dihag-test`); der Umzug war die eine Zeile, die er sein sollte
       am 02.09.2026. Die Produktiv-URL wird erst beim Produktivgang gebraucht.
 - [x] ~~**Alternativschlüssel an `opportunity`**~~ — **entschieden am
       10.09.2026: es wird keiner angelegt.** Die Eindeutigkeit der Opp-ID ist

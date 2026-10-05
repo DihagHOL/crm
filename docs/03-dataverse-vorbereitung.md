@@ -335,3 +335,37 @@ Reihenfolgefehler zuverlässig auf und läuft in Sekunden.
 umzustellen — vorausgesetzt, die fest verdrahteten Werte aus Befund B9
 (Währungs-GUID, Bibliotheks-GUID) sind bis dahin durch Namen und ISO-Codes
 ersetzt. Genau daran scheitern Power-Automate-Flows beim Umzug regelmäßig.
+
+---
+
+## 5. Produktivgang, 05.10.2026
+
+Vollzogen. Es blieb bei einer Zeile: `dataverseUrl` zeigt auf
+`https://dihag-prod.crm4.dynamics.com`, `umgebung` auf `PROD` (rotes Band).
+
+**Vorher gegen PROD geprüft**, nicht angenommen:
+
+| Geprüft | Ergebnis |
+|---|---|
+| Alle 37 Zielfelder des Profils | vorhanden |
+| Preisliste „Preisliste für individuelle Verkaufschancenprodukte" | vorhanden, aktiv |
+| `cr570_technicalaudit_lookups`, `cr570_productline_lookups` | vorhanden und gefüllt |
+| Verkaufschancen mit Timeline-Kennung (`new_dagextopid`) | 1.673 — der Altflow hat dort gearbeitet |
+| Anwendungsbenutzer „DIHAG Cron-Job" | angelegt, Stamm-Geschäftseinheit, Rolle `DIHAG-Admin` |
+
+**Die Rolle ist bewusst vorläufig.** `DIHAG-Admin` bringt 958 Rechte mit; der
+Import braucht 24. Die kleinere Rolle ist beschrieben in
+`docs/11-automatik.md` („Welche Rechte der Anwendungsbenutzer wirklich
+braucht") und kann jederzeit nachgezogen werden, ohne dass sich am Code
+etwas ändert.
+
+**Der Importvermerk klebt an der Datei, nicht an der Umgebung.** Alle Mappen
+im Quellordner stehen auf `Importiert` — das galt für TEST. Nach der
+Umstellung fasst die Automatik sie nicht erneut an; der erste produktive
+Import ist die nächste neue Mappe. Wer eine ältere nachziehen will, setzt
+ihren `ImportStatus` in der Bibliothek auf `Neu`.
+
+**Die Automatik steht auf `Aktiv = nein`**, bis der erste Lauf gegen PROD
+geprüft ist. Ein Zeitplanlauf, der unbeaufsichtigt in echte Daten schreibt,
+bevor jemand das Protokoll gesehen hat, ist kein Produktivgang, sondern ein
+Versuch mit offenem Ausgang.

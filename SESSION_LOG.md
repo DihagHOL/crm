@@ -1,5 +1,39 @@
 # Session-Log
 
+## 05.10.2026 — Produktivgang: eine Zeile, und drei Dinge drumherum
+
+„Ich will jetzt die PROD-Umgebung anbinden, vielleicht nicht mit zu vielen
+Rechten, welche Rolle kann ich nehmen?"
+
+**Erst nachsehen, dann raten lassen.** In PROD ausgezählt: alle 37 Zielfelder
+des Profils sind da, die Preisliste existiert und ist aktiv, die beiden
+cr570-Nachschlagetabellen sind gefüllt, und 1.673 Verkaufschancen tragen
+bereits eine Timeline-Kennung. Der Umzug blieb damit die eine Zeile, die er
+der Entwurfsabsicht nach sein sollte — Namen statt GUIDs, Befund B9.
+
+**Zur Rolle.** Aus den sechs Schritten ergeben sich 24 Rechte. Die
+interessanteste Einzelheit: `opportunityproduct` hat in Dataverse gar keine
+eigenen Rechte, der Zugriff auf Positionen hängt an der Verkaufschance.
+Gegen die vier Hausrollen gehalten: *Sales Manager*, *Direktor Sales* und
+*Admin* reichen, *Sales Operations* nicht (kein Anlegen bei Kontakt und
+Verkaufschance) — was auch für Menschen gilt, die die App bedienen.
+Entschieden wurde `DIHAG-Admin`, vorerst. Die kleine Rolle steht
+dokumentiert bereit und ändert nichts am Code.
+
+**Zwei Dinge, die beim Umschalten leicht übersehen werden.** Der
+Importvermerk klebt an der Datei und nicht an der Umgebung: alle Mappen
+stehen auf „Importiert", und das galt für TEST. Der erste produktive Import
+ist deshalb die nächste neue Mappe. Und die Automatik stand auf `Aktiv = ja`
+— ein Zeitplanlauf hätte am Donnerstag unbeaufsichtigt in echte Daten
+geschrieben, bevor jemand ein Protokoll gesehen hat. Sie steht jetzt auf
+`nein`, bis der erste Lauf geprüft ist.
+
+**Dazu.** Der Workflow kann einen EINZELNEN Lauf umlenken (Eingabe
+*Zielumgebung*), der Zeitplan hält sich weiter an `js/config.js`. Und zwei
+Tests prüften bisher auf den Text „TEST" im Betreff — die hätten genau an
+dem Tag angeschlagen, an dem alles richtig gemacht wurde. Jetzt prüfen sie,
+DASS die Umgebung im Betreff steht.
+
 ## 02.10.2026 — Der Prozess, als Modell und nicht als Erzählung
 
 Zwei Word-Dateien aus TimeLine als Vorlage, dazu der Auftrag: Prozessbeschreibung

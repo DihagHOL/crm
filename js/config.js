@@ -22,17 +22,24 @@ const CRM_CONFIG = {
   clientId: "b6078457-e2ab-41e7-91a1-b49dfaf9d532",
 
   /* ── Dataverse ─────────────────────────────────────────────────────
-     Organisations-URL der TESTUMGEBUNG – dieselbe, in der auch der Altflow
-     arbeitet. Beim Produktivgang ist das der einzige Wert, der sich ändert
-     (vorausgesetzt, es bleibt bei Namen statt GUIDs, siehe unten).       */
+     PRODUKTIVUMGEBUNG, seit dem 05.10.2026. Vorher stand hier
+     `dihag-test`; dass der Umzug eine einzige Zeile ist, war die
+     Entwurfsabsicht (Namen statt GUIDs, siehe unten) und hat gehalten:
+     alle 37 Zielfelder des Profils, die Preisliste und die beiden
+     cr570-Nachschlagetabellen gibt es in PROD genauso.
 
-  dataverseUrl: "https://dihag-test.crm4.dynamics.com",
+     Zurück nach TEST geht es über denselben Weg, und für einen EINZELNEN
+     Lauf ohne Codeänderung über die Eingabe „umgebung" im Workflow
+     (CRM_DATAVERSE_URL / CRM_UMGEBUNG, docs/11-automatik.md).           */
+
+  dataverseUrl: "https://dihag-prod.crm4.dynamics.com",
   apiVersion:   "v9.2",
 
   // Wird dauerhaft als Band im Kopf angezeigt. "PROD" erscheint rot.
   // Niemand soll versehentlich ins Produktivsystem importieren, weil beide
-  // Umgebungen gleich aussehen (CLAUDE.md §5).
-  umgebung: "TEST",
+  // Umgebungen gleich aussehen (CLAUDE.md §5). Das Band ist jetzt rot, und
+  // das ist der Punkt: ab hier schreibt jeder Import in echte Daten.
+  umgebung: "PROD",
 
   /* ── SharePoint: Quelldateien ──────────────────────────────────────
      Über Namen aufgelöst, nie über GUIDs. Der Altflow verdrahtet die

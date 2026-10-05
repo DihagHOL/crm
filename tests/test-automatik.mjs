@@ -142,7 +142,7 @@ console.log("\nDas Tor zum Import");
 
 console.log("\nDer Bericht");
 {
-  const { AUTOMATIK: A } = ladeAlles();
+  const { AUTOMATIK: A, CRM_CONFIG: C } = ladeAlles();
   const r = A.bericht([
     { art: "importiert", titel: "Anfragen.xlsx – importiert", zeilen: ["12 angelegt"] },
     { art: "freigabe", titel: "Alt.xlsx – Freigabe nötig", zeilen: ["2 offene Fragen"] }
@@ -150,10 +150,14 @@ console.log("\nDer Bericht");
 
   pruefe(/1 importiert/.test(r.betreff) && /1 wartet auf Freigabe/.test(r.betreff),
     "der Betreff sagt das Ergebnis, ohne dass man die Mail öffnet");
-  pruefe(/TEST/.test(r.betreff), "und nennt die Umgebung – TEST und PROD sehen gleich aus");
+  /* Welche Umgebung, steht in js/config.js und wechselt beim Produktivgang.
+     Der Test prüft deshalb, DASS sie im Betreff steht, nicht welche – sonst
+     schlägt er genau an dem Tag fehl, an dem alles richtig gemacht wurde. */
+  pruefe(r.betreff.includes(C.umgebung),
+    "und nennt die Umgebung – TEST und PROD sehen sonst gleich aus");
   pruefe(/crm\.dihag\.de/.test(r.html), "der Weg ins Werkzeug steht drin");
 
-  gleich(A.bericht([]).betreff, "CRM-Import TEST: nichts zu tun",
+  gleich(A.bericht([]).betreff, `CRM-Import ${C.umgebung}: nichts zu tun`,
     "auch der leere Fall hat einen lesbaren Betreff");
 
   /* Ein Probelauf, der drei Dateien durchgerechnet hat, darf nicht
@@ -161,7 +165,7 @@ console.log("\nDer Bericht");
      Postfachübersicht steht. */
   gleich(A.bericht([{ art: "hinweis", titel: "Probelauf", zeilen: [] },
                     { art: "hinweis", titel: "Probelauf", zeilen: [] }]).betreff,
-    "CRM-Import TEST: 2 geprüft, nichts geschrieben",
+    `CRM-Import ${C.umgebung}: 2 geprüft, nichts geschrieben`,
     "ein Probelauf ist nicht nichts");
 
   // 108-mal dieselbe Warnung ist EINE Zeile mit einer Zahl davor.
@@ -400,7 +404,7 @@ console.log("\nDer Eingang, der nicht kam");
 
 console.log("\nIst etwas eingegangen?");
 {
-  const { AUTOMATIK: A } = ladeAlles();
+  const { AUTOMATIK: A, CRM_CONFIG: C } = ladeAlles();
   const seit = Date.parse("2026-09-24T12:00:00Z");
 
   /* Mittwochabend für den Donnerstag ist pünktlich — eine Fehlanzeige wäre
@@ -452,7 +456,8 @@ console.log("\nIst etwas eingegangen?");
   pruefe(/keine neue Mappe eingegangen/.test(m.betreff),
     "der Betreff sagt, dass nichts kam");
   pruefe(/Do 14 Uhr/.test(m.betreff), "und zu welchem Termin");
-  pruefe(/TEST/.test(m.betreff), "die Umgebung steht davor wie bei jedem Bericht");
+  pruefe(m.betreff.includes(C.umgebung),
+    "die Umgebung steht davor wie bei jedem Bericht");
   pruefe(/Anfragen 2026-09-17\.xlsx/.test(m.html),
     "die Mail nennt die letzte Lieferung");
   pruefe(/Timeline/.test(m.html), "und sagt, wo zu suchen ist");

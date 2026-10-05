@@ -130,6 +130,44 @@ Anwendungsbenutzer darf, entscheidet seine Sicherheitsrolle, nicht dieses
 Skript. Wer ihm nur Leserechte gibt, bekommt eine Automatik, die prüft und
 berichtet, aber nichts schreibt.
 
+### 3a. Welche Rechte der Anwendungsbenutzer wirklich braucht
+
+In TEST trägt „DIHAG Cron-Job" **System Administrator**, in PROD seit dem
+05.10.2026 die Hausrolle **DIHAG-Admin** (958 Rechte). Beides ist mehr, als
+der Import braucht. Am 05.10.2026 gegen die PROD-Metadaten ausgezählt: es
+sind **24 Rechte**.
+
+| Tabelle | Anlegen | Lesen | Schreiben | Anfügen | Anfügen an | Tiefe |
+|---|---|---|---|---|---|---|
+| Firma (`account`) | | ✔ | | | ✔ | Organisation |
+| Kontakt (`contact`) | ✔ | ✔ | ✔ | ✔ | ✔ | Organisation |
+| Verkaufschance (`opportunity`) | ✔ | ✔ | ✔ | ✔ | ✔ | Organisation |
+| Notiz (`annotation`) | ✔ | ✔ | | ✔ | | Benutzer |
+| Produkt / Preisliste | | ✔ | | | | Organisation |
+| Benutzer (`systemuser`) | | ✔ | | | | Organisation |
+| Verkaufsprozess (`opportunitysalesprocess`) | | ✔ | ✔ | | ✔ | Organisation |
+| Anpassung: Entität, Attribut, Beziehung, Entitätsschlüssel | | ✔ | | | | Organisation |
+
+Kein Löschrecht, nirgends. Keine Anpassungs- oder Lösungsrechte, keine
+Benutzerverwaltung, kein Massenlöschen, kein Export.
+
+**Die Positionen brauchen kein eigenes Recht.** `opportunityproduct` hat in
+Dataverse keine eigenen Rechte — der Zugriff hängt an der Verkaufschance.
+Schritt 40 ersetzt Positionen also über *Schreiben* an der Chance. Scheitert
+er mit 403, fehlt nicht ein Positionsrecht, sondern Schreiben an
+`opportunity`.
+
+**Tiefe „Organisation" ist keine Bequemlichkeit.** Die Datensätze gehören dem
+Vertrieb, nicht dem Dienstkonto. Auf „Benutzer" gestellt sieht der
+Anwendungsbenutzer nur, was er selbst besitzt, und das ist nichts.
+
+Die vier Hausrollen in PROD, gegen denselben Bedarf geprüft: *DIHAG-Admin*,
+*DIHAG-Direktor Sales* und *DIHAG-Sales Manager* reichen aus,
+*DIHAG-Sales Operations* nicht — dort fehlt das Anlegen bei Kontakt und
+Verkaufschance. Das betrifft auch Menschen: wer die App mit dieser Rolle
+bedient, kann keine neue Verkaufschance anlegen, denn die Oberfläche
+schreibt mit den Rechten des Angemeldeten.
+
 ### 4. Secrets im Repo `dfedorov12/crm`
 
 Dieselben drei Werte wie bei `bedarfsanfrage`, dieselben Namen. Die beiden
@@ -313,6 +351,12 @@ geerbt haben, und für reparierte Dateien, die auf `Fehlgeschlagen` standen.
 `LetzterLauf` leeren, dann Actions → Run workflow. Oder in der Bibliothek
 den `ImportStatus` der Datei auf `Neu` zurücksetzen, falls sie schon
 abgehakt ist.
+
+**Ein Lauf soll in die andere Umgebung.** Actions → Run workflow → Eingabe
+*Zielumgebung*. Sie gilt nur für diesen einen Lauf (`CRM_DATAVERSE_URL` und
+`CRM_UMGEBUNG`); der Zeitplan hält sich immer an `js/config.js`. Seit dem
+05.10.2026 zeigt der auf **PROD** — ein Probelauf gegen TEST geht damit
+weiterhin, ohne den Code anzufassen.
 
 **Der Bericht kommt nicht.** Erst im Reiter **Automatik** unter *Berichte*
 nachsehen: dort liegt jeder Bericht als Datei, unabhängig vom Mailversand.
