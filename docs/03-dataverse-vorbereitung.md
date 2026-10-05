@@ -365,7 +365,35 @@ Umstellung fasst die Automatik sie nicht erneut an; der erste produktive
 Import ist die nächste neue Mappe. Wer eine ältere nachziehen will, setzt
 ihren `ImportStatus` in der Bibliothek auf `Neu`.
 
-**Die Automatik steht auf `Aktiv = nein`**, bis der erste Lauf gegen PROD
-geprüft ist. Ein Zeitplanlauf, der unbeaufsichtigt in echte Daten schreibt,
-bevor jemand das Protokoll gesehen hat, ist kein Produktivgang, sondern ein
-Versuch mit offenem Ausgang.
+**Die Automatik ist eingeschaltet.** Entschieden am 05.10.2026: der Lauf vom
+Donnerstag, 08.10.2026, ist zugleich Probelauf und Produktivgang. Er fällt in
+das Fenster `Do, 4–14 Uhr`, Takt 60 Minuten, höchstens eine Mappe. Die
+Timeline-Mappe entsteht donnerstags gegen 6 Uhr, aufgegriffen wird sie also
+im Lauf um 6 oder 7 Uhr.
+
+Dazu eingeschaltet: die **Fehlanzeige** (`ErwartetAn = Do`,
+`ErwartetBisUhr = 14`). Kommt bis 14 Uhr keine Mappe, meldet sie das an
+`administrator@dihag.com` — an einem Tag, an dem niemand danebensteht, ist
+Stille sonst von Erfolg nicht zu unterscheiden.
+
+### Was vor dem 08.10. zu entscheiden ist
+
+**Der alte Import schreibt weiter nach PROD.** Am 05.10.2026 in den
+Produktivdaten ausgezählt:
+
+| Tag | Neue Timeline-Chancen | Neue Positionen | Angelegt von |
+|---|---|---|---|
+| Fr 02.10.2026 | 28 | 66 | ein persönliches Konto |
+| Fr 25.09.2026 | 12 | 41 | dasselbe |
+| Fr 18.09.2026 | 11 | 36 | dasselbe |
+| Fr 11.09.2026 | 7 | 13 | dasselbe |
+| Fr 04.09.2026 | 54 | 123 | dasselbe |
+
+Das ist der Altflow, und er läuft **freitags**, einen Tag nach der Lieferung.
+Ab dem 08.10. schreibt donnerstags zusätzlich diese Schnittstelle dieselbe
+Mappe. Solange beide laufen, gilt: der Freitag überschreibt den Donnerstag,
+die bekannten Befunde des Altflows (B1 Kreuzprodukt, Besitzer wird nicht
+geschrieben) kommen mit, und welcher Datensatz woher stammt, ist hinterher
+nicht mehr zu klären. In der Dataverse-Umgebung PROD ist kein passender
+Cloud-Flow registriert; er läuft also in einer anderen Umgebung oder unter
+einem persönlichen Konto.

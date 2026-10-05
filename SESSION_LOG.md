@@ -1,5 +1,31 @@
 # Session-Log
 
+## 05.10.2026, abends — Donnerstag ist Produktivgang, und er ist nicht allein
+
+„Den Probelauf soll ruhig automatisch starten, lass aktiv, am Donnerstag ist
+quasi Golive."
+
+Also zurückgedreht, was ich nachmittags vorsichtshalber ausgeschaltet hatte:
+`Aktiv = ja`. Der Lauf vom 08.10. ist damit Probelauf und Produktivgang in
+einem. Dazu eingeschaltet, was bisher leer stand: die Fehlanzeige
+(`ErwartetAn = Do`, Frist 14 Uhr, Meldung an `administrator@dihag.com`). An
+einem Tag, an dem niemand danebensteht, ist Stille sonst von Erfolg nicht zu
+unterscheiden.
+
+**Dabei etwas gefunden, das vor Donnerstag auf den Tisch gehört.** In den
+Produktivdaten nachgezählt, wer dort Timeline-Daten anlegt: jeden Freitag
+entstehen Verkaufschancen und Positionen unter einem persönlichen Konto —
+zuletzt 28 und 66 am 02.10., davor 12/41, 11/36, 7/13, 54/123. Das ist der
+Altflow, und er arbeitet weiter. Ab dem 08.10. schreibt donnerstags
+zusätzlich diese Schnittstelle dieselbe Mappe.
+
+Zwei Importe auf denselben Datensätzen heissen: der Freitag überschreibt den
+Donnerstag, die bekannten Befunde des Altflows kommen mit, und hinterher ist
+nicht mehr zu sagen, welcher Datensatz woher stammt. In der PROD-Umgebung ist
+kein passender Cloud-Flow registriert, er läuft also woanders. Abzuschalten
+ist er trotzdem, sonst misst der Produktivgang nicht die neue Schnittstelle,
+sondern beide gleichzeitig.
+
 ## 05.10.2026 — Produktivgang: eine Zeile, und drei Dinge drumherum
 
 „Ich will jetzt die PROD-Umgebung anbinden, vielleicht nicht mit zu vielen

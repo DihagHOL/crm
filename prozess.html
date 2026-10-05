@@ -113,9 +113,9 @@
       <tr><th>Status</th>
           <td><b>Freigegeben.</b> Seit dem 05.10.2026 schreibt die Schnittstelle
               in die Produktivumgebung <code>dihag-prod.crm4.dynamics.com</code>;
-              der POC in <code>dihag-test</code> ist abgeschlossen. Der erste
-              produktive Lauf steht noch aus, die Automatik ist bis dahin
-              ausgeschaltet.</td></tr>
+              der POC in <code>dihag-test</code> ist abgeschlossen. Die Automatik
+              ist eingeschaltet, der erste produktive Lauf ist der vom
+              <b>Donnerstag, 08.10.2026</b>.</td></tr>
       <tr><th>Prozesseigner</th>
           <td><span class="vorschlag">noch nicht benannt</span> — im RMS zu setzen.
               Fachlich zuständig ist der Vertrieb der Schmiedeberger Guss, technisch
@@ -315,11 +315,18 @@
     <dt>Der Prozesseigner ist nicht benannt</dt>
     <dd>Ohne Eigner gibt es niemanden, der über Abweichungen entscheidet. Einzutragen
         im RMS an der Kachel dieses Prozesses.</dd>
+    <dt>Zwei Importe schreiben in dieselben Datensätze</dt>
+    <dd>Am 05.10.2026 in PROD ausgezählt: <b>jeden Freitag</b> entstehen dort
+        Timeline-Verkaufschancen und -Positionen unter einem persönlichen Konto
+        (zuletzt 28 Chancen und 66 Positionen am 02.10.). Das ist der alte
+        Import, den diese Schnittstelle ablösen soll. Ab dem 08.10. schreibt
+        donnerstags zusätzlich die Automatik dieselbe Mappe. Solange beide
+        laufen, überschreibt der Freitag, was der Donnerstag getan hat, und
+        welcher Datensatz woher kommt, ist hinterher nicht mehr zu sagen.</dd>
+
     <dt>Der erste produktive Lauf steht aus</dt>
-    <dd>Seit dem 05.10.2026 zeigt die Schnittstelle auf <code>dihag-prod</code>.
-        Bis der erste Lauf dort geprüft ist, steht die Automatik auf
-        <code>Aktiv = nein</code>; importiert wird von Hand und mit Blick auf
-        das Protokoll.</dd>
+    <dd>Er ist der vom 08.10.2026. Bis das Protokoll dieses Laufs angesehen ist,
+        gilt der Produktivgang als begonnen, nicht als abgeschlossen.</dd>
   </dl>
 </div>
 
