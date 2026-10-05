@@ -409,3 +409,5 @@ dieselben Datensätze. Dann misst der Produktivgang nicht die neue
 Schnittstelle, sondern beide. Abzustimmen ist das nicht mit einem Schalter,
 sondern mit der Person, die den Import fährt: eine Woche aussetzen, das
 Protokoll des Donnerstagslaufs ansehen, dann entscheiden.
+
+**Abgestimmt am 05.10.2026.** Sie weiss Bescheid.
