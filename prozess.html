@@ -315,14 +315,15 @@
     <dt>Der Prozesseigner ist nicht benannt</dt>
     <dd>Ohne Eigner gibt es niemanden, der über Abweichungen entscheidet. Einzutragen
         im RMS an der Kachel dieses Prozesses.</dd>
-    <dt>Zwei Importe schreiben in dieselben Datensätze</dt>
-    <dd>Am 05.10.2026 in PROD ausgezählt: <b>jeden Freitag</b> entstehen dort
-        Timeline-Verkaufschancen und -Positionen unter einem persönlichen Konto
-        (zuletzt 28 Chancen und 66 Positionen am 02.10.). Das ist der alte
-        Import, den diese Schnittstelle ablösen soll. Ab dem 08.10. schreibt
-        donnerstags zusätzlich die Automatik dieselbe Mappe. Solange beide
-        laufen, überschreibt der Freitag, was der Donnerstag getan hat, und
-        welcher Datensatz woher kommt, ist hinterher nicht mehr zu sagen.</dd>
+    <dt>Daneben läuft freitags noch ein Import von Hand</dt>
+    <dd>Aus den Importprotokollen von PROD gelesen (05.10.2026): freitagvormittags
+        werden mit dem <b>Import-Assistenten</b> fünf Dateien nacheinander
+        eingespielt. Am 02.10. waren das 118 Firmen, 553 Kontakte, 29
+        Verkaufschancen und 70 Positionen; Firmen und Kontakte schlagen dabei
+        vollständig fehl, weil die Dublettenerkennung jede bekannte Zeile
+        abweist. Ab dem 08.10. schreibt donnerstags zusätzlich diese
+        Schnittstelle dieselbe Mappe. Zwei Wege in dieselben Datensätze: solange
+        beide laufen, ist hinterher nicht zu sagen, welcher Stand woher kommt.</dd>
 
     <dt>Der erste produktive Lauf steht aus</dt>
     <dd>Er ist der vom 08.10.2026. Bis das Protokoll dieses Laufs angesehen ist,

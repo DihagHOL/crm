@@ -14,17 +14,28 @@ unterscheiden.
 
 **Dabei etwas gefunden, das vor Donnerstag auf den Tisch gehört.** In den
 Produktivdaten nachgezählt, wer dort Timeline-Daten anlegt: jeden Freitag
-entstehen Verkaufschancen und Positionen unter einem persönlichen Konto —
-zuletzt 28 und 66 am 02.10., davor 12/41, 11/36, 7/13, 54/123. Das ist der
-Altflow, und er arbeitet weiter. Ab dem 08.10. schreibt donnerstags
-zusätzlich diese Schnittstelle dieselbe Mappe.
+entstehen Verkaufschancen und Positionen, zuletzt 28 und 66 am 02.10., davor
+12/41, 11/36, 7/13, 54/123.
 
-Zwei Importe auf denselben Datensätzen heissen: der Freitag überschreibt den
-Donnerstag, die bekannten Befunde des Altflows kommen mit, und hinterher ist
-nicht mehr zu sagen, welcher Datensatz woher stammt. In der PROD-Umgebung ist
-kein passender Cloud-Flow registriert, er läuft also woanders. Abzuschalten
-ist er trotzdem, sonst misst der Produktivgang nicht die neue Schnittstelle,
-sondern beide gleichzeitig.
+Meine erste Erklärung dafür war falsch: ich hatte den Altflow vermutet. „Es
+gibt keinen aktiven Flow im Hintergrund", kam zurück, und das stimmt. Die
+Importprotokolle von PROD (`importfiles`, `importlogs`) sagen, was es
+wirklich ist: der **Import-Assistent** von Dynamics, von Hand, freitags
+vormittags, fünf Dateien nacheinander. Der Lauf vom 02.10. dauerte zwölf
+Minuten, die 28 Chancen entstanden in dreizehn Sekunden, alle mit derselben
+`importsequencenumber`.
+
+Dabei fiel noch etwas auf: von den fünf Dateien schlagen drei **vollständig**
+fehl. 118 Firmen, 432 plus 121 Kontakte, jede Woche, Grund laut Protokoll
+„a duplicate of the current record already exists". Das ist bei diesem
+Verfahren der Normalfall — eingespielt wird jedes Mal alles, durch kommt das
+Neue. Wer die Zahlen nicht liest, sieht wöchentlich 671 Fehler und gewöhnt
+sich daran.
+
+Für den 08.10. bleibt die Frage dieselbe, nur die Antwort ist eine andere:
+kein Schalter, sondern eine Absprache mit der Person, die den Import fährt.
+Eine Woche aussetzen, das Protokoll des Donnerstagslaufs ansehen, dann
+entscheiden.
 
 ## 05.10.2026 — Produktivgang: eine Zeile, und drei Dinge drumherum
 

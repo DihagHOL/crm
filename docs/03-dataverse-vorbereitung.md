@@ -378,22 +378,34 @@ Stille sonst von Erfolg nicht zu unterscheiden.
 
 ### Was vor dem 08.10. zu entscheiden ist
 
-**Der alte Import schreibt weiter nach PROD.** Am 05.10.2026 in den
-Produktivdaten ausgezählt:
+**Der wöchentliche Import nach PROD läuft von Hand.** Kein Flow — der
+**Import-Assistent** von Dynamics, freitagvormittags, mit fünf Dateien
+nacheinander. Am 05.10.2026 aus den Importprotokollen von PROD gelesen
+(Tabellen `importfiles` und `importlogs`); der Lauf vom 02.10. dauerte von
+06:43 bis 06:55 UTC:
 
-| Tag | Neue Timeline-Chancen | Neue Positionen | Angelegt von |
-|---|---|---|---|
-| Fr 02.10.2026 | 28 | 66 | ein persönliches Konto |
-| Fr 25.09.2026 | 12 | 41 | dasselbe |
-| Fr 18.09.2026 | 11 | 36 | dasselbe |
-| Fr 11.09.2026 | 7 | 13 | dasselbe |
-| Fr 04.09.2026 | 54 | 123 | dasselbe |
+| Datei | Ziel | Zeilen | erfolgreich | fehlgeschlagen |
+|---|---|---|---|---|
+| `Accounts.xlsx` | Firma | 118 | 0 | **118** |
+| `Contacts_Account.xlsx` | Kontakt | 432 | 0 | **432** |
+| `Contacts_Firmenname.xlsx` | Kontakt | 121 | 0 | **121** |
+| `Opportunity_Imp_Exp_EMAIL_ACCNUM.xlsx` | Verkaufschance | 29 | 29 | 0 |
+| `Opportunityproduct_Imp_Exp.xlsx` | Position | 70 | 70 | 0 |
 
-Das ist der Altflow, und er läuft **freitags**, einen Tag nach der Lieferung.
-Ab dem 08.10. schreibt donnerstags zusätzlich diese Schnittstelle dieselbe
-Mappe. Solange beide laufen, gilt: der Freitag überschreibt den Donnerstag,
-die bekannten Befunde des Altflows (B1 Kreuzprodukt, Besitzer wird nicht
-geschrieben) kommen mit, und welcher Datensatz woher stammt, ist hinterher
-nicht mehr zu klären. In der Dataverse-Umgebung PROD ist kein passender
-Cloud-Flow registriert; er läuft also in einer anderen Umgebung oder unter
-einem persönlichen Konto.
+Dasselbe Bild am 25.09. und am 18.09., nur mit anderen Zahlen (dort fielen
+auch 31 von 112 Positionen und 3 von 26 Chancen durch).
+
+**Die 671 Fehlzeilen sind kein Unfall, sondern der Normalfall dieses
+Verfahrens.** Der Grund steht im Protokoll: *„A record was not created or
+updated because a duplicate of the current record already exists."* Firmen-
+und Kontaktdateien werden jede Woche vollständig eingespielt, und die
+Dublettenerkennung weist jede bekannte Zeile ab. Was durchkommt, ist das
+Neue. Wer die Zahlen nicht liest, sieht wöchentlich „671 Fehler" und gewöhnt
+sich daran.
+
+**Für den 08.10. heisst das:** donnerstags schreibt ab jetzt die
+Schnittstelle, freitags womöglich noch einmal der Import-Assistent — in
+dieselben Datensätze. Dann misst der Produktivgang nicht die neue
+Schnittstelle, sondern beide. Abzustimmen ist das nicht mit einem Schalter,
+sondern mit der Person, die den Import fährt: eine Woche aussetzen, das
+Protokoll des Donnerstagslaufs ansehen, dann entscheiden.
