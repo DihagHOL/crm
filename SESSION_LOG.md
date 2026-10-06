@@ -1,5 +1,37 @@
 # Session-Log
 
+## 06.10.2026 — „Was da los?" — ein Zeitplan, den es nicht gibt
+
+Eine Fehlermail aus GitHub Actions. Der Lauf vom 05.10., 20:44 UTC, stand
+fünfzehn Minuten in der Warteschlange, bekam keinen Runner und wurde
+abgebrochen. Kein Schritt ist gelaufen, nichts geschrieben, nichts berührt.
+Die Mail selbst war also Lärm.
+
+**Beim Nachsehen stand aber etwas Ernstes daneben.** Im Workflow steht
+`*/15 * * * *`, das wären 96 Läufe am Tag. Gezählt über 13 Tage: **68**, also
+rund fünf, zu beliebigen Minuten. Am Donnerstag, 01.10. — dem Tag mit der
+Lieferung — lagen sie um 02:15, 08:14, 15:18, 20:56 und 00:58 deutscher Zeit.
+Das eingestellte Fenster war 4 bis 14 Uhr. **Genau ein Lauf fiel hinein.**
+
+Damit wäre der Produktivgang am Donnerstag ein Münzwurf gewesen: trifft kein
+Lauf das Fenster, bleibt die Mappe liegen, und weil `Wochentage = Do` stand,
+bis zum Donnerstag darauf.
+
+Drei Änderungen:
+
+- **Das Fenster steht offen** (`VonUhr 0`, `BisUhr 23`, `Wochentage täglich`,
+  Takt 30 min). Jeder Lauf, den GitHub auslöst, darf arbeiten. Gearbeitet
+  wird ohnehin nur, wenn eine neue Mappe da ist — an anderen Tagen kostet das
+  eine Abfrage und endet mit „nichts zu tun".
+- **Die Fehlanzeige holt eine verpasste Frist nach.** Sie suchte bisher nur
+  „heute nach 14 Uhr"; fiel in diesem Fenster kein Lauf an, fiel auch die
+  Meldung aus — ausgerechnet die Meldung über ein Ausbleiben. Jetzt sucht sie
+  den jüngsten Termin, dessen Frist vorbei ist, vermerkt den **Termin** statt
+  des Meldetags und schreibt in die Mail, dass sie verspätet kommt.
+- **Die Dokumentation sagt nicht mehr „alle 15 Minuten".** Sie stand so in
+  CLAUDE.md, docs/11, der Prozessseite, im Modell und in drei Codekommentaren.
+  Eine Zusage, die der Zeitplan nie eingehalten hat.
+
 ## 05.10.2026, abends — Donnerstag ist Produktivgang, und er ist nicht allein
 
 „Den Probelauf soll ruhig automatisch starten, lass aktiv, am Donnerstag ist

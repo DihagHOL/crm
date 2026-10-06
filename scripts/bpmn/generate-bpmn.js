@@ -174,7 +174,7 @@ const UEBERNAHME = {
         { id: 'An_job', of: 'A_start', lane: 'LA', c: 0, r: 1, w: 210, h: 62,
           text: 'Dienst „CRM Export" im TimeLine AppSrv (192.168.100.163), Filter Woche: Donnerstag, Startzeit 06:00.' },
         { id: 'An_takt', of: 'C_find', lane: 'LC', c: 4, r: 1, w: 210, h: 62,
-          text: 'Zeitplan sieht alle 15 Minuten nach. Takt, Zeitfenster und Schalter stehen in der Liste CRM_Automatik.' },
+          text: 'Zeitplan sieht mehrmals am Tag nach, zu unregelmässigen Zeiten. Takt, Fenster und Schalter stehen in CRM_Automatik.' },
       ],
     },
     { id: 'P_Dyn', name: 'Dynamics 365 (Dataverse)', actor: 'app', blackbox: true },

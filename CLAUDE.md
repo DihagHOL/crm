@@ -943,7 +943,15 @@ sobald eine davon nach `document` oder `window` greift.
 ### Der Takt steht in SharePoint, nicht im Workflow
 
 Im Workflow steht `*/15 * * * *`. Das ist ein Blick auf die Uhr, kein
-Takt. Ob gearbeitet wird, entscheidet die Liste `CRM_Automatik`: Schalter,
+Takt — und seit dem 06.10.2026 wissen wir, dass es nicht einmal ein
+regelmässiger ist: **GitHub materialisiert von 96 möglichen Auslösungen am
+Tag rund fünf**, zu beliebigen Minuten (68 Läufe in 13 Tagen gezählt). Am
+Donnerstag, 01.10., lagen sie um 02:15, 08:14, 15:18, 20:56 und 00:58
+deutscher Zeit; genau einer davon fiel in das damals eingestellte Fenster
+4–14 Uhr. Wer hier ein enges Zeitfenster einstellt, verlässt sich auf einen
+Zeitplan, den es nicht gibt. Zwei Konsequenzen: das Fenster in
+`CRM_Automatik` steht weit offen (0–23 Uhr, täglich), und die Fehlanzeige
+holt eine verpasste Frist beim nächsten Lauf nach. Ob gearbeitet wird, entscheidet die Liste `CRM_Automatik`: Schalter,
 Takt, Zeitfenster, Wochentage. Grund ist derselbe wie beim Importprofil —
 **eine Taktänderung soll eine Eingabe im Werkzeug sein und kein Pull
 Request.**

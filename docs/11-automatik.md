@@ -9,7 +9,7 @@ Mail an die eingetragene Adresse.
 |---|---|
 | Wo läuft es | GitHub Actions, `.github/workflows/automatik.yml` |
 | Was läuft | `cron/automatik.mjs` — lädt **dieselben** Dateien wie der Browser |
-| Zeitplan | alle 15 Minuten *nachsehen*; **ob** gearbeitet wird, steht in SharePoint |
+| Zeitplan | GitHub löst unregelmässig aus, gemessen rund 5× am Tag; **ob** gearbeitet wird, steht in SharePoint |
 | Identität | App **DIHAG Cron-Job** (`089bf9ad-…`) — dieselbe wie ZAPP, Bedarfsanfrage, Compliance |
 
 ---
@@ -21,9 +21,18 @@ die Uhr. Der eigentliche Takt steht in der SharePoint-Liste
 `CRM_Automatik`, und der Lauf hält sich daran:
 
 ```
-Aktiv = ja, TaktMinuten = 60, VonUhr = 6, BisUhr = 18, Wochentage = Mo-Fr
-→ der Cron startet viermal je Stunde und tut dreimal davon nichts.
+Aktiv = ja, TaktMinuten = 30, VonUhr = 0, BisUhr = 23, Wochentage = täglich
+→ jeder Lauf, den GitHub auslöst, darf arbeiten; gearbeitet wird nur,
+  wenn eine neue Mappe da ist.
 ```
+
+**Der Zeitplan ist unzuverlässiger als er aussieht.** Am 06.10.2026
+nachgezählt: von 96 möglichen Auslösungen am Tag materialisiert GitHub rund
+**fünf**, zu beliebigen Minuten (68 Läufe in 13 Tagen). Am Donnerstag,
+01.10., waren es 02:15, 08:14, 15:18, 20:56 und 00:58 deutscher Zeit — genau
+einer davon lag im damals eingestellten Fenster 4–14 Uhr. Deshalb steht das
+Fenster jetzt offen: ein enges Fenster verlässt sich auf einen Zeitplan, den
+es nicht gibt.
 
 Der Grund ist der Bedienbare: **eine Taktänderung soll eine Eingabe im
 Werkzeug sein und kein Pull Request.** Dieselbe Linie wie beim
@@ -46,7 +55,7 @@ Alles im Reiter **Automatik** einstellbar:
 | `Empfaenger` | `administrator@dihag.com` | Mehrere durch Semikolon. |
 | `Absender` | `administrator@dihag.com` | Postfach für den Versand. |
 | `LetzterLauf` | — | Schreibt der Cron. **Von Hand leeren erzwingt den nächsten Lauf.** |
-| `LetzteFehlanzeige` | — | Schreibt der Cron. Sorgt dafür, dass die Fehlanzeige einmal am Tag kommt und nicht viermal je Stunde. |
+| `LetzteFehlanzeige` | — | Schreibt der Cron: das Datum des gemeldeten **Termins**. Sorgt dafür, dass es je Termin eine Meldung gibt, auch wenn sie nachgeholt wird. |
 
 ---
 
@@ -287,7 +296,12 @@ Donnerstags ab 14 Uhr geschieht dann genau eines:
 - **Es ist keine eingegangen** → eine Mail an `ticket@dihag.com`, Betreff
   `CRM-Import PROD: keine neue Mappe eingegangen (Stand Do 14 Uhr)`. Darin
   steht, welche Mappe zuletzt kam und wann, und dass die Lieferung aus
-  Timeline zu prüfen ist. **Einmal am Tag**, nicht viermal je Stunde.
+  Timeline zu prüfen ist. **Einmal je Termin**, nicht einmal je Lauf.
+
+Fällt zwischen Frist und nächstem Lauf alles aus — was bei diesem Zeitplan
+vorkommt —, wird die Meldung **nachgeholt** und sagt dazu, dass sie
+verspätet ist. Ausgerechnet die Meldung über ein Ausbleiben darf nicht
+selbst ausbleiben.
 
 Was als eingegangen zählt:
 
@@ -386,5 +400,5 @@ beides nebeneinander — automatische und von Hand gestartete Läufe stehen
 in derselben Liste.
 
 **Abschalten in Eile.** `Aktiv` auf `nein`. Wirkt ab dem nächsten Blick auf
-die Uhr, also binnen 15 Minuten, ohne dass jemand am Repository etwas tun
+die Uhr, also binnen weniger Stunden, ohne dass jemand am Repository etwas tun
 muss. Wer schneller sein muss: in Actions den Workflow deaktivieren.

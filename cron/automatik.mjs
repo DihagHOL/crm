@@ -43,8 +43,8 @@ const ERZWINGEN = process.env.CRM_ERZWINGEN === "1";
 const TROCKEN   = process.env.CRM_TROCKEN === "1";
 
 /* Noch nicht eingerichtet? Dann SAUBER aussteigen, nicht scheitern.
-   Der Zeitplan läuft ab dem ersten Push alle 15 Minuten. Ein roter Lauf
-   wäre dann viermal je Stunde eine Fehlermail für etwas, das niemand
+   Der Zeitplan sieht ab dem ersten Push mehrmals am Tag nach. Ein roter Lauf
+   wäre dann mehrmals am Tag eine Fehlermail für etwas, das niemand
    kaputt gemacht hat – und nach dem dritten Tag sieht keiner mehr hin.
    Die Zeile im Protokoll sagt trotzdem klar, was fehlt. */
 if (!TENANT_ID || !CLIENT_ID || !CLIENT_SECRET) {
@@ -244,7 +244,7 @@ async function markieren(datei, felder) {
            nächste Blick auf die Uhr es erneut versuchen – ein Vermerk ohne
            Mail wäre das Schlimmste von beidem: nichts gesendet und für
            heute abgehakt. */
-        await AUTOMATIK.einstellungSetzen("LetzteFehlanzeige", termin.heute, ids);
+        await AUTOMATIK.einstellungSetzen("LetzteFehlanzeige", termin.stempel, ids);
         sagen(`  Fehlanzeige an ${an}: ${m.betreff}`);
       } catch (er) {
         sagen(`  ! Fehlanzeige NICHT versendet: ${er.message}`);

@@ -3,9 +3,17 @@ name: Automatischer Import
 # Sieht nach, ob neue Mappen im Quellordner liegen, prueft sie und
 # importiert die unstrittigen. Ob ein Lauf wirklich etwas tut, entscheidet
 # NICHT dieser Zeitplan, sondern die Liste CRM_Automatik in SharePoint:
-# dort stehen Schalter, Takt, Zeitfenster und Wochentage. Deshalb sieht der
-# Cron haeufig nach und haelt sich an das, was dort eingestellt ist - eine
-# Taktaenderung ist dann eine Eingabe im Werkzeug und kein Pull Request.
+# dort stehen Schalter, Takt, Zeitfenster und Wochentage. Eine Taktaenderung
+# ist damit eine Eingabe im Werkzeug und kein Pull Request.
+#
+# ACHTUNG, gemessen am 06.10.2026: "*/15" steht hier als Absicht, nicht als
+# Zusage. Von 96 moeglichen Ausloesungen am Tag materialisiert GitHub
+# tatsaechlich rund FUENF, zu beliebigen Minuten (68 Laeufe in 13 Tagen).
+# Am Donnerstag, 01.10., waren es 02:15, 08:14, 15:18, 20:56 und 00:58
+# deutscher Zeit - genau einer davon lag im eingestellten Fenster 4 bis 14
+# Uhr. Wer hier ein enges Zeitfenster einstellt, verlaesst sich auf einen
+# Zeitplan, den es nicht gibt. Deshalb steht das Fenster in CRM_Automatik
+# weit offen, und die Fehlanzeige holt eine verpasste Frist nach.
 
 on:
   schedule:

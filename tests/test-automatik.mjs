@@ -80,7 +80,7 @@ console.log("\nLäuft die Automatik gerade?");
   pruefe(!A.faellig(S, new Date("2026-09-23T20:00:00Z")).ja,
     "22 Uhr liegt dahinter");
 
-  // Takt: der Cron sieht alle 15 Minuten nach, arbeiten soll er seltener.
+  // Takt: der Cron sieht mehrmals am Tag nach, arbeiten soll er seltener.
   const vor30 = new Date(mittwochs.getTime() - 30 * 60000).toISOString();
   pruefe(!A.faellig({ ...S, LetzterLauf: vor30 }, mittwochs).ja,
     "vor 30 min gelaufen, Takt 60 → noch nicht");
@@ -362,8 +362,26 @@ console.log("\nDer Eingang, der nicht kam");
     "ohne ErwartetAn gibt es keine Erwartung und keine Mail");
   pruefe(!A.fehlanzeigeTermin(E, do13).dran, "13 Uhr: die Frist läuft noch");
   pruefe(A.fehlanzeigeTermin(E, do14).dran, "14 Uhr: jetzt müsste sie da sein");
-  pruefe(!A.fehlanzeigeTermin(E, new Date("2026-09-30T12:00:00Z")).dran,
-    "Mittwoch ist kein erwarteter Eingangstag");
+  /* Eine verpasste Frist wird NACHGEHOLT, nicht verschluckt.
+     Der Zeitplan in GitHub Actions löst statt 96-mal am Tag rund fünfmal
+     aus, zu beliebigen Minuten (gemessen am 06.10.2026 über 13 Tage). Eine
+     Fehlanzeige, die nur „heute nach 14 Uhr" kennt, fällt damit regelmäßig
+     selbst aus — ausgerechnet die Meldung über das Ausbleiben. */
+  const spaeter = A.fehlanzeigeTermin(E, new Date("2026-10-02T07:00:00Z"));
+  pruefe(spaeter.dran, "am Freitag wird die Donnerstagsfrist nachgeholt");
+  pruefe(spaeter.verspaetet, "und als verspätet gekennzeichnet");
+  gleich(spaeter.stempel, "2026-10-01",
+    "vermerkt wird der TERMIN, nicht der Tag der Meldung – sonst käme sie zweimal");
+  gleich(spaeter.seit, Date.parse("2026-09-24T12:00:00Z"),
+    "das Fenster bleibt das des Termins");
+  pruefe(!A.fehlanzeigeTermin({ ...E, LetzteFehlanzeige: "2026-10-01" },
+    new Date("2026-10-02T07:00:00Z")).dran,
+    "ist der Termin gemeldet, kommt die Nachholung nicht noch einmal");
+  const mittwochs = A.fehlanzeigeTermin(E, new Date("2026-09-30T12:00:00Z"));
+  pruefe(mittwochs.dran && mittwochs.verspaetet,
+    "auch am Mittwoch danach wird der Donnerstag noch nachgeholt");
+  gleich(mittwochs.stempel, "2026-09-24",
+    "und zwar der letzte Termin, dessen Frist vorbei ist");
 
   // Das Rückfenster beginnt beim VORIGEN Termin, nicht um Mitternacht.
   gleich(A.fehlanzeigeTermin(E, do14).seit,
@@ -381,9 +399,11 @@ console.log("\nDer Eingang, der nicht kam");
   gleich(w.seit, Date.parse("2026-01-08T13:00:00Z"),
     "und das Rückfenster rechnet die Umstellung mit");
 
-  // Einmal am Tag, nicht viermal je Stunde.
+  // Einmal je Termin, nicht einmal je Lauf.
   pruefe(!A.fehlanzeigeTermin({ ...E, LetzteFehlanzeige: "2026-10-01" }, do14).dran,
     "ist die Fehlanzeige für heute gemeldet, kommt sie nicht noch dreimal");
+  gleich(A.fehlanzeigeTermin(E, do14).stempel, "2026-10-01",
+    "der Stempel ist das Datum des Termins");
   pruefe(A.fehlanzeigeTermin({ ...E, LetzteFehlanzeige: "2026-09-24" }, do14).dran,
     "die von letzter Woche hält die von heute nicht auf");
 

@@ -47,7 +47,7 @@ Im Einklang mit den Richtlinien: Konzernfachregelung Prozessmanagement; ISMS-Ric
       <bpmn:sequenceFlow id="Flow_D_lesen_D_end" sourceRef="D_lesen" targetRef="D_end" />
       <bpmn:textAnnotation id="An_job"><bpmn:text>Dienst „CRM Export&quot; im TimeLine AppSrv (192.168.100.163), Filter Woche: Donnerstag, Startzeit 06:00.</bpmn:text></bpmn:textAnnotation>
       <bpmn:association id="Assoc_An_job" associationDirection="None" sourceRef="A_start" targetRef="An_job" />
-      <bpmn:textAnnotation id="An_takt"><bpmn:text>Zeitplan sieht alle 15 Minuten nach. Takt, Zeitfenster und Schalter stehen in der Liste CRM_Automatik.</bpmn:text></bpmn:textAnnotation>
+      <bpmn:textAnnotation id="An_takt"><bpmn:text>Zeitplan sieht mehrmals am Tag nach, zu unregelmässigen Zeiten. Takt, Fenster und Schalter stehen in CRM_Automatik.</bpmn:text></bpmn:textAnnotation>
       <bpmn:association id="Assoc_An_takt" associationDirection="None" sourceRef="C_find" targetRef="An_takt" />
   </bpmn:process>
   <bpmndi:BPMNDiagram id="Diagram_uebernahme">

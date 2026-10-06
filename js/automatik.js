@@ -78,7 +78,7 @@ const AUTOMATIK = (() => {
     Absender:            "Postfach, aus dem gesendet wird (App-Berechtigung Mail.Send).",
     LetzterLauf:         "Schreibt der Cron selbst. Von Hand leeren erzwingt den nächsten Lauf.",
     LetzteFehlanzeige:   "Schreibt der Cron selbst — damit die Fehlanzeige einmal am Tag "
-                       + "kommt und nicht viermal je Stunde."
+                       + "je Termin einmal kommt, auch wenn sie nachgeholt wird."
   };
 
   const jaNein = v => String(v ?? "").trim().toLowerCase();
@@ -306,40 +306,77 @@ const AUTOMATIK = (() => {
    *  Antwortet wie `faellig()` immer mit einem Grund, auch beim Nein.
    *
    *  @returns {{dran:boolean, grund:string, seit:number|null, bis:number,
-   *             termin:string, heute:string}} */
+   *             termin:string, stempel:string, verspaetet:boolean}} */
   function fehlanzeigeTermin(werte, jetzt = new Date()) {
     const plan = String(werte.ErwartetAn || "").trim();
     const bis = zahl(werte.ErwartetBisUhr, 14);
     const d = deutschesDatum(jetzt);
+    const p2 = n => String(n).padStart(2, "0");
     const nein = grund => ({ dran: false, grund, seit: null, bis,
-                             termin: "", heute: d.datum });
+                             termin: "", stempel: d.datum, verspaetet: false });
 
     if (!plan) return nein("Kein Eingang erwartet — ErwartetAn ist leer.");
-    if (!tagErlaubt(plan, d.wochentag))
-      return nein(`${d.wochentag} ist kein erwarteter Eingangstag (${plan}).`);
-    if (d.stunde < bis)
-      return nein(`${d.wochentag} erwartet, Frist ${bis} Uhr — es ist erst `
-        + `${String(d.stunde).padStart(2, "0")} Uhr.`);
-    if (String(werte.LetzteFehlanzeige || "").slice(0, 10) === d.datum)
-      return nein(`Für heute ist die Fehlanzeige schon gemeldet.`);
 
-    /* Zurück zum vorigen erwarteten Tag. Vierzehn Tage reichen für jeden
-       Plan, der überhaupt einen Tag nennt; findet sich keiner, gilt eine
-       Woche — lieber ein zu weites Fenster als eine Fehlanzeige, nur weil
-       niemand den Plan lesen konnte. */
+    /* Heute ist der Tag, aber die Frist läuft noch. Dann ist nichts zu
+       melden, und zwar auch dann nicht, wenn eine ältere Frist offen wäre:
+       in ein, zwei Stunden steht die aktuelle Antwort fest. */
+    if (tagErlaubt(plan, d.wochentag) && d.stunde < bis)
+      return nein(`${d.wochentag} erwartet, Frist ${bis} Uhr — es ist erst `
+        + `${p2(d.stunde)} Uhr.`);
+
+    /* Den JÜNGSTEN erwarteten Termin suchen, dessen Frist vorbei ist — nicht
+       nur den von heute.
+
+       Grund, gemessen am 06.10.2026: der Zeitplan in GitHub Actions ist auf
+       einen Viertelstundentakt gestellt, tatsächlich materialisiert GitHub
+       davon rund fünf Läufe am Tag, zu beliebigen Minuten. Am Donnerstag, 01.10., lagen sie
+       um 02:15, 08:14, 15:18, 20:56 und 00:58 deutscher Zeit. Eine
+       Fehlanzeige, die nur „heute nach 14 Uhr" kennt, fällt damit regelmäßig
+       ganz aus — und ausgerechnet die Meldung über das Ausbleiben darf nicht
+       selbst ausbleiben. Sie kommt deshalb beim nächsten Lauf nach, notfalls
+       am Tag darauf, und sagt dann dazu, dass sie verspätet ist. */
+    let termin = null;
+    for (let n = 0; n <= 14 && !termin; n++) {
+      const v = new Date(Date.UTC(d.jahr, d.monat - 1, d.tag - n, 12));
+      if (!tagErlaubt(plan, TAGE[v.getUTCDay()])) continue;
+      const ms = deutscherAugenblick(v.getUTCFullYear(), v.getUTCMonth() + 1,
+                                     v.getUTCDate(), bis);
+      if (ms <= jetzt.getTime())
+        termin = { ms, tag: TAGE[v.getUTCDay()],
+                   datum: `${v.getUTCFullYear()}-${p2(v.getUTCMonth() + 1)}-${p2(v.getUTCDate())}` };
+    }
+    if (!termin) return nein(`${d.wochentag} ist kein erwarteter Eingangstag (${plan}).`);
+
+    /* Je Termin eine Meldung, nicht je Lauf. Verglichen wird mit dem Datum
+       des Termins und nicht mit „heute": sonst käme die nachgeholte Meldung
+       am Folgetag ein zweites Mal. */
+    if (String(werte.LetzteFehlanzeige || "").slice(0, 10) >= termin.datum)
+      return nein(`Für ${termin.tag}, ${termin.datum} ist die Fehlanzeige `
+        + "bereits gemeldet.");
+
+    /* Zurück zum Termin davor. Vierzehn Tage reichen für jeden Plan, der
+       überhaupt einen Tag nennt; findet sich keiner, gilt eine Woche —
+       lieber ein zu weites Fenster als eine Fehlanzeige, nur weil niemand
+       den Plan lesen konnte. */
+    const t = new Date(termin.ms);
+    const td = deutschesDatum(t);
     let seit = null;
     for (let n = 1; n <= 14 && seit === null; n++) {
-      const v = new Date(Date.UTC(d.jahr, d.monat - 1, d.tag - n, 12));
+      const v = new Date(Date.UTC(td.jahr, td.monat - 1, td.tag - n, 12));
       if (tagErlaubt(plan, TAGE[v.getUTCDay()]))
         seit = deutscherAugenblick(v.getUTCFullYear(), v.getUTCMonth() + 1,
                                    v.getUTCDate(), bis);
     }
-    if (seit === null) seit = jetzt.getTime() - 7 * 86400000;
+    if (seit === null) seit = termin.ms - 7 * 86400000;
 
-    return { dran: true, seit, bis, heute: d.datum,
-             termin: `${d.wochentag} ${bis} Uhr`,
-             grund: `${d.wochentag}, Frist ${bis} Uhr ist vorbei — jetzt müsste `
-               + `eine Mappe da sein.` };
+    const verspaetet = termin.datum !== d.datum;
+    return { dran: true, seit, bis, stempel: termin.datum, verspaetet,
+             termin: `${termin.tag} ${bis} Uhr`,
+             grund: verspaetet
+               ? `${termin.tag}, ${termin.datum}, Frist ${bis} Uhr: seitdem lief `
+                 + "kein Lauf — die Fehlanzeige wird jetzt nachgeholt."
+               : `${termin.tag}, Frist ${bis} Uhr ist vorbei — jetzt müsste `
+                 + "eine Mappe da sein." };
   }
 
   /** Was ist seit `seit` eingegangen, und was war das Letzte überhaupt?
@@ -682,6 +719,9 @@ const AUTOMATIK = (() => {
         ? `Zuletzt eingegangen: <b>${esc(lage.letzte.name)}</b> am `
           + `${esc(wann(lage.letzte.wann))}.`
         : "Im Quellordner liegt überhaupt keine Mappe.",
+      ...(termin.verspaetet
+        ? ["<i>Diese Meldung kommt verspätet: zwischen der Frist und diesem "
+           + "Lauf hat der Zeitplan keinen Lauf ausgelöst.</i>"] : []),
       "Das ist kein Fehler des Imports — es ist nichts da, was zu importieren "
         + "wäre. Zu prüfen ist die Lieferung aus Timeline."
     ];

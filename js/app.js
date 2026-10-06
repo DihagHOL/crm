@@ -180,7 +180,7 @@ const APP = (() => {
      Die Einstellungen stehen in SharePoint, nicht im Repository — dieselbe
      Linie wie beim Importprofil. Wer den Takt ändern will, soll das hier
      tun und nicht einen Pull Request aufmachen. Der Cron in GitHub Actions
-     sieht alle 15 Minuten nach und hält sich an das, was hier steht.    */
+     sieht mehrmals am Tag nach und hält sich an das, was hier steht.    */
 
   let _auto = null;        // { werte, ids, vorhanden }
   let _vorgaenge = null;

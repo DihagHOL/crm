@@ -154,9 +154,12 @@
       <tr><td><b>Do ca. 06:05</b></td><td>OneDrive</td>
           <td>Die Mappe <code>Anfragen JJJJ-MM-TT.xlsx</code> wird aus dem Austauschordner
               des Servers nach SharePoint übertragen.</td></tr>
-      <tr><td><b>alle 15 min</b></td><td>CRM-Schnittstelle</td>
-          <td>Der Zeitplan sieht nach. Ob er arbeitet, entscheidet die Liste
-              <code>CRM_Automatik</code>: Schalter, Takt, Zeitfenster, Wochentage.</td></tr>
+      <tr><td><b>mehrmals<br>am Tag</b></td><td>CRM-Schnittstelle</td>
+          <td>Der Zeitplan sieht nach. Er ist unregelmässig: von 96 möglichen
+              Auslösungen am Tag materialisiert GitHub rund fünf, zu beliebigen
+              Zeiten. Deshalb steht das Zeitfenster in <code>CRM_Automatik</code>
+              offen — gearbeitet wird, wenn eine neue Mappe da ist, nicht zu
+              einer bestimmten Stunde.</td></tr>
       <tr><td><b>Do 14:00</b></td><td>CRM-Schnittstelle</td>
           <td>Ist bis dahin nichts eingegangen, geht eine <b>Fehlanzeige</b> an den
               IT-Service. Diese Erwartung gilt der Datei, nicht der Automatik —
