@@ -175,8 +175,9 @@ GET /RetrieveRolePrivilegesRole(RoleId=…)   → hat die Rolle es?
 `DIHAG-Admin` deckt vier `cr570`-Tabellen ab (Businesspartnerrole,
 DIHAG_Industry_Lookup, DIHAG_Sites, Payment_Mode) und genau die beiden
 nicht, die der Import liest. Im Rolleneditor stehen sie unter
-**Benutzerdefinierte Entitäten** als *Technical Audit_Lookup* und
-*Product Line_Lookup*.
+**Benutzerdefinierte Entitäten**; die Zeilen heissen dort genau
+*Technical Audit_Lookup* und *Productline_Lookup* (ein Wort, ohne
+Leerzeichen — gegengelesen am 08.10.2026 am Anzeigenamen der Tabellen).
 
 Kein Löschrecht, nirgends. Keine Anpassungs- oder Lösungsrechte, keine
 Benutzerverwaltung, kein Massenlöschen, kein Export.
