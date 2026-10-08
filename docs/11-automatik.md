@@ -155,7 +155,28 @@ sind **24 Rechte**.
 | Produkt / Preisliste | | ✔ | | | | Organisation |
 | Benutzer (`systemuser`) | | ✔ | | | | Organisation |
 | Verkaufsprozess (`opportunitysalesprocess`) | | ✔ | ✔ | | ✔ | Organisation |
+| **Technische Prüfung** (`cr570_technicalaudit_lookup`) | | ✔ | | | | Organisation |
+| **Produktlinie** (`cr570_productline_lookup`) | | ✔ | | | | Organisation |
 | Anpassung: Entität, Attribut, Beziehung, Entitätsschlüssel | | ✔ | | | | Organisation |
+
+**Die beiden letzten Nachschlagetabellen fehlten in der ersten Fassung
+dieser Tabelle, und das hat am 08.10.2026 den ersten Produktivlauf
+gekostet.** Ich hatte sie über `EntityDefinitions(...)?$select=Privileges`
+geprüft; für diese beiden Tabellen kam dort eine **leere** Rechteliste
+zurück, und ich habe daraus „kein eigenes Recht, hängt am Elterndatensatz"
+geschlossen. Falsch: die Rechte gibt es, die Abfrage liefert sie nur nicht.
+Verlässlich ist die Tabelle `privileges` selbst:
+
+```
+GET /privileges?$select=name           → prvReadcr570_TechnicalAudit_Lookup
+GET /RetrieveRolePrivilegesRole(RoleId=…)   → hat die Rolle es?
+```
+
+`DIHAG-Admin` deckt vier `cr570`-Tabellen ab (Businesspartnerrole,
+DIHAG_Industry_Lookup, DIHAG_Sites, Payment_Mode) und genau die beiden
+nicht, die der Import liest. Im Rolleneditor stehen sie unter
+**Benutzerdefinierte Entitäten** als *Technical Audit_Lookup* und
+*Product Line_Lookup*.
 
 Kein Löschrecht, nirgends. Keine Anpassungs- oder Lösungsrechte, keine
 Benutzerverwaltung, kein Massenlöschen, kein Export.

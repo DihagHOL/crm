@@ -1,5 +1,42 @@
 # Session-Log
 
+## 08.10.2026 — Erster Produktivlauf: zwei Befunde
+
+Der automatische Lauf brach ab, der Import von Hand lief durch. Beides hat
+denselben Tag brauchbar gemacht.
+
+**1. Zwei fehlende Leserechte.** Der Anwendungsbenutzer scheiterte an
+`cr570_technicalaudit_lookups` mit 403 und `is missing
+prvReadcr570_TechnicalAudit_Lookup`. Nachgezählt: `DIHAG-Admin` deckt vier
+`cr570`-Tabellen ab und genau die beiden nicht, die der Import liest — die
+zweite (`cr570_productline_lookup`) wäre eine Sekunde später aufgefallen.
+
+Das war mein Fehler in der Rechteliste vom 05.10. Ich hatte die Tabellen
+über `EntityDefinitions(...)?$select=Privileges` geprüft; dort kam eine
+**leere** Rechteliste zurück, und ich habe daraus „kein eigenes Recht"
+geschlossen. Die Rechte gibt es, die Abfrage liefert sie nur nicht.
+Verlässlich ist die Tabelle `privileges` selbst. Steht jetzt so in
+`docs/11`, mitsamt dem Irrtum.
+
+Der Lauf von Hand kam durch, weil ein Mensch mit seinen eigenen Rechten
+schreibt — genau die Trennung, die §11 beschreibt, hier einmal als
+Diagnosewerkzeug.
+
+**2. „Übersprungen" war keine Formalie.** Nach dem Anlegen einer
+Verkaufschance meldete Schritt 50 „Keine Prozessinstanz vorhanden" und liess
+die Zeile aus. In PROD nachgemessen: Dataverse legt die Instanz in derselben
+Sekunde selbst an, auf der **ersten** Stufe — „Setup Opportunity", nicht die
+aus der Datei. Phase 0 kennt sie nicht, weil es die Chance vorher nicht gab.
+Also blieb jede neu angelegte Anfrage für immer auf der Anfangsstufe, und
+der Bericht nannte das übersprungen.
+
+Jetzt trägt der Lauf die Instanzen vor Schritt 50 nach, in einer Abfrage —
+dasselbe Muster wie beim Nachtrag der Elterndatensätze für Schritt 40, aus
+demselben Grund: Bestandschancen gingen durch, neue nicht. Angelegt wird
+weiterhin nichts. Die Vorschau rechnet mit, sonst sagte sie etwas anderes
+voraus als der Import tut, und die Meldung für den Fall, dass wirklich keine
+Instanz existiert, nennt jetzt den wahren Grund statt einer Vermutung.
+
 ## 06.10.2026 — „Was da los?" — ein Zeitplan, den es nicht gibt
 
 Eine Fehlermail aus GitHub Actions. Der Lauf vom 05.10., 20:44 UTC, stand

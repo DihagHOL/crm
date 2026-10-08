@@ -144,6 +144,73 @@ const LAUF = (() => {
      *  die Zeile aus.
      *
      *  @returns {{eintrag?:object, auftrag?:object}} */
+    /** Prozessinstanzen nachladen, die Phase 0 nicht sehen konnte.
+     *
+     *  Dataverse legt die Instanz beim Anlegen der Verkaufschance SELBST an
+     *  — in PROD am 08.10.2026 nachgemessen: dieselbe Sekunde, und auf der
+     *  **ersten** Stufe („Setup Opportunity"), nicht auf der aus der Datei.
+     *  Phase 0 hat sie nicht gesehen, weil es die Chance da noch nicht gab.
+     *
+     *  Ohne diesen Nachtrag meldete Schritt 50 „Keine Prozessinstanz
+     *  vorhanden" und liess die Zeile aus. Das sah im Bericht nach einer
+     *  Formalie aus, war aber eine: **jede neu angelegte Anfrage blieb für
+     *  immer auf der Anfangsstufe**, und zwar genau die, bei der die Phase
+     *  aus der Datei am meisten zählt. Bestandschancen gingen durch, neue
+     *  nicht — dasselbe Muster wie beim Nachtrag der Elterndatensätze für
+     *  Schritt 40.
+     *
+     *  Angelegt wird weiterhin nichts (CLAUDE.md §9). Nachgesehen schon:
+     *  eine Abfrage für alle fehlenden Eltern zusammen. */
+    async function instanzenNachtragen(s, zu, blatt) {
+      const eltern = zu.find(z => z.aktiv && z.targetType === "Lookup"
+                                  && z.targetField === s.parentField);
+      if (!eltern?.lookupEntitySet || !eltern.lookupKeyField) return;
+
+      const elternId = k.aufl.idFelder?.get(eltern.lookupEntitySet);
+      const eigenId = AUFLOESUNG.idFeld(k.aufl, s.entitySet);
+      if (!elternId || !eigenId) return;
+
+      const sl = `${s.entitySet}|_${s.parentField}_value`;
+      const bekannt = k.aufl.treffer.get(sl) || new Map();
+
+      const fehlen = new Set();
+      for (const zeile of blatt.zeilen) {
+        if (aus.ist(s.sourceSheet, zeile)) continue;
+        const ew = TRANSFORMS.anwenden(zeile[eltern.sourceColumn], eltern.transform).wert;
+        if (leer(ew)) continue;
+        const et = AUFLOESUNG.finde(k.aufl, eltern.lookupEntitySet, eltern.lookupKeyField,
+                                    ew, k.entscheidungen);
+        const id = et.records[0]?.[elternId];
+        if (id && !bekannt.has(AUFLOESUNG.vergleichbar(id))) fehlen.add(id);
+      }
+      if (!fehlen.size) return;
+
+      /* Dieselben Felder wie Phase 0: ohne `_activestageid_value` meldet
+         jede Zeile eine Änderung, auch wenn die Stufe schon stimmt. */
+      const weitere = zu
+        .filter(z => z.aktiv && z.targetType === "Lookup" && z.targetField
+                     && z.targetField !== s.parentField
+                     && !z.targetField.startsWith("KLAEREN"))
+        .map(z => `_${z.targetField}_value`);
+      const select = [...new Set([`_${s.parentField}_value`, ...weitere, eigenId])].join(",");
+
+      melde({ schritt: s.step,
+        text: `Schritt ${s.step} · ${fehlen.size} Prozessinstanz(en) nachladen` });
+      try {
+        const neu = await AUFLOESUNG.sammle(s.entitySet, `_${s.parentField}_value`,
+                                            [...fehlen], select);
+        for (const [wert, v] of neu) if (!bekannt.has(wert)) bekannt.set(wert, v);
+        k.aufl.treffer.set(sl, bekannt);
+      } catch (e) {
+        /* Scheitert der Nachtrag, bleibt es beim alten Verhalten: die Zeile
+           wird ausgelassen und sagt warum. Ein Lauf darf daran nicht
+           sterben — die Stufe ist ein Feld, keine Anfrage. */
+        notiere({ schritt: s.step, entitySet: s.entitySet, aktion: "gewarnt",
+          meldung: `Prozessinstanzen nicht nachgeladen (${fehlen.size} Verkaufschance(n)): `
+            + (e.detail || e.message) });
+      }
+    }
+
     function stufenAuftrag(s, zu, zeile) {
       const e = { schritt: s.step, entitySet: s.entitySet, zeile: zeile._zeile };
       const ueber = (meldung, schluessel) => ({ eintrag: {
@@ -176,7 +243,8 @@ const LAUF = (() => {
       const instanzen = k.aufl.treffer?.get(`${s.entitySet}|_${s.parentField}_value`);
       const bestand = instanzen?.get(AUFLOESUNG.vergleichbar(elternId))?.[0] || null;
       if (!bestand)
-        return ueber("Keine Prozessinstanz vorhanden – Dataverse legt sie selbst an", ew);
+        return ueber("Keine Prozessinstanz zu dieser Verkaufschance – auch nach dem "
+          + "Nachladen keine gefunden. Läuft an ihr ein Geschäftsprozessfluss?", ew);
 
       const r = MAPPING.baue(zeile, zu, {
         modus: "update", bestand, werte: k.werte, zusatzZeile,
@@ -239,6 +307,9 @@ const LAUF = (() => {
 
       const angekuendigt = new Map();   // Vergleichsform → erste Zeile
       const legtAn = ["Upsert", "Create", "CreateIfMissing"].includes(s.mode);
+
+      // Prozessinstanzen, die es bei Phase 0 noch nicht gab (siehe unten).
+      if (s.mode === "SetStage") await instanzenNachtragen(s, zu, blatt);
 
       for (const zeile of blatt.zeilen) {
         if (s.mode === "SetStage") {

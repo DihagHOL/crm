@@ -369,8 +369,19 @@ const PRUEFUNG = (() => {
           const et = AUFLOESUNG.finde(aufl, eltern.lookupEntitySet, eltern.lookupKeyField,
                                       ew, entscheidungen);
           const elternId = et.records[0] && eid ? et.records[0][eid] : null;
-          const bestand = elternId
+          const vorhanden = elternId
             ? instanzen?.get(AUFLOESUNG.vergleichbar(elternId))?.[0] || null : null;
+
+          /* Eine Verkaufschance, die dieser Lauf erst anlegt, hat jetzt noch
+             keine Prozessinstanz — Dataverse legt sie beim Anlegen selbst
+             an, und der Import trägt sie vor Schritt 50 nach. „Übersprungen"
+             wäre hier die falsche Vorhersage: die Phase wird gesetzt. Die
+             Vorschau muss sagen, was der Import tut, nicht was er täte,
+             wenn er in der Reihenfolge der Abfrage arbeitete. */
+          const kommtMit = !vorhanden && !elternId
+            && String(eltern.lookupKeyField || "").split("|")
+                 .some(f => entstehen.has(`${eltern.lookupEntitySet}|${f.trim()}|${ew}`));
+          const bestand = vorhanden || (kommtMit ? {} : null);
           if (!bestand) {
             ueber(z, s, zeile, elternId
                 ? "Keine Prozessinstanz vorhanden – die Phase kann nicht gesetzt werden"

@@ -26,7 +26,7 @@ const gleich = (a, b, t) => pruefe(JSON.stringify(a) === JSON.stringify(b),
 const quelle = n => readFileSync(join(wurzel, "js", n), "utf8");
 
 /** Alle beteiligten Module echt laden – gestellt sind nur Netz und Token. */
-function baueLauf(antwortFuer) {
+function baueLauf(antwortFuer, lesen) {
   const gesendet = [];
   const g = {
     CRM_CONFIG: { batchSize: 100, maxParallel: 4, apiVersion: "v9.2",
@@ -34,7 +34,9 @@ function baueLauf(antwortFuer) {
     istOffen: () => false,
     AUTH: { getToken: async () => "token" },
     DV: { basis: () => "https://test.crm4.dynamics.com/api/data/v9.2",
-          alle: async () => [],
+          /* Leseabfragen des Laufs selbst – bisher gab es keine. Seit dem
+             Nachtrag der Prozessinstanzen (Schritt 50) schon. */
+          alle: async (pfad) => (lesen ? lesen(String(pfad)) : []),
           /* „opportunities" → „opportunity", nicht „opportunitie". Genau
              solche Ableitungen sind der Grund, warum die App den logischen
              Namen aus den Metadaten liest und nicht aus dem Mengennamen
@@ -865,6 +867,104 @@ console.log("\nOhne Regel bleibt geschlossen geschlossen");
                                     werte: {}, entscheidungen: null });
   const chance = e.eintraege.find(x => x.schritt === 30 && x.schluessel === 6440);
   gleich(chance.aktion, "uebersprungen", "ohne ReopenIfClosed gilt Review A3 weiter");
+}
+
+console.log("\nDie Phase einer im selben Lauf angelegten Verkaufschance");
+{
+  /* Dataverse legt die Prozessinstanz beim Anlegen der Chance selbst an —
+     auf der ERSTEN Stufe, nicht auf der aus der Datei. Phase 0 kennt sie
+     nicht, weil es die Chance da noch nicht gab. Ohne Nachtrag liess
+     Schritt 50 die Zeile aus, und die neue Anfrage blieb für immer auf der
+     Anfangsstufe: im Bericht eine Formalie, in den Daten ein Verlust.   */
+  const GUID_INST = "cccccccc-0000-0000-0000-000000000003";
+  const STUFE_ZIEL = "dddddddd-0000-0000-0000-000000000004";
+  let gelesen = [];
+
+  const { LAUF, EXCEL, gesendet } = baueLauf(
+    koerper => antwort([{ status: 204 },
+                        { status: 204, ort: `https://x/opportunities(${GUID_NEU})` }]),
+    pfad => {
+      gelesen.push(pfad);
+      if (!pfad.includes("/opportunitysalesprocesses")) return [];
+      // Die Instanz, die Dataverse zur neuen Chance selbst angelegt hat.
+      return [{ businessprocessflowinstanceid: GUID_INST,
+                _opportunityid_value: GUID_NEU,
+                _activestageid_value: "99999999-0000-0000-0000-000000000009" }];
+    });
+
+  const k = kulisse(EXCEL);
+  k.profil.zuordnungen.STUFE = [
+    { aktiv: true, sourceColumn: "Opp-ID", targetField: "opportunityid",
+      targetType: "Lookup", lookupEntitySet: "opportunities",
+      lookupKeyField: "new_dagextopid", writePolicy: "Always" },
+    { aktiv: true, sourceColumn: "Phase", targetField: "activestageid",
+      targetType: "Lookup", lookupEntitySet: "processstages",
+      lookupKeyField: "stagename", writePolicy: "Always" }
+  ];
+  k.profil.schritte = [k.profil.schritte[0], {
+    step: 50, entitySet: "opportunitysalesprocesses", sourceSheet: "Anfragen",
+    mappingKey: "STUFE", mode: "SetStage", parentField: "opportunityid", aktiv: true }];
+
+  // Die Mappe braucht eine Phasenspalte.
+  k.mappe.blaetter[0] = EXCEL.blattAus("Anfragen", [
+    ["Opp-ID", "Thema", "Phase"],
+    [6440, "Bestand", "Angebot"],
+    [6441, "ganz neu", "Angebot"]
+  ]);
+
+  k.aufl.idFelder.set("opportunitysalesprocesses", "businessprocessflowinstanceid");
+  k.aufl.idFelder.set("processstages", "processstageid");
+  k.aufl.treffer.set("processstages|stagename", new Map([
+    ["angebot", [{ stagename: "Angebot", processstageid: STUFE_ZIEL }]]]));
+  // Phase 0 kennt nur die Instanz der BESTANDSchance.
+  k.aufl.treffer.set("opportunitysalesprocesses|_opportunityid_value", new Map([
+    [GUID_ALT, [{ businessprocessflowinstanceid: "eeeeeeee-0000-0000-0000-000000000005",
+                  _opportunityid_value: GUID_ALT,
+                  _activestageid_value: "99999999-0000-0000-0000-000000000009" }]]]));
+  k.aufl.navigation = new Map([["opportunitysalesprocesses",
+    new Map([["activestageid", { nav: "activestageid", ziel: "processstages" }]])]]);
+
+  const e = await LAUF.ausfuehren({ profil: k.profil, mappe: k.mappe, aufl: k.aufl,
+                                    werte: {}, entscheidungen: null });
+  const neue = e.eintraege.find(x => x.schritt === 50 && x.zeile === 3);
+
+  pruefe(gelesen.some(p => p.includes("/opportunitysalesprocesses")),
+    "der Lauf laedt die fehlende Prozessinstanz nach");
+  pruefe(neue && neue.aktion !== "uebersprungen",
+    `die Zeile der neuen Chance wird nicht mehr uebersprungen (war: ${neue && neue.aktion})`);
+  pruefe(gesendet.some(x => x.koerper.includes(GUID_INST)),
+    "und die Stufe wird an der nachgeladenen Instanz gesetzt");
+
+  const bestand = e.eintraege.find(x => x.schritt === 50 && x.zeile === 2);
+  pruefe(bestand && bestand.aktion !== "uebersprungen",
+    "die Bestandschance geht weiter wie bisher");
+}
+
+console.log("\nOhne Prozessinstanz bleibt die Zeile ausgelassen — mit Grund");
+{
+  /* Findet auch der Nachtrag nichts, ist die Auskunft die ehrliche: an
+     dieser Chance laeuft kein Geschaeftsprozessfluss. Angelegt wird
+     weiterhin keiner (CLAUDE.md §9). */
+  const { LAUF, EXCEL } = baueLauf(
+    () => antwort([{ status: 204 }, { status: 204, ort: `https://x/opportunities(${GUID_NEU})` }]),
+    () => []);
+  const k = kulisse(EXCEL);
+  k.profil.zuordnungen.STUFE = [
+    { aktiv: true, sourceColumn: "Opp-ID", targetField: "opportunityid",
+      targetType: "Lookup", lookupEntitySet: "opportunities",
+      lookupKeyField: "new_dagextopid", writePolicy: "Always" }];
+  k.profil.schritte = [k.profil.schritte[0], {
+    step: 50, entitySet: "opportunitysalesprocesses", sourceSheet: "Anfragen",
+    mappingKey: "STUFE", mode: "SetStage", parentField: "opportunityid", aktiv: true }];
+  k.aufl.idFelder.set("opportunitysalesprocesses", "businessprocessflowinstanceid");
+  k.aufl.treffer.set("opportunitysalesprocesses|_opportunityid_value", new Map());
+
+  const e = await LAUF.ausfuehren({ profil: k.profil, mappe: k.mappe, aufl: k.aufl,
+                                    werte: {}, entscheidungen: null });
+  const z = e.eintraege.filter(x => x.schritt === 50 && x.aktion === "uebersprungen");
+  pruefe(z.length === 2, "beide Zeilen bleiben ausgelassen");
+  pruefe(/Geschäftsprozessfluss/.test(z[0].meldung),
+    "und die Meldung nennt den wahren Grund statt einer Vermutung");
 }
 
 console.log(fehler ? `\n${fehler} Pruefung(en) fehlgeschlagen.` : "\nAlle Pruefungen bestanden.");

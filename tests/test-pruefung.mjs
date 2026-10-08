@@ -326,6 +326,40 @@ console.log("\nSetStage ohne Elternverweis");
     "und der Bericht nennt den Grund");
 }
 
+console.log("\nSetStage: die Phase einer Chance, die erst entsteht");
+{
+  /* Zeile 4 (Opp-ID 7000) gibt es im CRM noch nicht. Schritt 30 legt sie
+     an, Dataverse legt dabei die Prozessinstanz selbst an, und Schritt 50
+     traegt sie nach und setzt die Phase. Sagte die Vorschau hier
+     "uebersprungen", sagte sie etwas anderes voraus als der Import tut -
+     und genau das soll sie nie. */
+  const zuo = { ...zuordnungen, STUFE: [
+    { aktiv: true, sourceColumn: "Opp-ID", targetField: "opportunityid",
+      targetType: "Lookup", lookupEntitySet: "opportunities",
+      lookupKeyField: "new_dagextopid", writePolicy: "Always" }] };
+  const a2 = aufloesung({
+    "6440": [{ new_dagextopid: 6440, statecode: 0, opportunityid: "g-6440" }]
+  });
+  a2.idFelder = new Map([["opportunities", "opportunityid"],
+                         ["opportunitysalesprocesses", "businessprocessflowinstanceid"]]);
+  a2.treffer.set("opportunitysalesprocesses|_opportunityid_value", new Map([
+    ["g-6440", [{ businessprocessflowinstanceid: "i-6440", _opportunityid_value: "g-6440" }]]]));
+
+  const profil = { zuordnungen: zuo, schritte: [
+    schritt({ step: 30 }),
+    { step: 50, entitySet: "opportunitysalesprocesses", sourceSheet: "Anfragen",
+      mappingKey: "STUFE", mode: "SetStage", parentField: "opportunityid", aktiv: true }
+  ] };
+  const r = PRUEFUNG.lauf(profil, mappe, a2);
+  const z50 = r.schritte[1];
+
+  /* 6440 hat eine Instanz, 7000 entsteht in diesem Lauf. Beide werden
+     gezaehlt, nicht ausgelassen. */
+  pruefe((z50.aktualisiert + z50.unveraendert) >= 2,
+    "die neue Chance wird mitgezaehlt statt uebersprungen");
+  gleich(z50.neu, 0, "angelegt wird in Schritt 50 trotzdem nichts");
+}
+
 console.log("\nErsetzen: die Vorschau sagt, was weggeraeumt wird");
 {
   /* Beim zweiten Import derselben Datei stand im Bericht "87 neu" und

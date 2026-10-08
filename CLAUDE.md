@@ -760,6 +760,23 @@ Bestand läuft, und ein Datensatz auf dem falschen Prozess ist schwerer zu
 bemerken als einer, der fehlt. Fehlt die Instanz, steht die Zeile mit
 Begründung im Protokoll.
 
+**Nachgesehen wird aber sehr wohl.** Dataverse legt die Instanz beim Anlegen
+der Verkaufschance an — in PROD am 08.10.2026 gemessen: dieselbe Sekunde,
+und auf der **ersten** Stufe („Setup Opportunity"), nicht auf der aus der
+Datei. Phase 0 kennt sie nicht, weil es die Chance da noch nicht gab. Bis
+zum 08.10.2026 meldete Schritt 50 deshalb „keine Prozessinstanz vorhanden"
+und liess die Zeile aus. Im Bericht sah das nach einer Formalie aus, war
+aber keine: **jede neu angelegte Anfrage blieb für immer auf der
+Anfangsstufe**, und zwar genau die, bei der die Phase aus der Datei am
+meisten zählt.
+
+`instanzenNachtragen()` holt sie deshalb vor Schritt 50 in einer Abfrage
+nach — dasselbe Muster wie der Nachtrag der Elterndatensätze für Schritt 40,
+aus demselben Grund: Bestandsdatensätze gingen durch, neue nicht. Die
+Vorschau rechnet genauso: eine Chance, die dieser Lauf anlegt, zählt in
+Schritt 50 als Änderung und nicht als Auslassung — sonst sagte sie etwas
+anderes voraus als der Import tut.
+
 In dieser Umgebung (Stand 03.09.2026): alle 4732 Instanzen laufen auf
 `Vertriebsprozess` (`3e8ebee6`), fünf Stufen, Namen systemweit eindeutig —
 deshalb genügt `stagename` als Schlüssel. Drei weitere Prozesse führen
