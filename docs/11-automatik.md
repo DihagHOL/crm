@@ -172,12 +172,33 @@ GET /privileges?$select=name           → prvReadcr570_TechnicalAudit_Lookup
 GET /RetrieveRolePrivilegesRole(RoleId=…)   → hat die Rolle es?
 ```
 
-`DIHAG-Admin` deckt vier `cr570`-Tabellen ab (Businesspartnerrole,
+`DIHAG-Admin` deckte vier `cr570`-Tabellen ab (Businesspartnerrole,
 DIHAG_Industry_Lookup, DIHAG_Sites, Payment_Mode) und genau die beiden
-nicht, die der Import liest. Im Rolleneditor stehen sie unter
-**Benutzerdefinierte Entitäten**; die Zeilen heissen dort genau
-*Technical Audit_Lookup* und *Productline_Lookup* (ein Wort, ohne
-Leerzeichen — gegengelesen am 08.10.2026 am Anzeigenamen der Tabellen).
+nicht, die der Import liest. Nachgetragen am 09.10.2026, beide auf
+**Organisation**; die Rolle hatte davor 958 Rechte und danach 960.
+
+**Im Rolleneditor sind sie nicht zu finden, und das hat einen Grund.** Der
+neue Editor im Power-Platform-Adminbereich hat keine Themenreiter mehr, den
+Reiter *Benutzerdefinierte Entitäten* gibt es nur in der klassischen
+Ansicht. Stattdessen zeigt er eine Tabellenliste, die standardmäßig auf
+*Tabellen mit Berechtigungen* steht — also auf genau der Auswahl, in der
+eine Tabelle ohne jedes Recht nicht vorkommt. Wer das Fehlende sucht, sucht
+in einer Liste, die Fehlendes ausblendet. Erst **Alle Tabellen** zeigt sie.
+
+Die Anzeigenamen gibt es nur auf Englisch (`LanguageCode 1033`), die Suche
+muss sie also wortgetreu treffen: *Technical Audit_Lookup* mit Leerzeichen,
+*Productline_Lookup* ohne. Verlässlicher als beides ist der Weg über die
+Web API, weil er nichts sucht:
+
+```
+POST /api/data/v9.2/roles(<RoleId>)/Microsoft.Dynamics.CRM.AddPrivilegesRole
+{"Privileges":[{"PrivilegeId":"<id>","Depth":"Global",
+                "BusinessUnitId":"<id>"}]}
+```
+
+Die Antwort ist `204 No Content` — **kein Text ist hier das Erfolgszeichen**,
+und am 09.10.2026 sah das zunächst nach einem Fehlschlag aus. Ob es gewirkt
+hat, sagt nur die Gegenprobe mit `RetrieveRolePrivilegesRole`.
 
 Kein Löschrecht, nirgends. Keine Anpassungs- oder Lösungsrechte, keine
 Benutzerverwaltung, kein Massenlöschen, kein Export.

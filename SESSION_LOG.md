@@ -1,5 +1,33 @@
 # Session-Log
 
+## 09.10.2026 — Die zwei Rechte sitzen
+
+Nachgetragen, was dem Lauf vom 08.10. gefehlt hat: `DIHAG-Admin` hatte 958
+Rechte, jetzt 960, beide neuen auf Organisation. Gegengeprüft mit
+`RetrieveRolePrivilegesRole`, und die Rolle hängt am Anwendungsbenutzer
+`# DIHAG Cron-Job` (aktiv). `Anfragen 2026-10-08.xlsx` steht wieder auf
+`Neu`, damit der nächste Lauf die Rechte beweist und die sechs neuen
+Chancen auf ihre Phase setzt.
+
+Zwei Umwege, die beide in `docs/11` stehen, weil sie sich wiederholen
+werden:
+
+**Der Rolleneditor blendet aus, was man sucht.** Die neue Ansicht hat den
+Reiter *Benutzerdefinierte Entitäten* nicht mehr — den gibt es nur noch
+klassisch — und ihre Tabellenliste steht standardmäßig auf *Tabellen mit
+Berechtigungen*. Eine Tabelle ohne jedes Recht kommt darin nicht vor. Wer
+ein fehlendes Recht sucht, sucht also in einer Liste, aus der genau dieser
+Fall herausgefiltert ist.
+
+**`204 No Content` sah nach einem Fehlschlag aus.** Der Aufruf lief durch
+und gab nichts aus, was vollkommen richtig ist und sich wie nichts anfühlt.
+Ein Befehl, dessen Erfolg man nicht sieht, braucht die Gegenprobe
+daneben — sonst wird er in gutem Glauben ein zweites Mal gesendet.
+
+Offen: `ErwartetEmpfaenger` ist leer, die Fehlanzeige geht damit an
+`administrator@dihag.com` statt an die Stelle, die einer ausbleibenden
+Lieferung nachgeht. Gewollt war `ticket@dihag.com`.
+
 ## 08.10.2026 — Erster Produktivlauf: zwei Befunde
 
 Der automatische Lauf brach ab, der Import von Hand lief durch. Beides hat
