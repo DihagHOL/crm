@@ -24,9 +24,10 @@ und gab nichts aus, was vollkommen richtig ist und sich wie nichts anfühlt.
 Ein Befehl, dessen Erfolg man nicht sieht, braucht die Gegenprobe
 daneben — sonst wird er in gutem Glauben ein zweites Mal gesendet.
 
-Offen: `ErwartetEmpfaenger` ist leer, die Fehlanzeige geht damit an
-`administrator@dihag.com` statt an die Stelle, die einer ausbleibenden
-Lieferung nachgeht. Gewollt war `ticket@dihag.com`.
+`ErwartetEmpfaenger` bleibt leer, entschieden am 09.10.2026: die
+Fehlanzeige geht an `administrator@dihag.com` wie die Importberichte. Die
+getrennte Adresse ist eingebaut und ungenutzt — wer sie braucht, trägt sie
+in `CRM_Automatik` ein, ohne dass jemand im Code sucht.
 
 ## 08.10.2026 — Erster Produktivlauf: zwei Befunde
 
