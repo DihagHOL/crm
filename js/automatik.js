@@ -372,9 +372,16 @@ const AUTOMATIK = (() => {
     const verspaetet = termin.datum !== d.datum;
     return { dran: true, seit, bis, stempel: termin.datum, verspaetet,
              termin: `${termin.tag} ${bis} Uhr`,
+             /* Hier stand „seitdem lief kein Lauf". Das weiss diese
+                Funktion nicht: sie sieht nur, dass für diesen Termin noch
+                keine Meldung vermerkt ist. Am 19.10.2026 behauptete der
+                Satz es trotzdem, während der letzte Lauf zwei Stunden alt
+                war. Eine Meldung, die mehr behauptet als sie weiss, kostet
+                Vertrauen in alle anderen. */
              grund: verspaetet
-               ? `${termin.tag}, ${termin.datum}, Frist ${bis} Uhr: seitdem lief `
-                 + "kein Lauf — die Fehlanzeige wird jetzt nachgeholt."
+               ? `${termin.tag}, ${termin.datum}, Frist ${bis} Uhr liegt `
+                 + "zurück und ist noch nicht vermerkt — die Fehlanzeige "
+                 + "wird jetzt nachgeholt."
                : `${termin.tag}, Frist ${bis} Uhr ist vorbei — jetzt müsste `
                  + "eine Mappe da sein." };
   }
