@@ -354,27 +354,38 @@ const DV = (() => {
     const k = "statusgruende|" + entitySet;
     if (_meta[k]) return new Map(_meta[k]);
 
-    /* Hier stand bis zum 19.10.2026 ein leerer `catch`, und er hat am
-       15.10. zwei Verkaufschancen gekostet. Scheiterte der Abruf, kam eine
-       leere Karte zurück, wurde als gültig weggespeichert, und die Regel
-       zum Wiedereröffnen verlorener Anfragen fand nichts mehr, wonach sie
-       suchen konnte. Die Zeilen wurden übersprungen, als wäre das die
-       Einstellung.
-
-       Eine eingestellte Fachregel, die sich an einem verschluckten
-       Metadatenfehler ins Gegenteil dreht, ist schlimmer als ein Abbruch:
-       niemand sieht sie, und im CRM fehlt hinterher nichts Sichtbares.
-       Deshalb fliegt der Fehler jetzt, und der Aufrufer entscheidet.
-       Randbedingung 8 gilt auch für Metadaten.                          */
+    /* Hier stand bis zum 19.10.2026 ein leerer `catch`: scheiterte der
+       Abruf, kam eine leere Karte zurück und wurde auch noch als gültiges
+       Ergebnis weggespeichert. Das war nicht die Ursache des Befunds vom
+       15.10. (die war eine Sprache, siehe unten), aber eine Fachregel, die
+       sich an einem verschluckten Metadatenfehler ins Gegenteil drehen
+       kann, ohne dass es irgendwo auffällt, gehört trotzdem nicht in
+       dieses Projekt. Randbedingung 8 gilt auch für Metadaten: der Fehler
+       fliegt, der Aufrufer entscheidet.                                 */
     const ln = await logischerName(entitySet);
     const d = await call(`/EntityDefinitions(LogicalName='${ln}')`
       + `/Attributes(LogicalName='statuscode')/Microsoft.Dynamics.CRM.StatusAttributeMetadata`
       + `?$select=LogicalName&$expand=OptionSet($select=Options)`);
     const out = [];
     for (const o of d?.OptionSet?.Options || []) {
-      const label = o.Label?.UserLocalizedLabel?.Label
-        || o.Label?.LocalizedLabels?.[0]?.Label || "";
-      out.push([Number(o.Value), { label, state: Number(o.State) }]);
+      /* ALLE Beschriftungen, nicht nur die des Aufrufers.
+         `UserLocalizedLabel` richtet sich nach der Sprache dessen, der
+         fragt. Die Statusgründe dieser Umgebung tragen 1031 und 1033:
+         „Verloren - Gründe unbekannt" und „Lost - reasons unknown". Mein
+         Benutzer bekommt Deutsch, der Anwendungsbenutzer des Crons hat
+         `localeid` 1033 und bekommt Englisch — und `ReopenStatusCodes`
+         enthielt „Verloren". Am 15.10.2026 blieben zwei verlorene Anfragen
+         deshalb zu, und es sah aus wie ein fehlendes Recht oder ein
+         verschluckter Fehler. Es war eine Sprache.
+
+         Ein Textstück, das nur gegen eine von zwei Beschriftungen
+         vergleicht, trifft je nach Aufrufer oder nicht. Deshalb wandern
+         alle mit, und die Regel prüft gegen alle. */
+      const alle = (o.Label?.LocalizedLabels || [])
+        .map(l => l.Label).filter(Boolean);
+      const label = o.Label?.UserLocalizedLabel?.Label || alle[0] || "";
+      out.push([Number(o.Value), { label, state: Number(o.State),
+                                   labels: [...new Set([label, ...alle])] }]);
     }
     /* Eine leere Antwort wird NICHT gespeichert. Sonst hielte der
        Zwischenspeicher den Fehlschlag für ein Ergebnis und wiederholte ihn

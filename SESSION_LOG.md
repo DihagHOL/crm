@@ -24,18 +24,11 @@ auf „Verloren - Gründe unbekannt", `ReopenIfClosed` steht auf `Verloren`.
 und damit schreibgeschützt" — richtig beschrieben und trotzdem falsch, weil
 der Satz die eingestellte Regel verschweigt.
 
-Nachgestellt mit dem echten Code und den echten Werten: die Zeile fällt
-genau dann durch, wenn die **Beschriftungen** der Statusgründe fehlen. Die
-kommen aus den Metadaten, und `DV.statusGruende` hielt seinen Fehler in
-einem leeren `catch`, gab eine leere Karte zurück und speicherte sie als
-gültiges Ergebnis. Eine eingestellte Fachregel drehte sich an einem
-verschluckten Metadatenfehler ins Gegenteil, ohne eine einzige
-Protokollzeile. Genau der stille `catch`, den Randbedingung 8 verbietet.
-
-Warum der Abruf scheitert, ist weiter offen: mit meinem Token antwortet er
-mit 200 und neun Optionen, die Metadatenrechte der Rolle stimmen, und das
-Vollprotokoll ist nicht ladbar, weil der Mandant vorab signierte Links
-sperrt. Der nächste Lauf sagt es jetzt selbst.
+Nachgestellt mit dem echten Code: die Zeile fällt genau dann durch, wenn
+die **Beschriftung** des Statusgrundes nicht zum Textstück passt. Ich habe
+daraus zunächst geschlossen, die Beschriftungen fehlten, weil
+`DV.statusGruende` seinen Fehler in einem leeren `catch` hielt. Das war
+falsch, und die Korrektur steht weiter unten.
 
 Geändert:
 
@@ -48,6 +41,37 @@ Geändert:
 - Unklar ist nicht nein: verlangt die Regel Beschriftungen und gibt es
   keine, wird die Zeile abgewiesen und nennt die Zahl, mit der sie ohne
   Metadaten entscheiden könnte. Vorschau und Import gleich.
+
+**Korrektur am Abend: es war eine Sprache.** Der Lauf mit den Zahlen im
+Profil ging durch und schrieb die Notiz an die wiedereröffnete Chance. In
+der Notiz stand der alte Grund als **„Lost - reasons unknown"**. Damit war
+die Ursache da: die Statusgründe tragen zwei Beschriftungen, 1031 und 1033,
+und `UserLocalizedLabel` liefert die Fassung dessen, der fragt. Mein
+Benutzer bekommt Deutsch, der Anwendungsbenutzer des Crons hat `localeid`
+1033 und bekommt Englisch. `Verloren` kann in `Lost - reasons unknown`
+nicht treffen.
+
+Die Karte war also nie leer, und der `catch` hat nichts verschluckt. Mein
+Sicherheitsnetz von mittags hätte den Fall **nicht** gefangen, weil eine
+Beschriftung dastand, nur die andere. Wer ein Netz für „fehlt" baut, hat
+nichts gegen „ist anders" getan.
+
+Richtig ist jetzt: `DV.statusGruende` gibt **alle** Sprachfassungen mit,
+`darfWiedereroeffnen` prüft gegen jede, und die Gegenprobe hält in beiden
+Sprachen. Nur diese eine Stelle im Code las `UserLocalizedLabel`,
+nachgesehen über das ganze Projekt.
+
+Zwei Dinge zum Mitnehmen. **Gegen Metadatenbeschriftungen zu vergleichen
+heisst, gegen die Sprache des Aufrufers zu vergleichen** — wo eine
+Entscheidung an einem Namen hängt, gehört der Name aus den Daten oder die
+Zahl. Und: dieselbe Datei von Hand importiert hätte funktioniert. §10a baut
+darauf, dass Cron und Oberfläche denselben Code ausführen, und das stimmt.
+Identischer Code heisst nur nicht identisches Ergebnis, solange er etwas
+liest, das am angemeldeten Benutzer hängt.
+
+Gefunden hat es die Notiz, die der Lauf selbst geschrieben hat. Sie steht
+im Code mit der Begründung, der alte Grund sei sonst für immer weg (§10a).
+Dass sie auch den Fehler findet, war nicht geplant.
 
 **3. Der Betreff hat zu hoch gezählt.** Der Probelauf nach den beiden
 Korrekturen sagte „1 geschlossene Anfrage prüfen", obwohl keine mehr übrig

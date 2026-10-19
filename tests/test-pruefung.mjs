@@ -619,5 +619,51 @@ console.log("\nFehlen die Beschriftungen, ist die Lage unklar und nicht nein");
     "die Meldung nennt Zahl, Ursache und den Weg heraus");
 }
 
+console.log("\nDie Regel darf nicht davon abhaengen, wer fragt");
+{
+  /* Die wahre Ursache des 15.10.2026, gefunden erst an der Notiz, die der
+     Lauf selbst geschrieben hat: sie nannte den alten Grund „Lost -
+     reasons unknown". Die Statusgruende tragen zwei Beschriftungen (1031
+     und 1033), und `UserLocalizedLabel` richtet sich nach dem Aufrufer.
+     Der Anwendungsbenutzer des Crons hat localeid 1033 und bekommt
+     Englisch; im Profil stand „Verloren". Ein Mensch an der Oberflaeche
+     haette dieselbe Datei richtig importiert – das ist die unangenehmste
+     Sorte Fehler, weil sie sich beim Nachstellen von Hand nicht zeigt. */
+  const P = PRUEFUNG;
+  const schritt = { step: 30, entitySet: "opportunities", skipIfClosed: true,
+                    reopenIfClosed: "Verloren", reopenStatusCodes: "Verloren" };
+  const bestand = { statecode: 2, statuscode: 739170009 };
+
+  // So, wie DV.statusGruende es jetzt liefert: alle Sprachfassungen.
+  const zweisprachig = { statusGruende: new Map([["opportunities", new Map([
+    [739170009, { label: "Lost - reasons unknown", state: 2,
+                  labels: ["Lost - reasons unknown", "Verloren - Gründe unbekannt"] }],
+    [4, { label: "Request withdrawn", state: 2,
+          labels: ["Request withdrawn", "Anfrage Zurückgezogen"] }]
+  ])]]) };
+
+  const g = P.statusGrund(zweisprachig, "opportunities", bestand);
+  pruefe(g.labels.length === 2, "beide Sprachfassungen stehen im Statusgrund");
+  pruefe(P.darfWiedereroeffnen(schritt, 2, g),
+    "die deutsche Regel trifft auch, wenn der Aufrufer Englisch bekommt");
+  pruefe(P.darfWiedereroeffnen({ ...schritt, reopenStatusCodes: "Lost" }, 2, g),
+    "und eine englische Regel trifft genauso");
+
+  // Die Gegenprobe muss in BEIDEN Sprachen halten.
+  const gZur = P.statusGrund(zweisprachig, "opportunities",
+    { statecode: 2, statuscode: 4 });
+  pruefe(!P.darfWiedereroeffnen(schritt, 2, gZur),
+    "eine zurueckgezogene Anfrage lebt auch zweisprachig nicht auf");
+  pruefe(!P.darfWiedereroeffnen({ ...schritt, reopenStatusCodes: "Lost" }, 2, gZur),
+    "auch nicht gegen die englische Regel");
+
+  // Alte Karten ohne `labels` dürfen nicht schlechter laufen als vorher.
+  const alt = { statusGruende: new Map([["opportunities", new Map([
+    [739170009, { label: "Verloren - Gründe unbekannt", state: 2 }]])]]) };
+  pruefe(P.darfWiedereroeffnen(schritt, 2,
+    P.statusGrund(alt, "opportunities", bestand)),
+    "eine Karte ohne Sprachliste fällt auf ihre eine Beschriftung zurück");
+}
+
 console.log(fehler ? `\n${fehler} Prüfung(en) fehlgeschlagen.\n` : "\nAlle Prüfungen bestanden.\n");
 process.exit(fehler ? 1 : 0);

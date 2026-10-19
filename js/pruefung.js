@@ -185,17 +185,27 @@ const PRUEFUNG = (() => {
        `ReopenStatusCodes` nimmt Zahlen ODER Textstücke: „Verloren" trifft
        „Verloren - zu teuer", „Verloren - andere Gründe" und „Verloren -
        Gründe unbekannt", aber nicht „Anfrage Zurückgezogen" und nicht die
-       drei „Kein Angebot"-Gründe. Text ist der portablere Weg: die Zahlen
-       sind mandantenspezifisch und müssten beim Umzug nach Produktion
-       nachgezogen werden. */
+       drei „Kein Angebot"-Gründe.
+
+       **Verglichen wird gegen alle Sprachfassungen.** Die Beschriftungen
+       liegen hier auf Deutsch und Englisch, und `UserLocalizedLabel`
+       richtet sich nach dem Aufrufer: der Anwendungsbenutzer des Crons hat
+       `localeid` 1033 und bekommt „Lost - reasons unknown", wo ein Mensch
+       im Haus „Verloren - Gründe unbekannt" sieht. Am 15.10.2026 blieben
+       zwei verlorene Anfragen genau daran zu. Eine Regel, deren Ergebnis
+       davon abhängt, wer gerade fragt, ist keine Regel.
+
+       Zahlen sind dieser Frage ganz entzogen, Text überlebt dafür einen
+       Umgebungswechsel. Im Profil stehen deshalb beide. */
     const liste = String(s?.reopenStatusCodes || "")
       .split(/[,;|]/).map(t => t.trim()).filter(Boolean);
     if (!liste.length) return true;
 
     const wert = grund && grund.wert != null ? String(grund.wert) : "";
-    const label = String(grund?.label || "").toLowerCase();
+    const labels = (grund?.labels?.length ? grund.labels : [grund?.label])
+      .filter(Boolean).map(l => String(l).toLowerCase());
     return liste.some(t =>
-      t === wert || (label && label.includes(t.toLowerCase())));
+      t === wert || labels.some(l => l.includes(t.toLowerCase())));
   }
 
   /** Statusgrund eines Bestandsdatensatzes, aus der Auflösung.
@@ -207,8 +217,13 @@ const PRUEFUNG = (() => {
     const t = m?.get(Number(sc));
     /* `unlesbar` unterscheidet „der Grund passt nicht zur Regel" von „den
        Grund kenne ich nicht". Beides endete bis zum 19.10.2026 in derselben
-       stillen Auslassung. */
+       stillen Auslassung.
+
+       `labels` sind ALLE Sprachfassungen. `label` ist die des Aufrufers und
+       taugt nur zur Anzeige: wer gegen sie vergleicht, bekommt je nach
+       angemeldetem Benutzer ein anderes Ergebnis. */
     return { wert: Number(sc), label: t?.label || "", unlesbar: !t,
+             labels: t?.labels || (t?.label ? [t.label] : []),
              warum: aufl?.statusGruendeFehler?.get(entitySet) || "" };
   }
 

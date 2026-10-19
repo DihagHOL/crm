@@ -1140,38 +1140,57 @@ Statuscodes sind mandantenspezifisch und müssten beim Umzug nach
 Produktion nachgezogen werden. Leer heisst weiterhin „alle Gründe des
 Zustands".
 
-**Text hat aber eine Abhängigkeit, die Zahlen nicht haben.** Ein Textstück
-wird gegen die **Beschriftung** des Statusgrundes verglichen, und die kommt
-aus den Metadaten. Im Profil stand nur `Verloren`, und am 15.10.2026 kamen
-die Beschriftungen leer: `DV.statusGruende` hielt seinen Fehler in einem
-leeren `catch` fest, gab eine leere Karte zurück und speicherte sie auch
-noch als gültiges Ergebnis. Die Regel fand nichts, wonach sie suchen
-konnte, 5639 und 6726 blieben verloren, und der Bericht nannte sie
-„geschlossen und damit schreibgeschützt" — richtig beschrieben und
-trotzdem die falsche Auskunft, weil der Satz die eingestellte Regel
-verschweigt.
+**Text hat aber eine Abhängigkeit, die Zahlen nicht haben: die Sprache des
+Aufrufers.** Ein Textstück wird gegen die **Beschriftung** des
+Statusgrundes verglichen, und die kommt aus den Metadaten. Dort liegen die
+Gründe dieser Umgebung in zwei Fassungen, 1031 und 1033:
 
-Daraus drei Festlegungen:
+| Wert | 1031 | 1033 |
+|---|---|---|
+| 739170009 | Verloren - Gründe unbekannt | Lost - reasons unknown |
+| 4 | Anfrage Zurückgezogen | Request withdrawn |
 
-1. **`DV.statusGruende` verschluckt nichts mehr** und speichert eine leere
-   Antwort nicht als Ergebnis. Randbedingung 8 gilt auch für Metadaten.
-   Der Grund wandert als `statusGruendeFehler` durch die Auflösung bis in
-   den Bericht.
-2. **Unklar ist nicht nein.** Verlangt die Regel Beschriftungen und gibt es
-   keine, wird die Zeile **abgewiesen** und sagt, was fehlt und mit welcher
-   Zahl die Regel ohne Metadaten entscheiden könnte
-   (`PRUEFUNG.wiedereroeffnenUnklar`). Als Fehler hält auch das Tor an.
-   Vorschau und Import tun dasselbe, sonst sagte die eine etwas anderes
-   voraus als der andere tut.
-3. **Im Profil stehen jetzt beide**: `Verloren,739170007,739170008,739170009`.
-   Der Text bleibt für den Umzug, die Zahlen entscheiden auch ohne
-   Metadaten. Wer nur eines von beidem einträgt, bekommt entweder eine
-   Regel, die an einem Metadatenfehler hängt, oder eine, die beim
-   Umgebungswechsel nachgezogen werden muss.
+`UserLocalizedLabel` liefert die Fassung dessen, der fragt. Ein Mensch im
+Haus bekommt Deutsch. Der **Anwendungsbenutzer des Crons** hat `localeid`
+1033 und bekommt Englisch. Im Profil stand `Verloren`, und `Verloren` kann
+in `Lost - reasons unknown` nicht treffen. Am 15.10.2026 blieben 5639 und
+6726 deshalb verloren, und der Bericht nannte sie „geschlossen und damit
+schreibgeschützt" — richtig beschrieben und trotzdem die falsche Auskunft,
+weil der Satz die eingestellte Regel verschweigt.
 
-Der Merksatz von §8 gilt hier doppelt: **ein stiller falscher Befund ist
-schlimmer als ein Fehler.** Eine Fachregel, die sich an einem verschluckten
-Metadatenfehler ins Gegenteil dreht, ist nicht einmal als Befund sichtbar.
+**Dieselbe Datei von Hand importiert hätte funktioniert.** Das ist die
+unangenehmste Sorte Fehler in diesem Projekt: §10a baut darauf, dass Cron
+und Oberfläche denselben Code ausführen, und das stimmt auch. Identischer
+Code heisst nur nicht identisches Ergebnis, solange er etwas liest, das
+vom angemeldeten Benutzer abhängt. Gefunden wurde es an der **Notiz, die
+der Lauf selbst geschrieben hat**: sie nannte den alten Grund auf Englisch.
+
+Daraus vier Festlegungen:
+
+1. **Verglichen wird gegen alle Sprachfassungen.** `DV.statusGruende` gibt
+   `labels` mit, `darfWiedereroeffnen` prüft gegen jede. Damit trifft
+   `Verloren` ebenso wie `Lost`, und die Gegenprobe hält in beiden
+   Sprachen. Eine Regel, deren Ergebnis davon abhängt, wer gerade fragt,
+   ist keine Regel.
+2. **Im Profil stehen beide Formen**:
+   `Verloren,739170007,739170008,739170009`. Zahlen sind der Sprachfrage
+   ganz entzogen, Text überlebt dafür einen Umgebungswechsel.
+3. **`DV.statusGruende` verschluckt nichts mehr** und speichert eine leere
+   Antwort nicht als Ergebnis. Das war nicht die Ursache vom 15.10., aber
+   Randbedingung 8 gilt auch für Metadaten.
+4. **Unklar ist nicht nein.** Fehlen die Beschriftungen ganz, wird die
+   Zeile **abgewiesen** und nennt die Zahl, mit der die Regel ohne
+   Metadaten entscheiden könnte (`PRUEFUNG.wiedereroeffnenUnklar`). Als
+   Fehler hält auch das Tor an. Vorschau und Import tun dasselbe.
+
+Punkt 4 hätte den Fall vom 15.10. **nicht** gefangen: eine Beschriftung
+stand da, sie war nur die andere. Wer ein Sicherheitsnetz für den Fall
+„fehlt" baut, hat damit nichts gegen den Fall „ist anders" getan.
+
+Merksatz fürs nächste Mal: **gegen Metadatenbeschriftungen zu vergleichen
+heisst, gegen die Sprache des Aufrufers zu vergleichen.** Wo eine
+Entscheidung an einem Namen hängt, gehört der Name aus den Daten
+(`processstages.stagename`) oder die Zahl, nicht die Beschriftung.
 
 **Der alte Grund verschwindet sonst spurlos.** Beim Öffnen wird
 `statuscode` überschrieben. Zu den betroffenen Chancen gibt es keine
