@@ -967,5 +967,57 @@ console.log("\nOhne Prozessinstanz bleibt die Zeile ausgelassen — mit Grund");
     "und die Meldung nennt den wahren Grund statt einer Vermutung");
 }
 
+console.log("\nEine verlorene Chance ohne lesbare Statusgruende: Fehler, nicht Auslassung");
+{
+  /* 15.10.2026 in PROD: die Beschriftungen der Statusgruende kamen leer,
+     die Textregel „Verloren" traf nichts, und 5639 und 6726 blieben zu –
+     gemeldet als „schreibgeschuetzt", also mit einer Begruendung, die die
+     eingestellte Regel verschweigt. Jetzt haelt die Zeile an und sagt, was
+     fehlt. Der Lauf schreibt sie nicht, und das Tor der Automatik haelt. */
+  const { LAUF, EXCEL, gesendet } = baueLauf(
+    () => antwort([{ status: 204 }, { status: 204, ort: `https://x/opportunities(${GUID_NEU})` }]));
+
+  const k = kulisse(EXCEL);
+  k.profil.schritte = [{ ...k.profil.schritte[0], skipIfClosed: true,
+    reopenIfClosed: "Verloren", reopenStatusCodes: "Verloren" }];
+  // 6440 ist im CRM verloren, der Grund traegt keine Beschriftung.
+  k.aufl.treffer.set("opportunities|new_dagextopid", new Map([
+    ["6440", [{ new_dagextopid: 6440, opportunityid: GUID_ALT,
+                statecode: 2, statuscode: 739170009, name: "alt" }]]]));
+  k.aufl.statusGruende = new Map([["opportunities", new Map()]]);
+  k.aufl.statusGruendeFehler = new Map([["opportunities", "403 – keine Metadaten"]]);
+
+  const e = await LAUF.ausfuehren({ profil: k.profil, mappe: k.mappe, aufl: k.aufl,
+                                    werte: {}, entscheidungen: null });
+  const z = e.eintraege.find(x => x.schritt === 30 && x.zeile === 2);
+
+  pruefe(z && z.aktion === "fehlgeschlagen",
+    `die Zeile faellt nicht mehr still durch (war: ${z && z.aktion})`);
+  pruefe(z && /ReopenStatusCodes/.test(z.meldung) && /739170009/.test(z.meldung),
+    "und die Meldung nennt die Zahl, mit der die Regel ohne Metadaten entscheidet");
+  pruefe(!gesendet.some(x => x.koerper.includes("6440")),
+    "geschrieben wird sie nicht");
+
+  /* Mit Zahlen statt Text entscheidet dieselbe Lage ohne Metadaten – so
+     steht es seit dem 19.10.2026 in CRM_ImportProfiles. */
+  const zwei = baueLauf(
+    () => antwort([{ status: 204 }, { status: 204, ort: `https://x/opportunities(${GUID_NEU})` }]));
+  const k2 = kulisse(zwei.EXCEL);
+  k2.profil.schritte = [{ ...k2.profil.schritte[0], skipIfClosed: true,
+    reopenIfClosed: "Verloren", reopenStatusCodes: "739170009" }];
+  k2.aufl.treffer.set("opportunities|new_dagextopid", new Map([
+    ["6440", [{ new_dagextopid: 6440, opportunityid: GUID_ALT,
+                statecode: 2, statuscode: 739170009, name: "alt" }]]]));
+  k2.aufl.statusGruende = new Map([["opportunities", new Map()]]);
+
+  const e2 = await zwei.LAUF.ausfuehren({ profil: k2.profil, mappe: k2.mappe,
+    aufl: k2.aufl, werte: {}, entscheidungen: null });
+  const z2 = e2.eintraege.find(x => x.schritt === 30 && x.zeile === 2);
+  pruefe(z2 && z2.aktion !== "fehlgeschlagen" && z2.aktion !== "uebersprungen",
+    `mit Zahlen laeuft dieselbe Zeile durch (war: ${z2 && z2.aktion})`);
+  pruefe(z2 && z2.wiedereroeffnet === true,
+    "und wird als wiedereroeffnet protokolliert");
+}
+
 console.log(fehler ? `\n${fehler} Pruefung(en) fehlgeschlagen.` : "\nAlle Pruefungen bestanden.");
 process.exit(fehler ? 1 : 0);

@@ -394,6 +394,18 @@ const LAUF = (() => {
         const oeffnen = bestand && Number(bestand.statecode) !== 0
           && PRUEFUNG.darfWiedereroeffnen(s, bestand.statecode, grundVorher);
 
+        /* Unklar ist nicht dasselbe wie nein. Fehlen die Beschriftungen der
+           Statusgründe, kann eine Textregel nicht entscheiden – und dann
+           darf die Zeile nicht als „schreibgeschützt" durchfallen, als
+           hätte jemand das so eingestellt. Am 15.10.2026 hat genau das zwei
+           verlorene Anfragen zugelassen, die aufleben sollten. */
+        if (PRUEFUNG.wiedereroeffnenUnklar(s, bestand?.statecode, grundVorher)) {
+          notiere({ schritt: s.step, entitySet: s.entitySet, zeile: zeile._zeile,
+            schluessel: sw, aktion: "fehlgeschlagen",
+            meldung: PRUEFUNG.unklarMeldung(grundVorher) });
+          continue;
+        }
+
         if (s.skipIfClosed && bestand && Number(bestand.statecode) !== 0 && !oeffnen) {
           notiere({ schritt: s.step, entitySet: s.entitySet, zeile: zeile._zeile,
             schluessel: sw, aktion: "uebersprungen",

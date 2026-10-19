@@ -1135,11 +1135,43 @@ Export.
 
 Eine zurückgezogene Anfrage oder ein bewusstes Nicht-Angebot ist kein
 verlorener Wettbewerb. Deshalb die zweite Stufe `ReopenStatusCodes`: eine
-Liste aus Zahlen **oder Textstücken**. Im Profil steht `Verloren`, und das
-trifft genau die drei oberen Zeilen. Text ist der portablere Weg — die
+Liste aus Zahlen **oder Textstücken**. Text ist der portablere Weg — die
 Statuscodes sind mandantenspezifisch und müssten beim Umzug nach
 Produktion nachgezogen werden. Leer heisst weiterhin „alle Gründe des
 Zustands".
+
+**Text hat aber eine Abhängigkeit, die Zahlen nicht haben.** Ein Textstück
+wird gegen die **Beschriftung** des Statusgrundes verglichen, und die kommt
+aus den Metadaten. Im Profil stand nur `Verloren`, und am 15.10.2026 kamen
+die Beschriftungen leer: `DV.statusGruende` hielt seinen Fehler in einem
+leeren `catch` fest, gab eine leere Karte zurück und speicherte sie auch
+noch als gültiges Ergebnis. Die Regel fand nichts, wonach sie suchen
+konnte, 5639 und 6726 blieben verloren, und der Bericht nannte sie
+„geschlossen und damit schreibgeschützt" — richtig beschrieben und
+trotzdem die falsche Auskunft, weil der Satz die eingestellte Regel
+verschweigt.
+
+Daraus drei Festlegungen:
+
+1. **`DV.statusGruende` verschluckt nichts mehr** und speichert eine leere
+   Antwort nicht als Ergebnis. Randbedingung 8 gilt auch für Metadaten.
+   Der Grund wandert als `statusGruendeFehler` durch die Auflösung bis in
+   den Bericht.
+2. **Unklar ist nicht nein.** Verlangt die Regel Beschriftungen und gibt es
+   keine, wird die Zeile **abgewiesen** und sagt, was fehlt und mit welcher
+   Zahl die Regel ohne Metadaten entscheiden könnte
+   (`PRUEFUNG.wiedereroeffnenUnklar`). Als Fehler hält auch das Tor an.
+   Vorschau und Import tun dasselbe, sonst sagte die eine etwas anderes
+   voraus als der andere tut.
+3. **Im Profil stehen jetzt beide**: `Verloren,739170007,739170008,739170009`.
+   Der Text bleibt für den Umzug, die Zahlen entscheiden auch ohne
+   Metadaten. Wer nur eines von beidem einträgt, bekommt entweder eine
+   Regel, die an einem Metadatenfehler hängt, oder eine, die beim
+   Umgebungswechsel nachgezogen werden muss.
+
+Der Merksatz von §8 gilt hier doppelt: **ein stiller falscher Befund ist
+schlimmer als ein Fehler.** Eine Fachregel, die sich an einem verschluckten
+Metadatenfehler ins Gegenteil dreht, ist nicht einmal als Befund sichtbar.
 
 **Der alte Grund verschwindet sonst spurlos.** Beim Öffnen wird
 `statuscode` überschrieben. Zu den betroffenen Chancen gibt es keine

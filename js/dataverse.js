@@ -353,18 +353,36 @@ const DV = (() => {
   async function statusGruende(entitySet) {
     const k = "statusgruende|" + entitySet;
     if (_meta[k]) return new Map(_meta[k]);
+
+    /* Hier stand bis zum 19.10.2026 ein leerer `catch`, und er hat am
+       15.10. zwei Verkaufschancen gekostet. Scheiterte der Abruf, kam eine
+       leere Karte zurück, wurde als gültig weggespeichert, und die Regel
+       zum Wiedereröffnen verlorener Anfragen fand nichts mehr, wonach sie
+       suchen konnte. Die Zeilen wurden übersprungen, als wäre das die
+       Einstellung.
+
+       Eine eingestellte Fachregel, die sich an einem verschluckten
+       Metadatenfehler ins Gegenteil dreht, ist schlimmer als ein Abbruch:
+       niemand sieht sie, und im CRM fehlt hinterher nichts Sichtbares.
+       Deshalb fliegt der Fehler jetzt, und der Aufrufer entscheidet.
+       Randbedingung 8 gilt auch für Metadaten.                          */
+    const ln = await logischerName(entitySet);
+    const d = await call(`/EntityDefinitions(LogicalName='${ln}')`
+      + `/Attributes(LogicalName='statuscode')/Microsoft.Dynamics.CRM.StatusAttributeMetadata`
+      + `?$select=LogicalName&$expand=OptionSet($select=Options)`);
     const out = [];
-    try {
-      const ln = await logischerName(entitySet);
-      const d = await call(`/EntityDefinitions(LogicalName='${ln}')`
-        + `/Attributes(LogicalName='statuscode')/Microsoft.Dynamics.CRM.StatusAttributeMetadata`
-        + `?$select=LogicalName&$expand=OptionSet($select=Options)`);
-      for (const o of d?.OptionSet?.Options || []) {
-        const label = o.Label?.UserLocalizedLabel?.Label
-          || o.Label?.LocalizedLabels?.[0]?.Label || "";
-        out.push([Number(o.Value), { label, state: Number(o.State) }]);
-      }
-    } catch { /* ohne Metadaten gibt es keine Gründe, nur den Zustand */ }
+    for (const o of d?.OptionSet?.Options || []) {
+      const label = o.Label?.UserLocalizedLabel?.Label
+        || o.Label?.LocalizedLabels?.[0]?.Label || "";
+      out.push([Number(o.Value), { label, state: Number(o.State) }]);
+    }
+    /* Eine leere Antwort wird NICHT gespeichert. Sonst hielte der
+       Zwischenspeicher den Fehlschlag für ein Ergebnis und wiederholte ihn
+       bis zum Ende des Laufs. */
+    if (!out.length)
+      throw new Error(`${entitySet}: die Statusgründe sind leer. Ohne sie `
+        + "ist ein verlorener Wettbewerb von einer zurückgezogenen Anfrage "
+        + "nicht zu unterscheiden.");
     _meta[k] = out;
     metaSichern();
     return new Map(out);

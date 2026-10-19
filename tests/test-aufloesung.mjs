@@ -26,12 +26,15 @@ const gleich = (a, b, t) => pruefe(JSON.stringify(a) === JSON.stringify(b),
 
 /** AUFLOESUNG mit gestelltem DV. `antwort(pfad)` liefert die Zeilen oder
  *  wirft — so lässt sich auch ein 400 nachstellen. */
-function baueAufloesung(antwort, primaerIds = {}) {
+function baueAufloesung(antwort, primaerIds = {}, statusGruende = null) {
   const gerufen = [];
   const g = {
     DV: {
       alle: async pfad => { gerufen.push(decodeURIComponent(pfad)); return antwort(pfad); },
       logischerName: async es => es.replace(/ies$/, "y").replace(/s$/, ""),
+      // Nur wo ein Schritt Statusgruende braucht. Wirft die Funktion, muss
+      // die Auflösung den Grund behalten statt ihn zu verschlucken.
+      statusGruende: statusGruende || (async () => new Map()),
       // Der Primaerschluessel kommt aus den Metadaten. Der Stub gibt
       // standardmaessig nichts zurueck - dann greift der Rueckfallweg
       // ueber den logischen Namen, so wie in einer Umgebung ohne
@@ -477,6 +480,38 @@ console.log("\nZustandsfelder heissen nicht ueberall gleich");
     ["new_dagextopid", "statecode", "statuscode"], "mit statecode auch statuscode");
   gleich(A.vergleichsFelder([], "internalemailaddress", "isdisabled"),
     ["internalemailaddress", "isdisabled"], "bei systemuser nur isdisabled");
+}
+
+console.log("\nScheitern die Statusgruende, behaelt die Auflösung den Grund");
+{
+  /* Bis zum 19.10.2026 verschluckte DV.statusGruende seinen Fehler und gab
+     eine leere Karte zurueck, die auch noch als gueltig gespeichert wurde.
+     Die Folge stand am 15.10. in PROD: die Regel „Verloren wieder oeffnen"
+     fand nichts, wonach sie suchen konnte, und zwei Anfragen blieben zu.
+     Eine leere Karte darf nicht mehr aussehen wie eine Antwort.         */
+  const { A } = baueAufloesung(() => [], {},
+    async () => { throw new Error("403 – keine Metadaten"); });
+
+  const profil = { schritte: [{ step: 30, entitySet: "opportunities", aktiv: true,
+                                sourceSheet: "Anfragen", mappingKey: "OPP",
+                                reopenIfClosed: "Verloren" }],
+                   zuordnungen: { OPP: [] }, aufloesung: [] };
+  const aufl = await A.fuer(profil, { blaetter: [] });
+
+  pruefe(aufl.statusGruende.get("opportunities")?.size === 0,
+    "die Karte bleibt leer");
+  pruefe(/403/.test(aufl.statusGruendeFehler.get("opportunities") || ""),
+    "aber der Grund steht daneben und ist bis in den Bericht lesbar");
+
+  /* Und wer nicht oeffnen will, fragt die Metadaten gar nicht erst. */
+  let gefragt = 0;
+  const { A: B } = baueAufloesung(() => [], {},
+    async () => { gefragt++; return new Map(); });
+  await B.fuer({ schritte: [{ step: 30, entitySet: "opportunities", aktiv: true,
+                              sourceSheet: "Anfragen", mappingKey: "OPP",
+                              reopenIfClosed: "Nie" }],
+                 zuordnungen: { OPP: [] }, aufloesung: [] }, { blaetter: [] });
+  pruefe(gefragt === 0, "ohne Wiedereroeffnen-Regel keine Metadatenabfrage");
 }
 
 console.log(fehler ? `\n${fehler} Prüfung(en) fehlgeschlagen.` : "\nAlle Prüfungen bestanden.");

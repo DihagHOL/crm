@@ -557,5 +557,67 @@ console.log("\nWiedereroeffnen: die Datei gewinnt gegen das CRM");
       `ohne klare Regel (${JSON.stringify(r)}) bleibt geschlossen geschlossen`);
 }
 
+console.log("\nFehlen die Beschriftungen, ist die Lage unklar und nicht nein");
+{
+  /* Der Befund vom 15.10.2026: die Statusgruende kamen leer aus den
+     Metadaten (ein leerer catch in DV.statusGruende), die Textregel
+     „Verloren" traf nichts, und zwei verlorene Anfragen blieben zu – im
+     Bericht als „geschlossen und damit schreibgeschuetzt", also mit einer
+     Begruendung, die die eingestellte Regel verschweigt.                */
+  const P = PRUEFUNG;
+  const schritt = { step: 30, entitySet: "opportunities", skipIfClosed: true,
+                    reopenIfClosed: "Verloren", reopenStatusCodes: "Verloren" };
+  const mitZahlen = { ...schritt, reopenStatusCodes: "739170007,739170009" };
+  const bestand = { statecode: 2, statuscode: 739170009 };
+
+  const mitLabel = { statusGruende: new Map([["opportunities",
+    new Map([[739170009, { label: "Verloren - Gründe unbekannt", state: 2 }]])]]) };
+  const ohneLabel = { statusGruende: new Map([["opportunities", new Map()]]),
+    statusGruendeFehler: new Map([["opportunities", "403 – keine Metadaten"]]) };
+
+  const gMit  = P.statusGrund(mitLabel,  "opportunities", bestand);
+  const gOhne = P.statusGrund(ohneLabel, "opportunities", bestand);
+
+  pruefe(gMit.label === "Verloren - Gründe unbekannt" && gMit.unlesbar === false,
+    "mit Metadaten steht die Beschriftung da");
+  pruefe(gOhne.unlesbar === true && gOhne.warum === "403 – keine Metadaten",
+    "ohne Metadaten sagt der Statusgrund, dass und warum er fehlt");
+
+  pruefe(P.darfWiedereroeffnen(schritt, 2, gMit),
+    "Textregel oeffnet, solange die Beschriftung da ist");
+  pruefe(!P.darfWiedereroeffnen(schritt, 2, gOhne),
+    "ohne Beschriftung trifft die Textregel nichts");
+  pruefe(P.wiedereroeffnenUnklar(schritt, 2, gOhne),
+    "und genau dann ist die Lage UNKLAR statt nein");
+  pruefe(!P.wiedereroeffnenUnklar(schritt, 2, gMit),
+    "mit Beschriftung ist nichts unklar");
+
+  /* Die Einstellung vom 19.10.2026: Zahlen brauchen keine Metadaten. */
+  pruefe(P.darfWiedereroeffnen(mitZahlen, 2, gOhne),
+    "Zahlen in ReopenStatusCodes entscheiden ohne Beschriftungen");
+  pruefe(!P.wiedereroeffnenUnklar(mitZahlen, 2, gOhne),
+    "und sind deshalb auch nie unklar");
+
+  /* Eine zurueckgezogene Anfrage (4) ist kein verlorener Wettbewerb. Mit
+     Zahlen bleibt sie zu, und zwar als Entscheidung, nicht als Unklarheit. */
+  const gZurueck = P.statusGrund(mitLabel, "opportunities",
+    { statecode: 2, statuscode: 4 });
+  pruefe(!P.darfWiedereroeffnen(mitZahlen, 2, gZurueck)
+      && !P.wiedereroeffnenUnklar(mitZahlen, 2, gZurueck),
+    "Anfrage zurueckgezogen bleibt geschlossen, ohne Unklarheit");
+
+  /* Und wer gar nicht oeffnen will, soll von alldem nichts merken: sonst
+     wuerde jede geschlossene Zeile in jedem anderen Profil zum Fehler. */
+  pruefe(!P.wiedereroeffnenUnklar({ ...schritt, reopenIfClosed: "Nie" }, 2, gOhne),
+    "ohne Wiedereroeffnen-Regel bleibt es beim schlichten Ueberspringen");
+  pruefe(!P.wiedereroeffnenUnklar({ ...schritt, reopenIfClosed: "Gewonnen" }, 2, gOhne),
+    "und eine Regel fuer den anderen Zustand macht es nicht unklar");
+
+  pruefe(/ReopenStatusCodes/.test(P.unklarMeldung(gOhne))
+      && /739170009/.test(P.unklarMeldung(gOhne))
+      && /403/.test(P.unklarMeldung(gOhne)),
+    "die Meldung nennt Zahl, Ursache und den Weg heraus");
+}
+
 console.log(fehler ? `\n${fehler} Prüfung(en) fehlgeschlagen.\n` : "\nAlle Prüfungen bestanden.\n");
 process.exit(fehler ? 1 : 0);

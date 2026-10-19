@@ -207,6 +207,10 @@ const AUFLOESUNG = (() => {
     /* Statusgründe je Tabelle, aber nur wo ein Schritt sie braucht: der
        Prüflauf rechnet synchron und kann keine Metadaten nachladen. */
     const statusGruende = new Map();    // entitySet → Map(wert → {label, state})
+    /* Warum die Karte leer ist, falls sie leer ist. Ohne diesen Eintrag
+       sieht eine Regel, die nichts findet, genauso aus wie eine Regel, die
+       nichts finden sollte. */
+    const statusGruendeFehler = new Map();  // entitySet → Meldung
 
     /** Eine Abfrage vorbereiten, ausführen und protokollieren. */
     /** @param {boolean} [mehrfachErwartet] Mehrere Treffer je Wert sind
@@ -277,7 +281,10 @@ const AUFLOESUNG = (() => {
       if (s.reopenIfClosed && String(s.reopenIfClosed).toLowerCase() !== "nie"
           && !statusGruende.has(s.entitySet)) {
         try { statusGruende.set(s.entitySet, await DV.statusGruende(s.entitySet)); }
-        catch { statusGruende.set(s.entitySet, new Map()); }
+        catch (e) {
+          statusGruende.set(s.entitySet, new Map());
+          statusGruendeFehler.set(s.entitySet, e.detail || e.message);
+        }
       }
 
       const zu = profil.zuordnungen[s.mappingKey] || [];
@@ -427,7 +434,7 @@ const AUFLOESUNG = (() => {
     }
 
     return { treffer, abfragen, idFelder, navigation, schluesselFehlt, zustandsFelder,
-             statusGruende };
+             statusGruende, statusGruendeFehler };
   }
 
   /** Primärschlüsselfeld einer Tabelle, aus der Auflösung.

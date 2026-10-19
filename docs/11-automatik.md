@@ -200,6 +200,40 @@ Die Antwort ist `204 No Content` — **kein Text ist hier das Erfolgszeichen**,
 und am 09.10.2026 sah das zunächst nach einem Fehlschlag aus. Ob es gewirkt
 hat, sagt nur die Gegenprobe mit `RetrieveRolePrivilegesRole`.
 
+**Lesen genügt für ein Verweisziel nicht.** Am 15.10.2026 scheiterten 19
+Verkaufschancen mit `is missing prvAppendTocr570_Productline_Lookup`, obwohl
+das Leserecht seit dem 09.10. stand. Dataverse verlangt beim Setzen eines
+Verweises drei Rechte auf zwei Seiten:
+
+| Seite | Recht | heisst im Editor |
+|---|---|---|
+| Ziel des Verweises | `prvRead` | Lesen |
+| Ziel des Verweises | `prvAppendTo` | **Anfügen an** |
+| schreibende Tabelle | `prvAppend` | Anfügen |
+
+`AppendTo` am Ziel ist das, was man nicht erwartet: der Datensatz, an den
+angehängt wird, muss das Anhängen erlauben. Nachgetragen am 19.10.2026 für
+beide `cr570`-Nachschlagetabellen, Tiefe Organisation.
+
+Der Lauf vom 09.10. war nicht der Beweis, für den ich ihn gehalten habe. Er
+kam durch, weil in jener Mappe keine Zeile eine Produktlinie trug. **Ein
+grüner Lauf beweist nur die Felder, die in seiner Datei standen.** Deshalb
+jetzt die vollständige Gegenprobe über alle Verweisziele des Profils statt
+über die Tabelle, die gerade gemeldet hat:
+
+```
+GET /privileges?$select=name,privilegeid
+       &$filter=startswith(name,'prvAppend') or startswith(name,'prvRead')
+GET /RetrieveRolePrivilegesRole(RoleId=…)
+```
+
+Stand 19.10.2026 haben `account`, `contact`, `opportunity`,
+`transactioncurrency`, `opportunitysalesprocess` und die beiden
+`cr570`-Tabellen Lesen und Anfügen an. Die Systemtabellen (`systemuser`,
+`pricelevel`, `processstage`, `opportunityproduct`, `annotation`) führen ihre
+Rechte unter anderen Namen (`prvReadUser`, nicht `prvReadsystemuser`); dass
+sie passen, zeigt der Lauf vom 09.10., der sie alle angefasst hat.
+
 Kein Löschrecht, nirgends. Keine Anpassungs- oder Lösungsrechte, keine
 Benutzerverwaltung, kein Massenlöschen, kein Export.
 

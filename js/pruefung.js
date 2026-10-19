@@ -204,8 +204,51 @@ const PRUEFUNG = (() => {
     const sc = bestand?.statuscode;
     if (sc == null) return null;
     const m = aufl?.statusGruende?.get(entitySet);
-    return { wert: Number(sc), label: m?.get(Number(sc))?.label || "" };
+    const t = m?.get(Number(sc));
+    /* `unlesbar` unterscheidet „der Grund passt nicht zur Regel" von „den
+       Grund kenne ich nicht". Beides endete bis zum 19.10.2026 in derselben
+       stillen Auslassung. */
+    return { wert: Number(sc), label: t?.label || "", unlesbar: !t,
+             warum: aufl?.statusGruendeFehler?.get(entitySet) || "" };
   }
+
+  /** Verlangt die Regel Beschriftungen, oder reichen ihr Zahlen?
+   *
+   *  `ReopenStatusCodes` nimmt beides. Steht dort eine Zahl, kommt die
+   *  Entscheidung ohne Metadaten aus; steht dort ein Textstück, nicht. Nur
+   *  im zweiten Fall ist eine fehlende Beschriftung ein Problem. */
+  const brauchtBeschriftung = s => String(s?.reopenStatusCodes || "")
+    .split(/[,;|]/).map(t => t.trim()).filter(Boolean)
+    .some(t => !/^\d+$/.test(t));
+
+  /** Ist über das Wiedereröffnen gar nicht zu entscheiden?
+   *
+   *  Dann darf die Zeile nicht einfach durchfallen. Am 15.10.2026 ist genau
+   *  das passiert: die Beschriftungen fehlten, die Textregel traf nichts,
+   *  und zwei verlorene Anfragen blieben zu, obwohl die Einstellung sie
+   *  öffnen wollte. Im Bericht stand „geschlossen und damit
+   *  schreibgeschützt" – richtig beschrieben und trotzdem die falsche
+   *  Auskunft, weil der Satz die Einstellung verschweigt. */
+  function wiedereroeffnenUnklar(s, statecode, grund = null) {
+    if (darfWiedereroeffnen(s, statecode, grund)) return false;
+    const regel = String(s?.reopenIfClosed || "").trim().toLowerCase();
+    if (!regel || regel === "nie" || regel === "nein") return false;
+    const st = Number(statecode);
+    if (st === 0) return false;
+    const zustandPasst = regel === "immer" || regel === "ja" ? true
+                       : regel === "verloren" ? st === 2
+                       : regel === "gewonnen" ? st === 1 : false;
+    return zustandPasst && brauchtBeschriftung(s) && !!grund?.unlesbar;
+  }
+
+  /** Was in Protokoll und Bericht stehen soll, wenn es unklar ist. */
+  const unklarMeldung = grund =>
+    "Wiedereröffnen ist nach Statusgrund eingestellt, aber die "
+    + "Beschriftungen der Statusgründe sind nicht lesbar"
+    + (grund?.warum ? ` (${grund.warum})` : "")
+    + `. Der Grund dieser Anfrage ist ${grund?.wert ?? "unbekannt"}; `
+    + "mit dieser Zahl in ReopenStatusCodes entscheidet die Regel ohne "
+    + "Metadaten.";
 
   function lauf(profil, mappe, aufl, werte = {}, entscheidungen = null) {
     const zusatzZeile = zusatzZeileFn(mappe);
@@ -538,6 +581,16 @@ const PRUEFUNG = (() => {
               + ", steht aber wieder in der Datei – wird WIEDERERÖFFNET "
               + "und aktualisiert." });
         }
+        else if (wiedereroeffnenUnklar(s, bestand?.statecode, grundVorher)) {
+          /* Kein Überspringen, und auch kein Schreiben: hier ist die Lage
+             ungeklärt, und das muss sie bleiben, bis jemand hinsieht. Als
+             Fehler hält auch das Tor der Automatik an (§10a). */
+          alleFehler.push({ schritt: s.step, zeile: zeile._zeile,
+            wert: schluesselWert, klartext: klartext(zeile),
+            meldung: unklarMeldung(grundVorher) });
+          z.fehler++;
+          continue;
+        }
         else if (s.skipIfClosed && bestand && Number(bestand.statecode) !== 0) {
           ueber(z, s, zeile,
             `Verkaufschance ist im CRM ${zustand(bestand.statecode)} und damit `
@@ -640,5 +693,6 @@ const PRUEFUNG = (() => {
     + (g.fehler ? ` · ${g.fehler} mit Fehler` : "");
 
   return { lauf, zusammenfassung, ausschluss, ausgelassen, zusatzKonflikte, zustand,
-           darfWiedereroeffnen, statusGrund };
+           darfWiedereroeffnen, statusGrund, wiedereroeffnenUnklar,
+           unklarMeldung };
 })();

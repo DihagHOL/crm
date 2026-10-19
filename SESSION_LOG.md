@@ -1,5 +1,54 @@
 # Session-Log
 
+## 19.10.2026 — Der Lauf vom 15.10., zwei Befunde
+
+Die Mappe vom 15.10. kam mit 33 Fehlern und 28 Auslassungen durch. Beides
+hatte eine Ursache, und es waren zwei verschiedene.
+
+**1. Lesen genügt für einen Verweis nicht.** 19 Verkaufschancen scheiterten
+mit `is missing prvAppendTocr570_Productline_Lookup`, die 14
+Positionsfehler waren die Folge, dazu fünf Auslassungen in Schritt 50.
+Dataverse verlangt am Ziel eines Verweises neben `prvRead` auch
+**`prvAppendTo`**: der Datensatz, an den angehängt wird, muss das Anhängen
+erlauben. Nachgetragen für beide `cr570`-Tabellen.
+
+Der Lauf vom 09.10. war nicht der Beweis, für den ich ihn gehalten habe. Er
+kam durch, weil in jener Mappe keine Zeile eine Produktlinie trug. Ein
+grüner Lauf beweist nur die Felder, die in seiner Datei standen. Diesmal
+habe ich **alle** Verweisziele des Profils auf Lesen und Anfügen an
+geprüft, nicht nur das, das gemeldet hat. Steht in `docs/11`.
+
+**2. Zwei verlorene Anfragen hätten aufleben müssen.** 5639 und 6726 stehen
+auf „Verloren - Gründe unbekannt", `ReopenIfClosed` steht auf `Verloren`.
+Übersprungen wurden sie trotzdem, und der Bericht nannte sie „geschlossen
+und damit schreibgeschützt" — richtig beschrieben und trotzdem falsch, weil
+der Satz die eingestellte Regel verschweigt.
+
+Nachgestellt mit dem echten Code und den echten Werten: die Zeile fällt
+genau dann durch, wenn die **Beschriftungen** der Statusgründe fehlen. Die
+kommen aus den Metadaten, und `DV.statusGruende` hielt seinen Fehler in
+einem leeren `catch`, gab eine leere Karte zurück und speicherte sie als
+gültiges Ergebnis. Eine eingestellte Fachregel drehte sich an einem
+verschluckten Metadatenfehler ins Gegenteil, ohne eine einzige
+Protokollzeile. Genau der stille `catch`, den Randbedingung 8 verbietet.
+
+Warum der Abruf scheitert, ist weiter offen: mit meinem Token antwortet er
+mit 200 und neun Optionen, die Metadatenrechte der Rolle stimmen, und das
+Vollprotokoll ist nicht ladbar, weil der Mandant vorab signierte Links
+sperrt. Der nächste Lauf sagt es jetzt selbst.
+
+Geändert:
+
+- `ReopenStatusCodes` in `CRM_ImportProfiles` steht auf
+  `Verloren,739170007,739170008,739170009`. Zahlen brauchen keine
+  Beschriftungen, der Text bleibt für den Umgebungswechsel.
+- `DV.statusGruende` verschluckt nichts mehr und speichert eine leere
+  Antwort nicht als Ergebnis.
+- Die Auflösung trägt den Grund als `statusGruendeFehler` weiter.
+- Unklar ist nicht nein: verlangt die Regel Beschriftungen und gibt es
+  keine, wird die Zeile abgewiesen und nennt die Zahl, mit der sie ohne
+  Metadaten entscheiden könnte. Vorschau und Import gleich.
+
 ## 09.10.2026 — Die zwei Rechte sitzen
 
 Nachgetragen, was dem Lauf vom 08.10. gefehlt hat: `DIHAG-Admin` hatte 958
