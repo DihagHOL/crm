@@ -602,7 +602,20 @@ const AUTOMATIK = (() => {
     for (const e of eintraege) {
       if (e.aktion !== "uebersprungen") continue;
       const t = String(e.meldung || "");
-      if (!/geschlossen|schreibgeschützt/i.test(t)) continue;
+
+      /* „ausgeschlossen" enthält „geschlossen", und der Test lief auf
+         Teilstrings. Eine Zeile, die an einer fehlenden Kundennummer
+         hängt, wurde damit zur geschlossenen Anfrage: am 15.10.2026 nannte
+         der Betreff sieben davon, wahr waren zwei. Unter den fünf
+         Erfundenen stand eine Kontaktadresse und ein „?".
+
+         Das ist nicht kosmetisch. Dieser Befund ist der eine, der es
+         absichtlich in die Betreffzeile schafft, weil er eine Aufgabe ist
+         und keine Buchhaltung (§10a). Ein Befund, der regelmässig zu hoch
+         zählt, wird nach dem dritten Bericht nicht mehr gelesen — und dann
+         fehlt er genau dann, wenn er stimmt. */
+      if (/ausgeschlossen/i.test(t)) continue;
+      if (!/\bgeschlossen\b|schreibgeschützt/i.test(t)) continue;
 
       /* Die Kennung steht je nach Schritt an zwei Stellen: an der Chance
          selbst als Schlüssel, an der Position als Wert des Elternverweises

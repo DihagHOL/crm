@@ -49,6 +49,21 @@ Geändert:
   keine, wird die Zeile abgewiesen und nennt die Zahl, mit der sie ohne
   Metadaten entscheiden könnte. Vorschau und Import gleich.
 
+**3. Der Betreff hat zu hoch gezählt.** Der Probelauf nach den beiden
+Korrekturen sagte „1 geschlossene Anfrage prüfen", obwohl keine mehr übrig
+war. Nachgesehen: `geschlosseneKonflikte()` prüft die Meldung auf den
+Teilstring `geschlossen`, und **`ausgeschlossen` enthält ihn**. Jede Zeile,
+die an der fehlenden Kundennummer 99917944 hing, wurde damit zur
+geschlossenen Anfrage. Am 15.10. nannte der Betreff deshalb sieben, wahr
+waren zwei; unter den fünf Erfundenen standen eine Kontaktadresse und ein
+Fragezeichen.
+
+Das ist nicht kosmetisch. Dieser Befund ist der einzige, der absichtlich in
+die Betreffzeile kommt, weil er eine Aufgabe ist und keine Buchhaltung.
+Zählt er regelmässig zu hoch, liest ihn nach dem dritten Bericht niemand
+mehr, und dann fehlt er genau dann, wenn er stimmt. Jetzt Wortgrenze statt
+Teilstring, plus ein ausdrücklicher Riegel gegen `ausgeschlossen`.
+
 ## 09.10.2026 — Die zwei Rechte sitzen
 
 Nachgetragen, was dem Lauf vom 08.10. gefehlt hat: `DIHAG-Admin` hatte 958

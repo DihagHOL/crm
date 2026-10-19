@@ -336,6 +336,41 @@ console.log("\nGeschlossen im CRM, in der Datei noch aktiv");
   pruefe(!/geschlossene Anfrage/.test(
     A.bericht([{ art: "importiert", titel: "x", zeilen: [] }]).betreff),
     "ohne Konflikt bleibt er kurz");
+
+  /* 15.10.2026: der Betreff nannte SIEBEN geschlossene Anfragen, wahr
+     waren zwei. „ausgeschlossen" enthaelt „geschlossen", und der Test lief
+     auf Teilstrings — also wurde jede Zeile, die an einer fehlenden
+     Kundennummer hing, zur geschlossenen Anfrage, darunter eine
+     Kontaktadresse und ein „?". Dieser Befund ist der eine, der
+     absichtlich in die Betreffzeile kommt; zaehlt er zu hoch, liest ihn
+     nach dem dritten Bericht niemand mehr. */
+  const gemischt = A.geschlosseneKonflikte([
+    { aktion: "uebersprungen", schritt: 30, zeile: 22, schluessel: "7482",
+      meldung: "Zeile wurde in einem früheren Schritt ausgeschlossen" },
+    { aktion: "uebersprungen", schritt: 20, zeile: 22, wert: "grimm@haacon.de",
+      meldung: "Zeile wurde in einem früheren Schritt ausgeschlossen" },
+    { aktion: "uebersprungen", schritt: 40, zeile: 63,
+      meldung: "Zeile wurde in einem früheren Schritt ausgeschlossen" },
+    { aktion: "uebersprungen", schritt: 30, zeile: 2, schluessel: "5639",
+      meldung: "im CRM VERLOREN und damit schreibgeschützt" },
+    { aktion: "uebersprungen", schritt: 40, zeile: 6, wert: "6726",
+      meldung: "opportunities zu „6726“ ist geschlossen – ihre Positionen "
+             + "bleiben unverändert" }
+  ]);
+  gleich(gemischt.map(k => k.kennung), ["5639", "6726"],
+    "ausgeschlossene Zeilen sind keine geschlossenen Anfragen");
+  pruefe(!gemischt.some(k => k.kennung === "?"
+                          || /@/.test(String(k.kennung))),
+    "und weder ein Fragezeichen noch eine Kontaktadresse steht im Befund");
+
+  // Eine wiedereroeffnete zaehlt als erledigt und darf den Betreff nicht fuellen.
+  const auf = A.geschlosseneKonflikte([
+    { aktion: "aktualisiert", schritt: 30, zeile: 2, schluessel: "5639",
+      wiedereroeffnet: true, zustandVorher: { zustand: "verloren",
+        grund: "Verloren - Gründe unbekannt" } }
+  ]);
+  pruefe(auf.length === 1 && auf[0].erledigt === true,
+    "wiedereroeffnet steht im Bericht, aber als erledigt");
 }
 
 console.log("\nDer Eingang, der nicht kam");
