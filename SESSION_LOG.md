@@ -20,15 +20,26 @@ acht Auslösungen am Tag statt 96, Lücken im Mittel 4,3 Stunden, die längste
 **9,4**. Eine Donnerstagslieferung um 06:00 kann damit bis in den Nachmittag
 liegenbleiben.
 
-Deshalb umgestellt auf `17 5,6,8,11,14,17,20,23 * * *` (UTC). Der Gedanke
-dahinter: **wer 96 erbittet und 6 bekommt, kann sich die Zeiten nicht
-aussuchen. Wer 8 erbittet, bekommt sie vermutlich** — und zwar dann, wann er
-sie braucht. Minute 17, weil die volle Stunde bei GitHub die Hauptlast ist.
-Morgens dicht, weil Timeline donnerstags zwischen 06:00 und 06:33 liefert;
-05:17 und 06:17 UTC liegen im Sommer wie im Winter kurz danach.
+Erste Umstellung war `17 5,6,8,11,14,17,20,23 * * *` (UTC), morgens dicht,
+damit ein Lauf kurz nach der Lieferung liegt. **Das war falsch gedacht, und
+es hat sich noch am selben Tag gezeigt:** der Zeitplan stand um 08:58 auf
+`main`, die Zeit 10:17 verstrich ohne Lauf.
 
-Eine Bitte bleibt es. Das Zeitfenster in `CRM_Automatik` steht deshalb
-weiter offen, und die Fehlanzeige holt eine verpasste Frist weiterhin nach.
+Die erklärende Messung kam vom Nachbarprojekt. ZAPP bittet um `0 5 * * *`
+und lief an **20 von 20 Tagen** — im Median **5 h 48 min zu spät**, zwischen
+3 h 54 und 7 h 33. Heute um 09:43, zusammen mit Bedarfsanfrage und
+Compliance, die alle dasselbe erbitten.
+
+Damit ist die Lage klar: **GitHub liefert einen sparsamen Zeitplan
+zuverlässig ab und hält ihn nur nicht ein.** Eine Uhrzeit anzupeilen ist
+zwecklos, 05:17 wäre gegen 11 Uhr gelaufen. Steuerbar ist nur der größte
+Abstand. Also acht Zeiten in gleichen Abständen von drei Stunden,
+`17 1,4,7,10,13,16,19,22 * * *`: die Verspätung trifft alle acht gleich und
+verschiebt das Raster, ohne es auszureissen. Nach einer Ablage wartet die
+Mappe im Regelfall etwa drei Stunden statt bis zu neun.
+
+Das Zeitfenster in `CRM_Automatik` steht deshalb weiter offen, und die
+Fehlanzeige holt eine verpasste Frist weiterhin nach.
 
 Dazu hört der Workflow jetzt auf `repository_dispatch` mit dem Typ
 `mappe-eingegangen`. Gerufen wird das von niemandem; die Zeile steht da,

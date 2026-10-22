@@ -40,26 +40,48 @@ um 04:32, und bis 08:53 löste nichts mehr aus. Die Mappe lag drei Stunden
 unbeachtet da, ohne dass irgendetwas defekt war. Der Prüflauf von Hand sah
 sie sofort.
 
-Daraus die Umstellung: **wer 96 erbittet und 6 bekommt, kann sich die Zeiten
-nicht aussuchen. Wer 8 erbittet, bekommt sie vermutlich** — und zwar dann,
-wann er sie braucht.
+**Und die Zahl, auf die es wirklich ankommt.** Ein *täglicher* Cron ist
+nicht seltener, sondern nur pünktlicher zu erwarten — stimmt auch nicht. Am
+22.10.2026 am Nachbarprojekt ZAPP nachgemessen (`0 5 * * *`, 20 Tage):
+
+| | |
+|---|---|
+| gelaufen an | **20 von 20 Tagen** |
+| Verspätung im Median | **5 h 48 min** |
+| kleinste / größte | 3 h 54 min / 7 h 33 min |
+
+GitHub liefert einen sparsamen Zeitplan also zuverlässig ab und hält ihn
+nur nicht ein. Daraus zwei Schlüsse.
+
+**Eine Uhrzeit anzupeilen ist zwecklos.** Die erste Fassung vom 22.10.
+stellte morgens zwei Zeiten dicht hintereinander, weil Timeline donnerstags
+um 06:00 liefert. Sie wären gegen 11 bis 13 Uhr gelaufen. Am selben Tag
+bestätigt: der Zeitplan war um 08:58 auf `main`, die Zeit 10:17 verstrich
+ohne Lauf.
+
+**Steuerbar ist nur der größte Abstand.** Deshalb acht Zeiten in gleichen
+Abständen von drei Stunden:
 
 ```
-17 5,6,8,11,14,17,20,23 * * *      (UTC)
+17 1,4,7,10,13,16,19,22 * * *      (UTC)
 ```
 
-Minute 17, weil die volle Stunde bei GitHub die Hauptlast ist. Morgens
-dicht, weil Timeline donnerstags zwischen 06:00 und 06:33 deutscher Zeit
-liefert: 05:17 und 06:17 UTC sind im Sommer 07:17 und 08:17, im Winter eine
-Stunde früher, in beiden Fällen kurz nach der Lieferung.
+Minute 17, weil die volle Stunde bei GitHub die Hauptlast ist. Die
+Verspätung trifft alle acht gleich und verschiebt damit das Raster, ohne es
+auszureissen: nach einer Ablage wartet die Mappe im Regelfall etwa drei
+Stunden, nicht bis zu neun.
 
-Eine Bitte bleibt es trotzdem. Deshalb steht das Zeitfenster in
-`CRM_Automatik` weiter offen (0–23 Uhr), und die Fehlanzeige holt eine
-verpasste Frist nach.
+Deshalb steht das Zeitfenster in `CRM_Automatik` weiter offen (0–23 Uhr),
+und die Fehlanzeige holt eine verpasste Frist nach.
 
 ### Wenn es binnen Minuten laufen soll
 
-Dann führt kein Weg an einem Anstoß von außen vorbei. Der Workflow hört
+Dann führt kein Weg an einem Anstoß von außen vorbei, und zwar nicht wegen
+einer ungeschickten Cron-Zeile: **GitHubs Zeitplan ist eine Bitte, keine
+Zusage, und die Verspätung liegt hier bei Stunden.** Wer Pünktlichkeit
+braucht, bekommt sie dort nicht, egal wie die Zeile aussieht.
+
+Der Workflow hört
 dafür schon auf `repository_dispatch` mit dem Typ `mappe-eingegangen`;
 gerufen wird er heute von niemandem. Ein Sender wäre ein Power-Automate-Flow
 „Wenn eine Datei erstellt wird" auf `Austausch/Projekt CRM-Timeline` mit

@@ -967,15 +967,25 @@ im Mittel 4,3 und höchstens 9,4 Stunden. Am 22.10.2026 kam die Lieferung um
 06:00, der letzte Lauf war um 04:32, und bis 08:53 löste nichts mehr aus:
 die Mappe lag drei Stunden unbeachtet da, ohne dass etwas defekt war.
 
-Seit dem 22.10.2026 stehen deshalb **acht feste Zeiten** statt eines engen
-Takts (`17 5,6,8,11,14,17,20,23 * * *`, UTC, Minute 17 weil die volle
-Stunde die Hauptlast ist, morgens dicht wegen der Donnerstagslieferung).
-Wer 96 erbittet und 6 bekommt, kann sich die Zeiten nicht aussuchen; wer 8
-erbittet, bekommt sie vermutlich. Eine Bitte bleibt es trotzdem: das
-Fenster in `CRM_Automatik` steht weiter offen (0–23 Uhr, täglich), und die
-Fehlanzeige holt eine verpasste Frist beim nächsten Lauf nach. Soll der
-Import binnen Minuten nach der Ablage starten, braucht es einen Anstoss von
-aussen (`repository_dispatch`, docs/11).
+Die entscheidende Messung kam am selben Tag vom Nachbarprojekt ZAPP: ein
+täglicher Cron (`0 5 * * *`) lief an **20 von 20 Tagen**, aber im Median
+**5 h 48 min zu spät**, zwischen 3 h 54 und 7 h 33. GitHub liefert einen
+sparsamen Zeitplan also zuverlässig ab und hält ihn nur nicht ein.
+
+Daraus die Form des Zeitplans: **eine Uhrzeit anzupeilen ist zwecklos,
+steuerbar ist nur der größte Abstand.** Acht Zeiten in gleichen Abständen
+von drei Stunden (`17 1,4,7,10,13,16,19,22 * * *`, UTC, Minute 17 weil die
+volle Stunde die Hauptlast ist). Die Verspätung trifft alle acht gleich und
+verschiebt das Raster, ohne es auszureissen. Eine erste Fassung desselben
+Tages stellte morgens zwei Zeiten dicht hintereinander, weil Timeline um
+06:00 liefert — sie wären gegen 11 bis 13 Uhr gelaufen.
+
+Das Fenster in `CRM_Automatik` steht wegen alldem weit offen (0–23 Uhr,
+täglich), und die Fehlanzeige holt eine verpasste Frist beim nächsten Lauf
+nach. Soll der Import binnen Minuten nach der Ablage starten, braucht es
+einen Anstoss von aussen (`repository_dispatch`, docs/11); mit GitHubs
+Zeitplan ist Pünktlichkeit nicht zu haben, auch nicht durch eine
+geschicktere Cron-Zeile.
 
 Ob gearbeitet wird, entscheidet die Liste `CRM_Automatik`: Schalter,
 Takt, Zeitfenster, Wochentage. Grund ist derselbe wie beim Importprofil —

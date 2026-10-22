@@ -6,34 +6,38 @@ name: Automatischer Import
 # dort stehen Schalter, Takt, Zeitfenster und Wochentage. Eine Taktaenderung
 # ist damit eine Eingabe im Werkzeug und kein Pull Request.
 #
-# ZEITPLAN: wenige feste Zeiten statt eines engen Takts.
+# ZEITPLAN: gleichmaessig verteilt, weil der Zeitpunkt nicht steuerbar ist.
 #
-# Hier stand bis zum 22.10.2026 "*/15". Das war eine Absicht und keine
-# Zusage: von 96 erbetenen Ausloesungen am Tag materialisierte GitHub FUENF
-# bis ACHT, zu beliebigen Minuten, mit Luecken von im Mittel 4,3 und
-# hoechstens 9,4 Stunden (gemessen ueber 100 Laeufe). Am 22.10. kam die
-# Lieferung um 06:00 deutscher Zeit, der letzte Lauf war um 04:32, und bis
-# 08:53 loeste nichts mehr aus. Die Datei lag drei Stunden unbeachtet da,
-# ohne dass irgendetwas defekt war.
+# Am 22.10.2026 gemessen, und das ist die Zahl, auf die es ankommt: ein
+# TAEGLICHER Cron (ZAPP, "0 5 * * *") lief an 20 von 20 Tagen - aber im
+# Median 5h48 ZU SPAET, zwischen 3h54 und 7h33. GitHub liefert einen
+# sparsamen Zeitplan also zuverlaessig ab und haelt ihn nur nicht ein.
 #
-# Wer 96 erbittet und 6 bekommt, kann sich die Zeiten nicht aussuchen. Wer
-# 8 erbittet, bekommt sie vermutlich - und zwar dann, wann er sie braucht.
-# Deshalb feste Stunden, zur Minute 17 (die volle Stunde ist bei GitHub die
-# Hauptlast) und morgens dicht, weil Timeline donnerstags zwischen 06:00
-# und 06:33 deutscher Zeit liefert.
+# Zum Vergleich der enge Takt, der hier bis zum 22.10. stand: "*/15" bat um
+# 96 Ausloesungen und bekam FUENF bis ACHT, zu beliebigen Minuten, Luecken
+# im Mittel 4,3 und hoechstens 9,4 Stunden. Dasselbe Bild von der anderen
+# Seite.
 #
-# UTC, nicht deutsche Zeit: 05:17 und 06:17 sind im Sommer 07:17 und 08:17,
-# im Winter eine Stunde frueher - in beiden Faellen kurz nach der
-# Lieferung. Dass der Zeitplan eine Bitte bleibt, aendert das nicht: das
-# Zeitfenster in CRM_Automatik steht deshalb weiter offen (0-23 Uhr), und
-# die Fehlanzeige holt eine verpasste Frist nach.
+# Daraus zwei Schluesse. Erstens: eine Uhrzeit anzupeilen ist zwecklos. Die
+# erste Fassung dieser Datei stellte morgens zwei Zeiten dicht hintereinander,
+# weil Timeline donnerstags um 06:00 liefert - sie waeren gegen 11 bis 13 Uhr
+# gelaufen. Zweitens: steuerbar ist nur der GROESSTE ABSTAND. Deshalb acht
+# Zeiten in gleichen Abstaenden von drei Stunden, zur Minute 17 (die volle
+# Stunde ist bei GitHub die Hauptlast). Die Verspaetung trifft dann alle acht
+# gleich und verschiebt das Raster, ohne es auszureissen.
 #
-# Soll der Import binnen Minuten nach der Ablage starten, fuehrt kein Weg
-# an einem Anstoss von aussen vorbei (repository_dispatch, siehe docs/11).
+# Ob gearbeitet wird, entscheidet weiter CRM_Automatik in SharePoint:
+# Schalter, Takt, Zeitfenster, Wochentage. Eine Taktaenderung ist eine
+# Eingabe im Werkzeug und kein Pull Request. Das Zeitfenster steht wegen
+# alldem offen (0-23 Uhr), und die Fehlanzeige holt eine verpasste Frist nach.
+#
+# Soll der Import binnen Minuten nach der Ablage starten, fuehrt kein Weg an
+# einem Anstoss von aussen vorbei. Mit GitHubs Zeitplan ist das nicht zu
+# haben, und zwar nicht durch eine geschicktere Cron-Zeile (siehe docs/11).
 
 on:
   schedule:
-    - cron: "17 5,6,8,11,14,17,20,23 * * *"
+    - cron: "17 1,4,7,10,13,16,19,22 * * *"
 
   # Anstoss von aussen, fuer den Fall, dass der Import binnen Minuten nach
   # der Ablage laufen soll. Heute ruft das niemand; die Zeile steht hier,
