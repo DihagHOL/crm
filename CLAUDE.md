@@ -959,16 +959,25 @@ sobald eine davon nach `document` oder `window` greift.
 
 ### Der Takt steht in SharePoint, nicht im Workflow
 
-Im Workflow steht `*/15 * * * *`. Das ist ein Blick auf die Uhr, kein
+Im Workflow steht ein Zeitplan. Das ist ein Blick auf die Uhr, kein
 Takt — und seit dem 06.10.2026 wissen wir, dass es nicht einmal ein
-regelmässiger ist: **GitHub materialisiert von 96 möglichen Auslösungen am
-Tag rund fünf**, zu beliebigen Minuten (68 Läufe in 13 Tagen gezählt). Am
-Donnerstag, 01.10., lagen sie um 02:15, 08:14, 15:18, 20:56 und 00:58
-deutscher Zeit; genau einer davon fiel in das damals eingestellte Fenster
-4–14 Uhr. Wer hier ein enges Zeitfenster einstellt, verlässt sich auf einen
-Zeitplan, den es nicht gibt. Zwei Konsequenzen: das Fenster in
-`CRM_Automatik` steht weit offen (0–23 Uhr, täglich), und die Fehlanzeige
-holt eine verpasste Frist beim nächsten Lauf nach. Ob gearbeitet wird, entscheidet die Liste `CRM_Automatik`: Schalter,
+regelmässiger ist: auf `*/15 * * * *` materialisierte GitHub **fünf bis
+acht** von 96 erbetenen Auslösungen, zu beliebigen Minuten, mit Lücken von
+im Mittel 4,3 und höchstens 9,4 Stunden. Am 22.10.2026 kam die Lieferung um
+06:00, der letzte Lauf war um 04:32, und bis 08:53 löste nichts mehr aus:
+die Mappe lag drei Stunden unbeachtet da, ohne dass etwas defekt war.
+
+Seit dem 22.10.2026 stehen deshalb **acht feste Zeiten** statt eines engen
+Takts (`17 5,6,8,11,14,17,20,23 * * *`, UTC, Minute 17 weil die volle
+Stunde die Hauptlast ist, morgens dicht wegen der Donnerstagslieferung).
+Wer 96 erbittet und 6 bekommt, kann sich die Zeiten nicht aussuchen; wer 8
+erbittet, bekommt sie vermutlich. Eine Bitte bleibt es trotzdem: das
+Fenster in `CRM_Automatik` steht weiter offen (0–23 Uhr, täglich), und die
+Fehlanzeige holt eine verpasste Frist beim nächsten Lauf nach. Soll der
+Import binnen Minuten nach der Ablage starten, braucht es einen Anstoss von
+aussen (`repository_dispatch`, docs/11).
+
+Ob gearbeitet wird, entscheidet die Liste `CRM_Automatik`: Schalter,
 Takt, Zeitfenster, Wochentage. Grund ist derselbe wie beim Importprofil —
 **eine Taktänderung soll eine Eingabe im Werkzeug sein und kein Pull
 Request.**

@@ -1,5 +1,45 @@
 # Session-Log
 
+## 22.10.2026 — Acht feste Zeiten statt eines engen Takts
+
+Meldung: die Automatik erkenne die neue Mappe nicht. Sie erkennt sie. Es
+hatte nur kein Lauf stattgefunden, seit die Datei da war.
+
+| | |
+|---|---|
+| `Anfragen 2026-10-22.xlsx` angelegt | 06:00 deutscher Zeit |
+| letzter Lauf | 04:32 |
+| Meldung kam um | 08:53 |
+
+Ein Prüflauf von Hand sah die Mappe sofort: „77 Mappen im Ordner, 1
+anstehend, 1 in diesem Lauf", 98 neu, 16 geändert, 56 unverändert, keine
+Fehler, ein Mehrfachtreffer über die Aktiv-Regel gelöst.
+
+Über 100 Läufe nachgemessen, was `*/15 * * * *` wirklich bringt: fünf bis
+acht Auslösungen am Tag statt 96, Lücken im Mittel 4,3 Stunden, die längste
+**9,4**. Eine Donnerstagslieferung um 06:00 kann damit bis in den Nachmittag
+liegenbleiben.
+
+Deshalb umgestellt auf `17 5,6,8,11,14,17,20,23 * * *` (UTC). Der Gedanke
+dahinter: **wer 96 erbittet und 6 bekommt, kann sich die Zeiten nicht
+aussuchen. Wer 8 erbittet, bekommt sie vermutlich** — und zwar dann, wann er
+sie braucht. Minute 17, weil die volle Stunde bei GitHub die Hauptlast ist.
+Morgens dicht, weil Timeline donnerstags zwischen 06:00 und 06:33 liefert;
+05:17 und 06:17 UTC liegen im Sommer wie im Winter kurz danach.
+
+Eine Bitte bleibt es. Das Zeitfenster in `CRM_Automatik` steht deshalb
+weiter offen, und die Fehlanzeige holt eine verpasste Frist weiterhin nach.
+
+Dazu hört der Workflow jetzt auf `repository_dispatch` mit dem Typ
+`mappe-eingegangen`. Gerufen wird das von niemandem; die Zeile steht da,
+damit ein Anstoss von aussen später keine Codeänderung braucht, sondern nur
+einen Sender. Wie der aussähe, steht in `docs/11`: ein Power-Automate-Flow
+mit einem einzigen HTTP-Schritt. Das wäre kein Rückschritt zum Altflow,
+denn der Flow trüge keine Fachlogik und keine CRM-Zugangsdaten, sondern wäre
+eine Klingel. Der Preis ist ein Token mit Ablaufdatum, das jemand verwalten
+muss, und deshalb steht es als Möglichkeit da und nicht als
+Einrichtungsschritt.
+
 ## 19.10.2026 — Der Lauf vom 15.10., zwei Befunde
 
 Die Mappe vom 15.10. kam mit 33 Fehlern und 28 Auslassungen durch. Beides

@@ -16,7 +16,7 @@ Mail an die eingetragene Adresse.
 
 ## Warum der Takt nicht im Workflow steht
 
-Im Workflow steht `*/15 * * * *`. Das ist kein Takt, sondern ein Blick auf
+Im Workflow steht ein Zeitplan. Das ist kein Takt, sondern ein Blick auf
 die Uhr. Der eigentliche Takt steht in der SharePoint-Liste
 `CRM_Automatik`, und der Lauf hält sich daran:
 
@@ -26,13 +26,58 @@ Aktiv = ja, TaktMinuten = 30, VonUhr = 0, BisUhr = 23, Wochentage = täglich
   wenn eine neue Mappe da ist.
 ```
 
-**Der Zeitplan ist unzuverlässiger als er aussieht.** Am 06.10.2026
-nachgezählt: von 96 möglichen Auslösungen am Tag materialisiert GitHub rund
-**fünf**, zu beliebigen Minuten (68 Läufe in 13 Tagen). Am Donnerstag,
-01.10., waren es 02:15, 08:14, 15:18, 20:56 und 00:58 deutscher Zeit — genau
-einer davon lag im damals eingestellten Fenster 4–14 Uhr. Deshalb steht das
-Fenster jetzt offen: ein enges Fenster verlässt sich auf einen Zeitplan, den
-es nicht gibt.
+**Der Zeitplan ist unzuverlässiger als er aussieht.** Im Workflow stand bis
+zum 22.10.2026 `*/15 * * * *`. Über 100 Läufe gemessen:
+
+| erbeten | 96 Auslösungen am Tag |
+|---|---|
+| bekommen | **5 bis 8**, zu beliebigen Minuten |
+| Lücke im Mittel | 4,3 Stunden |
+| längste Lücke | 9,4 Stunden |
+
+Am 22.10.2026 kam die Lieferung um 06:00 deutscher Zeit, der letzte Lauf war
+um 04:32, und bis 08:53 löste nichts mehr aus. Die Mappe lag drei Stunden
+unbeachtet da, ohne dass irgendetwas defekt war. Der Prüflauf von Hand sah
+sie sofort.
+
+Daraus die Umstellung: **wer 96 erbittet und 6 bekommt, kann sich die Zeiten
+nicht aussuchen. Wer 8 erbittet, bekommt sie vermutlich** — und zwar dann,
+wann er sie braucht.
+
+```
+17 5,6,8,11,14,17,20,23 * * *      (UTC)
+```
+
+Minute 17, weil die volle Stunde bei GitHub die Hauptlast ist. Morgens
+dicht, weil Timeline donnerstags zwischen 06:00 und 06:33 deutscher Zeit
+liefert: 05:17 und 06:17 UTC sind im Sommer 07:17 und 08:17, im Winter eine
+Stunde früher, in beiden Fällen kurz nach der Lieferung.
+
+Eine Bitte bleibt es trotzdem. Deshalb steht das Zeitfenster in
+`CRM_Automatik` weiter offen (0–23 Uhr), und die Fehlanzeige holt eine
+verpasste Frist nach.
+
+### Wenn es binnen Minuten laufen soll
+
+Dann führt kein Weg an einem Anstoß von außen vorbei. Der Workflow hört
+dafür schon auf `repository_dispatch` mit dem Typ `mappe-eingegangen`;
+gerufen wird er heute von niemandem. Ein Sender wäre ein Power-Automate-Flow
+„Wenn eine Datei erstellt wird" auf `Austausch/Projekt CRM-Timeline` mit
+einem einzigen HTTP-Schritt:
+
+```
+POST https://api.github.com/repos/dfedorov12/crm/dispatches
+Authorization: Bearer <fein granulierter PAT, nur Contents: read+write>
+Accept: application/vnd.github+json
+{"event_type":"mappe-eingegangen"}
+```
+
+Das ist ausdrücklich **kein** Rückschritt zum Altflow: der Flow trüge keine
+Fachlogik, kein Mapping und keine Zugangsdaten zum CRM, sondern wäre eine
+Klingel. Alles, was entschieden wird, entscheidet weiterhin `CRM_Automatik`
+und der Code im Repository. Der Preis ist ein Token mit Ablaufdatum, das
+jemand verwalten muss — deshalb steht es als Möglichkeit hier und nicht als
+Einrichtungsschritt.
 
 Der Grund ist der Bedienbare: **eine Taktänderung soll eine Eingabe im
 Werkzeug sein und kein Pull Request.** Dieselbe Linie wie beim

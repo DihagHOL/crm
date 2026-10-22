@@ -6,18 +6,43 @@ name: Automatischer Import
 # dort stehen Schalter, Takt, Zeitfenster und Wochentage. Eine Taktaenderung
 # ist damit eine Eingabe im Werkzeug und kein Pull Request.
 #
-# ACHTUNG, gemessen am 06.10.2026: "*/15" steht hier als Absicht, nicht als
-# Zusage. Von 96 moeglichen Ausloesungen am Tag materialisiert GitHub
-# tatsaechlich rund FUENF, zu beliebigen Minuten (68 Laeufe in 13 Tagen).
-# Am Donnerstag, 01.10., waren es 02:15, 08:14, 15:18, 20:56 und 00:58
-# deutscher Zeit - genau einer davon lag im eingestellten Fenster 4 bis 14
-# Uhr. Wer hier ein enges Zeitfenster einstellt, verlaesst sich auf einen
-# Zeitplan, den es nicht gibt. Deshalb steht das Fenster in CRM_Automatik
-# weit offen, und die Fehlanzeige holt eine verpasste Frist nach.
+# ZEITPLAN: wenige feste Zeiten statt eines engen Takts.
+#
+# Hier stand bis zum 22.10.2026 "*/15". Das war eine Absicht und keine
+# Zusage: von 96 erbetenen Ausloesungen am Tag materialisierte GitHub FUENF
+# bis ACHT, zu beliebigen Minuten, mit Luecken von im Mittel 4,3 und
+# hoechstens 9,4 Stunden (gemessen ueber 100 Laeufe). Am 22.10. kam die
+# Lieferung um 06:00 deutscher Zeit, der letzte Lauf war um 04:32, und bis
+# 08:53 loeste nichts mehr aus. Die Datei lag drei Stunden unbeachtet da,
+# ohne dass irgendetwas defekt war.
+#
+# Wer 96 erbittet und 6 bekommt, kann sich die Zeiten nicht aussuchen. Wer
+# 8 erbittet, bekommt sie vermutlich - und zwar dann, wann er sie braucht.
+# Deshalb feste Stunden, zur Minute 17 (die volle Stunde ist bei GitHub die
+# Hauptlast) und morgens dicht, weil Timeline donnerstags zwischen 06:00
+# und 06:33 deutscher Zeit liefert.
+#
+# UTC, nicht deutsche Zeit: 05:17 und 06:17 sind im Sommer 07:17 und 08:17,
+# im Winter eine Stunde frueher - in beiden Faellen kurz nach der
+# Lieferung. Dass der Zeitplan eine Bitte bleibt, aendert das nicht: das
+# Zeitfenster in CRM_Automatik steht deshalb weiter offen (0-23 Uhr), und
+# die Fehlanzeige holt eine verpasste Frist nach.
+#
+# Soll der Import binnen Minuten nach der Ablage starten, fuehrt kein Weg
+# an einem Anstoss von aussen vorbei (repository_dispatch, siehe docs/11).
 
 on:
   schedule:
-    - cron: "*/15 * * * *"
+    - cron: "17 5,6,8,11,14,17,20,23 * * *"
+
+  # Anstoss von aussen, fuer den Fall, dass der Import binnen Minuten nach
+  # der Ablage laufen soll. Heute ruft das niemand; die Zeile steht hier,
+  # damit es spaeter keine Codeaenderung braucht, sondern nur einen Sender
+  # (docs/11). Alle Eingaben unten sind auf workflow_dispatch eingegrenzt,
+  # ein so angestossener Lauf verhaelt sich deshalb wie ein planmaessiger:
+  # Takt, Zeitfenster und Schalter entscheidet weiter CRM_Automatik.
+  repository_dispatch:
+    types: [mappe-eingegangen]
   workflow_dispatch:
     inputs:
       erzwingen:
