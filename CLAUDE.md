@@ -879,6 +879,37 @@ für Zeile:
 | Bericht der Automatik | „Nicht geschrieben“ nach dem Import, „Würde auslassen“ im Probelauf |
 | `CRM_ImportErrors` | jede Zeile einzeln, filterbar |
 
+### Ein Grund ohne Namen ist noch keine Auskunft
+
+Dieselbe Lehre eine Ebene tiefer, gelernt am 22.10.2026. Im Bericht stand
+
+    4× Schritt 10: Nicht gefunden (99917944, 99917960 …) — Zeile 14, 15, 16, 25
+
+Grund und Zeilen waren da, und trotzdem konnte niemand etwas damit
+anfangen: **welcher Kunde?** Die Antwort stand die ganze Zeit in derselben
+Excel-Zeile. Dafür gibt es die Klartextspalten (Quelle ohne Zielfeld,
+`Firmaname`), und die Vorschau hat sie auch gezeigt. Der **Import** nicht,
+und der Bericht kommt vom Import.
+
+Zwei Festlegungen daraus:
+
+1. **`PRUEFUNG.klartextAus()` ist die eine Stelle**, die ausrechnet, was
+   eine Zeile im Klartext ist. Vorschau und Import benutzen dieselbe. Zwei
+   Fassungen derselben Rechnung laufen auseinander, und hier hat die eine
+   schlicht gefehlt.
+2. **Angehängt wird zentral.** In `lauf.js` verdeckt die Zeilenschleife
+   `notiere`, damit jede Meldung des Schritts den Klartext trägt. An
+   fünfzehn Meldungen einzeln gedacht heisst: eine vergisst es, und es
+   fällt nach zwei Wochen auf.
+
+Im Profil stehen dafür `Firmaname` **und** `Kontaktemail` als Klartext zu
+Schritt 10. Beide kosten nichts, werden nie geschrieben, und aus
+„99917944 nicht gefunden" wird
+
+    99917944 (haacon hebetechnik gmbh · grimm@haacon.de)
+
+Das ist der Unterschied zwischen einer Zahl und einer Aufgabe.
+
 **Und für die Läufe von vorher?** Die stehen nicht in der Liste — dort
 landeten bis dahin nur Fehler. Ihre Antwort liegt trotzdem vor: jeder Lauf
 schreibt seit jeher ein **Vollprotokoll** als JSON in die

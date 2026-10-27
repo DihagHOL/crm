@@ -570,8 +570,12 @@ const AUTOMATIK = (() => {
       const g = m.get(k);
       g.anzahl++;
       if (g.zeilen.length < 25) g.zeilen.push(e.zeile);
+      /* Mit Klartext, wo es einen gibt. „99917944" ist eine Zahl,
+         „99917944 (haacon hebetechnik gmbh · grimm@haacon.de)" ist eine
+         Aufgabe: wer den Bericht liest, weiss ohne Rückgriff auf die Datei,
+         welcher Kunde fehlt. Die Angabe stand immer in derselben Zeile. */
       if (g.werte.size < 5 && e.schluessel != null && e.schluessel !== "")
-        g.werte.add(String(e.schluessel));
+        g.werte.add(String(e.schluessel) + (e.klartext ? ` (${e.klartext})` : ""));
     }
     return [...m.values()].sort((a, b) => b.anzahl - a.anzahl);
   }

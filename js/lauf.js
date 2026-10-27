@@ -311,7 +311,23 @@ const LAUF = (() => {
       // Prozessinstanzen, die es bei Phase 0 noch nicht gab (siehe unten).
       if (s.mode === "SetStage") await instanzenNachtragen(s, zu, blatt);
 
+      /* Klartext der Zeile (Firmaname, Kontakt …) an JEDE Meldung dieses
+         Schritts. Die Vorschau tat das längst, der Import nicht — und weil
+         der Bericht vom Import kommt, las sich dort jede Auslassung als
+         „99917944 nicht gefunden", obwohl die Firma in derselben
+         Excel-Zeile stand. Eine Zahl ist keine Aufgabe.
+
+         Angehängt wird zentral statt an fünfzehn Meldungen einzeln: genau
+         eine davon hatte es vergessen, und das fiel erst nach zwei Wochen
+         auf. `notiere` ist hier bewusst verdeckt, der äussere heisst
+         `notiereRoh`.                                                    */
+      const klartext = PRUEFUNG.klartextAus(zu);
+      const notiereRoh = notiere;
+
       for (const zeile of blatt.zeilen) {
+        const kt = klartext(zeile);
+        const notiere = e => notiereRoh(kt ? { klartext: kt, ...e } : e);
+
         if (s.mode === "SetStage") {
           const a = stufenAuftrag(s, zu, zeile);
           if (a.eintrag) notiere(a.eintrag); else auftraege.push(a.auftrag);
@@ -819,9 +835,15 @@ const LAUF = (() => {
 
   function protokoll(z, s, status, fehler, ort) {
     const a = z.auftrag;
+    /* Auch die Zeilen aus dem Stapel tragen ihren Klartext. Die 403er vom
+       15.10.2026 standen im Bericht als nackte Opp-IDs; wer sie las, wusste
+       nicht, um welchen Kunden es ging. Der Auftrag führt Zeile und
+       Zuordnungen mit, also ist die Angabe hier zu haben. */
+    const kt = PRUEFUNG.klartextAus(a.zuordnungen)(a.zeile);
     const e = {
       schritt: s.step, entitySet: s.entitySet, zeile: a.zeile._zeile,
       schluessel: a.sw, felder: a.felder, httpStatus: status,
+      ...(kt ? { klartext: kt } : {}),
       aktion: fehler ? "fehlgeschlagen"
             : z.art === "update" ? "aktualisiert" : "angelegt"
     };

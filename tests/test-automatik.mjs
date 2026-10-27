@@ -264,6 +264,30 @@ console.log("\nWelche Zeilen sind nicht durchgegangen, und warum");
   gleich(gv[0].anzahl, 300, "gezaehlt werden alle");
   pruefe(gv[0].zeilen.length <= 25, "aufgezaehlt hoechstens 25");
   pruefe(A.auslassungsSatz(gv[0]).endsWith("…"), "und der Rest wird angedeutet");
+
+  /* 22.10.2026: im Bericht stand „99917944 nicht gefunden" und sonst
+     nichts. Wer das liest, weiss nicht, welcher Kunde fehlt. Firmaname und
+     Kontakt stehen in derselben Excel-Zeile, also gehoeren sie daneben. */
+  const mitNamen = A.auslassungen([
+    { aktion: "uebersprungen", schritt: 10, zeile: 14, schluessel: "99917944",
+      klartext: "haacon hebetechnik gmbh · grimm@haacon.de",
+      meldung: "Nicht gefunden – Zeile wird in allen Folgeschritten übersprungen" },
+    { aktion: "uebersprungen", schritt: 10, zeile: 25, schluessel: "99917960",
+      klartext: "FBS Industry GmbH & Co. KG · sjacob@fbs-industry.de",
+      meldung: "Nicht gefunden – Zeile wird in allen Folgeschritten übersprungen" }
+  ]);
+  const s2 = A.auslassungsSatz(mitNamen[0]);
+  gleich(mitNamen.length, 1, "derselbe Grund bleibt EINE Gruppe, trotz zweier Firmen");
+  pruefe(/99917944 \(haacon hebetechnik gmbh · grimm@haacon\.de\)/.test(s2),
+    "der Satz nennt Nummer, Firma und Kontakt");
+  pruefe(/FBS Industry/.test(s2), "und die zweite Firma auch");
+
+  // Ohne Klartext bleibt es bei der nackten Nummer, nicht bei leeren Klammern.
+  const ohne = A.auslassungen([
+    { aktion: "uebersprungen", schritt: 10, zeile: 14, schluessel: "99917944",
+      meldung: "Nicht gefunden" }]);
+  pruefe(!/\(\)/.test(A.auslassungsSatz(ohne[0])),
+    "ohne Klartext stehen keine leeren Klammern da");
 }
 
 console.log("\nEine Datei, die nach ihrem Import noch angefasst wurde");

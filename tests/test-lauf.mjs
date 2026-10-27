@@ -1019,5 +1019,58 @@ console.log("\nEine verlorene Chance ohne lesbare Statusgruende: Fehler, nicht A
     "und wird als wiedereroeffnet protokolliert");
 }
 
+console.log("\nJede Meldung des Imports traegt den Klartext ihrer Zeile");
+{
+  /* Am 22.10.2026 stand im Bericht „99917944 nicht gefunden" und sonst
+     nichts. Wer das las, wusste nicht, welcher Kunde fehlt, obwohl der
+     Firmaname in derselben Excel-Zeile stand: die Vorschau rechnete ihn
+     aus, der Import nicht. Eine Zahl ist keine Aufgabe.               */
+  const { LAUF, EXCEL } = baueLauf(
+    () => antwort([{ status: 204 }, { status: 204, ort: `https://x/opportunities(${GUID_NEU})` }]));
+
+  const k = kulisse(EXCEL);
+  k.mappe.blaetter[0] = EXCEL.blattAus("Anfragen", [
+    ["Firma", "Firmaname", "Kontaktemail"],
+    [99917944, "haacon hebetechnik gmbh", "grimm@haacon.de"],   // Zeile 2: unbekannt
+    [10042, "Bekannt GmbH", "a@bekannt.de"]                     // Zeile 3: aufloesbar
+  ]);
+  k.profil.zuordnungen.KONTO = [
+    { aktiv: true, sourceColumn: "Firma", targetField: "dag_dihag_kdnr",
+      targetType: "Int", istSchluessel: true, writePolicy: "Always" },
+    // Quelle ohne Ziel = Klartext. Genau so steht es im echten Profil.
+    { aktiv: true, sourceColumn: "Firmaname", targetType: "String" },
+    { aktiv: true, sourceColumn: "Kontaktemail", targetType: "String" }
+  ];
+  k.profil.schritte = [{ step: 10, entitySet: "accounts", sourceSheet: "Anfragen",
+    mappingKey: "KONTO", mode: "LookupOnly", aktiv: true }];
+  k.aufl.idFelder.set("accounts", "accountid");
+  k.aufl.treffer.set("accounts|dag_dihag_kdnr", new Map([
+    ["10042", [{ dag_dihag_kdnr: 10042, accountid: "11111111-0000-0000-0000-000000000001" }]]]));
+
+  const e = await LAUF.ausfuehren({ profil: k.profil, mappe: k.mappe, aufl: k.aufl,
+                                    werte: {}, entscheidungen: null });
+  const fehlt = e.eintraege.find(x => x.schritt === 10 && x.zeile === 2);
+
+  pruefe(fehlt && fehlt.aktion === "uebersprungen",
+    "die unbekannte Kundennummer wird ausgelassen wie bisher");
+  pruefe(fehlt && /haacon hebetechnik gmbh/.test(fehlt.klartext || ""),
+    `die Meldung traegt den Firmanamen (war: ${JSON.stringify(fehlt && fehlt.klartext)})`);
+  pruefe(fehlt && /grimm@haacon\.de/.test(fehlt.klartext || ""),
+    "und den Kontakt");
+
+  const ok = e.eintraege.find(x => x.schritt === 10 && x.zeile === 3);
+  pruefe(ok && ok.aktion === "unveraendert" && /Bekannt GmbH/.test(ok.klartext || ""),
+    "auch die aufgeloeste Zeile fuehrt ihn, nicht nur die ausgelassene");
+
+  /* Ohne Klartextspalten darf kein leeres Feld entstehen: eine Meldung mit
+     `klartext: ""` sieht im Bericht aus wie ein verlorener Name. */
+  const zwei = baueLauf(() => antwort([{ status: 204 }]));
+  const k2 = kulisse(zwei.EXCEL);
+  const e2 = await zwei.LAUF.ausfuehren({ profil: k2.profil, mappe: k2.mappe,
+    aufl: k2.aufl, werte: {}, entscheidungen: null });
+  pruefe(e2.eintraege.every(x => !("klartext" in x)),
+    "ohne Klartextspalten steht das Feld gar nicht erst da");
+}
+
 console.log(fehler ? `\n${fehler} Pruefung(en) fehlgeschlagen.` : "\nAlle Pruefungen bestanden.");
 process.exit(fehler ? 1 : 0);

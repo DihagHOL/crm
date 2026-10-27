@@ -208,6 +208,29 @@ const PRUEFUNG = (() => {
       t === wert || labels.some(l => l.includes(t.toLowerCase())));
   }
 
+  /** Klartext einer Zeile: die Spalten, die nur zum Lesen da sind.
+   *
+   *  Spalten mit Quelle, aber ohne Zielfeld, sind Klartext für Meldungen
+   *  und Vorschau — im Profil steht das bei `Firmaname` ausdrücklich so.
+   *  Ohne sie steht im Bericht nur eine Kundennummer, und wer ihn liest,
+   *  muss zurück in die Datei, um zu sehen, welche Firma gemeint ist.
+   *
+   *  Bis zum 27.10.2026 stand diese Rechnung **nur hier**, in der Vorschau.
+   *  Der Import kannte sie nicht, und weil der Bericht vom Import kommt,
+   *  las sich jede Auslassung als „99917944 nicht gefunden". Die Firma
+   *  stand die ganze Zeit in derselben Excel-Zeile. Deshalb liegt sie
+   *  jetzt an einer Stelle, und `lauf.js` benutzt dieselbe.
+   *
+   *  @param {object[]} zuordnungen Zuordnungen des Schritts
+   *  @returns {(zeile:object) => string} */
+  function klartextAus(zuordnungen = []) {
+    const spalten = zuordnungen
+      .filter(k => k.aktiv && k.sourceColumn && !k.targetField)
+      .map(k => k.sourceColumn);
+    return zeile => spalten
+      .map(sp => zeile?.[sp]).filter(v => !leer(v)).map(String).join(" · ");
+  }
+
   /** Statusgrund eines Bestandsdatensatzes, aus der Auflösung.
    *  @returns {{wert:number, label:string}|null} */
   function statusGrund(aufl, entitySet, bestand) {
@@ -349,11 +372,7 @@ const PRUEFUNG = (() => {
          Ohne sie steht im Fehlerbericht nur eine Kundennummer, und wer ihn
          liest, muss zurück in die Datei, um zu sehen, welche Firma gemeint
          ist (CLAUDE.md §14). */
-      const klartextSpalten = zu
-        .filter(k => k.aktiv && k.sourceColumn && !k.targetField)
-        .map(k => k.sourceColumn);
-      const klartext = zeile => klartextSpalten
-        .map(sp => zeile[sp]).filter(v => !leer(v)).map(String).join(" · ");
+      const klartext = klartextAus(zu);
 
       /* Nicht scharf geschaltete Modi zählen als übersprungen, nicht als
          „neu". Der Import überspringt sie (Win/Loss ist fachlich
@@ -709,5 +728,5 @@ const PRUEFUNG = (() => {
 
   return { lauf, zusammenfassung, ausschluss, ausgelassen, zusatzKonflikte, zustand,
            darfWiedereroeffnen, statusGrund, wiedereroeffnenUnklar,
-           unklarMeldung };
+           unklarMeldung, klartextAus };
 })();

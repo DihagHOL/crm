@@ -1,5 +1,53 @@
 # Session-Log
 
+## 27.10.2026 — Vier Anfragen ohne Kunden, und ein Bericht ohne Namen
+
+Nachfrage zu den vier Anfragen, die der Lauf vom 22.10. ausgelassen hat:
+gelöscht und deshalb nicht neu angelegt? Nein. Es hat sie nie gegeben.
+
+Schritt 10 sucht das Konto über die Kundennummer und legt keines an (§9).
+Findet er keins, fällt die Zeile aus allen Folgeschritten. Nur fehlte der
+Kunde gar nicht:
+
+| Konto | angelegt | Chancen | `dag_dihag_kdnr` |
+|---|---|---|---|
+| haacon hebetechnik gmbh | 07.10.2026 | 0 | leer |
+| FBS Industry GmbH & Co. KG | 20.10.2026 | 0 | leer |
+
+Zwei frisch angelegte Konten ohne Kundennummer. Timeline kennt sie
+(99917944, 99917960), das CRM nie: der Bereich 99910000–99919999 hat genau
+vier Konten, die höchste Nummer ist 99912150. **Von rund 5000 aktiven
+Konten haben 2826 gar keine Nummer**, das wiederholt sich also bei jedem
+neuen Kunden.
+
+**Der eigentliche Befund steckte im Bericht.** Dort stand nur
+„99917944 nicht gefunden". Welcher Kunde das ist, stand die ganze Zeit in
+derselben Excel-Zeile: das Profil führt `Firmaname` als Klartextspalte,
+und die Vorschau zeigt ihn auch. Der Import kannte die Rechnung nicht, und
+der Bericht kommt vom Import.
+
+Geändert:
+
+- `PRUEFUNG.klartextAus()` ist jetzt die eine Stelle, die den Klartext
+  einer Zeile bildet. Vorher stand sie nur in der Vorschau.
+- `lauf.js` hängt ihn **zentral** an: die Zeilenschleife verdeckt
+  `notiere`, damit keine der fünfzehn Meldungen ihn vergessen kann. Genau
+  eine hatte es, und es fiel nach zwei Wochen auf. Die Zeilen aus dem
+  Stapel bekommen ihn in `protokoll()`, über `auftrag.zuordnungen`.
+- Der Bericht zeigt ihn neben dem Schlüssel, ohne die Bündelung zu
+  zersprengen: der Grund bleibt die Gruppe, Firma und Kontakt stehen bei
+  den Beispielen.
+- `Kontaktemail` ist als zweite Klartextspalte zu Schritt 10 eingetragen,
+  in `CRM_FieldMappings` und in der Vorlage im Repository.
+
+Aus „99917944 nicht gefunden" wird damit
+„99917944 (haacon hebetechnik gmbh · grimm@haacon.de)". Das ist der
+Unterschied zwischen einer Zahl und einer Aufgabe.
+
+Nicht geändert: die beiden Kundennummern an den Konten. Das Schreiben in
+Dataverse ist mir in dieser Sitzung gesperrt, die Befehle liegen beim
+Anwender.
+
 ## 22.10.2026 — Acht feste Zeiten statt eines engen Takts
 
 Meldung: die Automatik erkenne die neue Mappe nicht. Sie erkennt sie. Es

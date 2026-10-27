@@ -123,6 +123,13 @@
         "TargetType": "String",
         "SortOrder": 20,
         "$hinweis": "Nur fuer Fehlermeldungen und Vorschau. Wird nicht ins CRM geschrieben."
+      },
+      {
+        "SourceColumn": "Kontaktemail",
+        "TargetField": null,
+        "TargetType": "String",
+        "SortOrder": 30,
+        "$hinweis": "Nur fuer Meldungen und Vorschau, wie Firmaname. Am 22.10.2026 lagen vier Anfragen an zwei unbekannten Kundennummern; im Bericht stand nur die Zahl. Firma UND Ansprechpartner machen daraus eine Aufgabe, der jemand nachgehen kann."
       }
     ],
     "CONTACT_STD": [
