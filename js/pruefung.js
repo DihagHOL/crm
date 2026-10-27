@@ -367,6 +367,25 @@ const PRUEFUNG = (() => {
         continue;
       }
 
+      /* Ein polymorpher Verweis, dessen Navigationsname nicht aus dem
+         Profil zu bestimmen ist, macht jede Zeile dieses Schrittes
+         unzuverlässig: die Bindung adressiert dann womöglich die falsche
+         Tabelle. Genau so sind am 27.10.2026 zwei Kontakte gescheitert,
+         als der Name noch aus der Reihenfolge der Metadaten kam. Einmal
+         melden und den Schritt sperren, wie beim fehlenden
+         Alternativschlüssel. */
+      const navFeld = zu.find(k => k.aktiv && k.targetField
+        && aufl.navUnklar?.has(`${s.entitySet}|${k.targetField}`));
+      if (navFeld) {
+        const meldung = aufl.navUnklar.get(`${s.entitySet}|${navFeld.targetField}`);
+        z.strukturfehler = meldung;
+        z.fehler++;
+        alleFehler.push({ schritt: s.step, feld: navFeld.targetField, meldung });
+        schritte.push(z);
+        for (const k of Object.keys(gesamt)) gesamt[k] += z[k];
+        continue;
+      }
+
       /* Spalten mit Quelle, aber ohne Zielfeld, sind Klartext für Meldungen
          und Vorschau – im Profil steht das bei `Firmaname` ausdrücklich so.
          Ohne sie steht im Fehlerbericht nur eine Kundennummer, und wer ihn

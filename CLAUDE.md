@@ -796,18 +796,54 @@ Lösung: `SecondPass = Ja` im Profil, `SecondPassFields =
 parentaccountid,primarycontactid`. Der Planer hängt dann einen reinen
 Update-Schritt ans Ende, der **ausschließlich** diese Felder sendet.
 
-**Polymorphe Lookups** (`customerid`, `regardingobjectid`, `ownerid`)
-brauchen den Zieltyp im Bindungsnamen. Für DIHAG derzeit nicht relevant — der
-Altflow nutzt die getrennten Felder `parentaccountid` und `parentcontactid`.
-Für spätere Profile:
+**Polymorphe Lookups brauchen den Zieltyp im Bindungsnamen**, und hier
+stand bis zum 27.10.2026 „für DIHAG derzeit nicht relevant". Das war
+falsch, seit Schritt 20 existiert:
+
+| Verweis | Ziele | schreibt das Profil? |
+|---|---|---|
+| `contact.parentcustomerid` | account, contact | **ja**, Schritt 20 |
+| `opportunity.customerid` | account, contact | nein (getrennte Felder) |
+
+Der Satz klang plausibel, weil der Altflow die getrennten Felder
+`parentaccountid` und `parentcontactid` nutzt. Dieses Profil tut das an der
+Verkaufschance auch, am Kontakt aber nicht: dort gibt es nur
+`parentcustomerid`, und der ist polymorph.
+
+**Was das gekostet hat.** `DV.navigation` legte Attribut → Navigationsname
+ab, und bei zwei Beziehungen gewann der letzte:
+
+```
+account -> parentcustomerid_account
+contact -> parentcustomerid_contact
+```
+
+Die Reihenfolge, in der Dataverse `ManyToOneRelationships` aufzählt, ist
+**nicht stabil**: dreimal dieselbe Abfrage, dreimal ein anderes Ergebnis.
+Fiel es auf `contact`, schrieb der Import
+`parentcustomerid_contact@odata.bind: /accounts(<Konto>)`, Dataverse suchte
+die Konto-GUID unter den Kontakten und antwortete `0x80040217: Entity
+'Contact' With Id = … Does Not Exist`. **Ob ein neuer Kontakt sein Konto
+bekam, war ein Münzwurf** — wochenlang gut gegangen, am 27.10.2026 zweimal
+nicht.
+
+Die Regel daraus: **wo Metadaten mehrere Antworten geben, ist die erste
+oder letzte keine Wahl, sondern ein Zufall.** `DV.navigation` legt deshalb
+je Attribut **und Zieltabelle** ab (`parentcustomerid@account`) und liefert
+einen pauschalen Namen nur dort, wo es genau eine Zieltabelle gibt.
+Welche gilt, sagt das Profil über `LookupEntitySet`; `AUFLOESUNG` löst das
+auf. Bleibt es mehrdeutig, wird der Schritt **gesperrt** (`navUnklar`,
+behandelt wie ein fehlender Alternativschlüssel) statt geraten.
+
+Für ein künftiges Profil, das `customerid` wirklich schreiben will, bleibt
+es dabei: das Mapping muss den Zieltyp mitführen, sonst ist nicht
+entscheidbar, ob eine Verkaufschance an einem Konto oder einem Kontakt
+hängt.
 
 ```json
 "customerid_account@odata.bind": "/accounts(dag_dihag_kdnr=10042)"
 "customerid_contact@odata.bind": "/contacts(emailaddress1='a.meier@kunde.de')"
 ```
-
-Das Mapping muss also eine Typspalte mitführen. Ohne die ist nicht
-entscheidbar, ob eine Verkaufschance an einem Konto oder einem Kontakt hängt.
 
 ---
 

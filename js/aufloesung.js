@@ -211,6 +211,9 @@ const AUFLOESUNG = (() => {
        sieht eine Regel, die nichts findet, genauso aus wie eine Regel, die
        nichts finden sollte. */
     const statusGruendeFehler = new Map();  // entitySet → Meldung
+    /* Polymorpher Verweis, dessen Navigationsname sich nicht aus dem
+       Profil bestimmen lässt. Sperrt den Schritt, statt zu raten. */
+    const navUnklar = new Map();        // "entitySet|feld" → Meldung
 
     /** Eine Abfrage vorbereiten, ausführen und protokollieren. */
     /** @param {boolean} [mehrfachErwartet] Mehrere Treffer je Wert sind
@@ -295,8 +298,35 @@ const AUFLOESUNG = (() => {
       // `cr570_technicalaudit_lookup@odata.bind` statt
       // `cr570_TechnicalAudit_lookup@odata.bind` – und Dataverse lehnt die
       // ganze Zeile ab.
+      /* Bei einem POLYMORPHEN Verweis liefert `DV.navigation` keinen
+         pauschalen Namen, weil es zwei gibt. Welcher gilt, sagt das
+         Profil: dort steht die Zieltabelle (`LookupEntitySet`). Genau
+         hier wird daraus der Name — und nicht aus der Reihenfolge, in der
+         Dataverse seine Beziehungen aufzählt. Siehe DV.navigation. */
       if (!navigation.has(s.entitySet) && zu.some(z => z.aktiv && z.targetType === "Lookup")) {
-        try { navigation.set(s.entitySet, await DV.navigation(s.entitySet)); }
+        try {
+          const roh = await DV.navigation(s.entitySet);
+          const karte = { ...(roh?.namen || {}) };
+          for (const z of zu) {
+            if (!z.aktiv || z.targetType !== "Lookup" || !z.targetField) continue;
+            const zl = roh?.mehrdeutig?.[z.targetField];
+            if (!zl) continue;                       // eindeutig, Name steht schon
+            const ln = z.lookupEntitySet
+              ? await DV.logischerName(z.lookupEntitySet).catch(() => null) : null;
+            const name = ln && roh.namen[`${z.targetField}@${ln}`];
+            if (name) { karte[z.targetField] = name; continue; }
+            /* Mehrdeutig und nicht auflösbar: raten wäre ein Münzwurf mit
+               dem Datenbestand. Der Schritt wird gesperrt, der Prüflauf
+               sagt warum. */
+            navUnklar.set(`${s.entitySet}|${z.targetField}`,
+              `${z.targetField} verweist auf mehrere Tabellen (${zl.join(", ")}). `
+              + `Zu „${z.lookupEntitySet || "ohne Angabe"}" aus dem Profil gibt es `
+              + "keine Beziehung, deshalb ist der Navigationsname für "
+              + "@odata.bind nicht bestimmbar. Ohne ihn adressiert die "
+              + "Bindung womöglich die falsche Tabelle.");
+          }
+          navigation.set(s.entitySet, karte);
+        }
         catch { navigation.set(s.entitySet, {}); }
       }
 
@@ -433,7 +463,7 @@ const AUFLOESUNG = (() => {
       }
     }
 
-    return { treffer, abfragen, idFelder, navigation, schluesselFehlt, zustandsFelder,
+    return { treffer, abfragen, idFelder, navigation, schluesselFehlt, navUnklar, zustandsFelder,
              statusGruende, statusGruendeFehler };
   }
 

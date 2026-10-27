@@ -514,5 +514,80 @@ console.log("\nScheitern die Statusgruende, behaelt die Auflösung den Grund");
   pruefe(gefragt === 0, "ohne Wiedereroeffnen-Regel keine Metadatenabfrage");
 }
 
+console.log("\nEin polymorpher Verweis wird nicht gewuerfelt");
+{
+  /* 27.10.2026, PROD: zwei Kontakte scheiterten mit „Entity 'Contact' With
+     Id = <Konto-GUID> Does Not Exist". `contact.parentcustomerid` hat zwei
+     Beziehungen (account und contact), DV.navigation behielt den LETZTEN,
+     und Dataverse liefert sie in wechselnder Reihenfolge — dreimal
+     dieselbe Abfrage, dreimal ein anderes Ergebnis. Ob ein neuer Kontakt
+     sein Konto bekam, war ein Muenzwurf. Welcher Name gilt, sagt das
+     Profil: dort steht die Zieltabelle.                                 */
+  const bauen = (mehrdeutig, lookupEntitySet) => {
+    const g = {
+      DV: {
+        alle: async () => [],
+        logischerName: async es => es.replace(/ies$/, "y").replace(/s$/, ""),
+        primaerId: async () => null,
+        felder: async () => ({}),
+        navigation: async () => ({
+          namen: {
+            "emailaddress1@x": "egal",
+            // der pauschale Eintrag FEHLT bei mehrdeutigen Attributen
+            ...(mehrdeutig ? {} : { parentcustomerid: "parentcustomerid_account" }),
+            "parentcustomerid@account": "parentcustomerid_account",
+            "parentcustomerid@contact": "parentcustomerid_contact"
+          },
+          mehrdeutig: mehrdeutig ? { parentcustomerid: ["account", "contact"] } : {}
+        }),
+        schluessel: async () => []
+      },
+      EXCEL: { blatt: (m, n) => m.blaetter.find(b => b.name === n) },
+      TRANSFORMS: { anwenden: w => ({ wert: w, unbekannt: [] }) },
+      MAPPING: { zugeordnet: () => undefined },
+      console
+    };
+    const src = readFileSync(join(wurzel, "js/aufloesung.js"), "utf8");
+    const A = new Function(...Object.keys(g), src + "; return AUFLOESUNG;")(...Object.values(g));
+    const profil = {
+      schritte: [{ step: 20, entitySet: "contacts", sourceSheet: "Anfragen",
+                   mappingKey: "C", mode: "Upsert", aktiv: true }],
+      zuordnungen: { C: [{ aktiv: true, sourceColumn: "Firma",
+        targetField: "parentcustomerid", targetType: "Lookup",
+        lookupEntitySet, lookupKeyField: "dag_dihag_kdnr" }] }
+    };
+    const mappe = { blaetter: [{ name: "Anfragen", anzahl: 1,
+      zeilen: [{ _zeile: 2, Firma: 99917944 }] }] };
+    return A.fuer(profil, mappe);
+  };
+
+  const a = await bauen(true, "accounts");
+  gleich(a.navigation.get("contacts").parentcustomerid, "parentcustomerid_account",
+    "das Profil nennt accounts, also gilt parentcustomerid_account");
+  pruefe(a.navUnklar.size === 0, "und nichts bleibt unklar");
+
+  // Dieselbe Mehrdeutigkeit, aber das Profil zeigt auf contacts.
+  const b = await bauen(true, "contacts");
+  gleich(b.navigation.get("contacts").parentcustomerid, "parentcustomerid_contact",
+    "zeigt das Profil auf contacts, gilt der andere Name");
+
+  /* Und wenn das Ziel zu keiner Beziehung passt, wird nicht geraten: der
+     Schritt wird gesperrt. Ein Muenzwurf mit dem Datenbestand ist
+     schlimmer als ein Abbruch. */
+  const c = await bauen(true, "systemusers");
+  pruefe(c.navUnklar.has("contacts|parentcustomerid"),
+    "ein unpassendes Ziel macht den Schritt unklar statt zufaellig");
+  pruefe(/mehrere Tabellen/.test(c.navUnklar.get("contacts|parentcustomerid") || "")
+      && /account/.test(c.navUnklar.get("contacts|parentcustomerid") || ""),
+    "und die Meldung nennt die Tabellen, zwischen denen es zu waehlen gaebe");
+  pruefe(!("parentcustomerid" in c.navigation.get("contacts")),
+    "ohne klares Ziel steht gar kein Name da");
+
+  // Eindeutige Verweise gehen weiter wie bisher.
+  const d = await bauen(false, "accounts");
+  gleich(d.navigation.get("contacts").parentcustomerid, "parentcustomerid_account",
+    "ein eindeutiger Verweis braucht die Umwege nicht");
+}
+
 console.log(fehler ? `\n${fehler} Prüfung(en) fehlgeschlagen.` : "\nAlle Prüfungen bestanden.");
 process.exit(fehler ? 1 : 0);

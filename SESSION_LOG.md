@@ -48,6 +48,52 @@ Nicht geändert: die beiden Kundennummern an den Konten. Das Schreiben in
 Dataverse ist mir in dieser Sitzung gesperrt, die Befehle liegen beim
 Anwender.
 
+**Nach den Nummern: der Lauf brachte zwei Fehler, und darunter lag ein
+Münzwurf.** Die vier Anfragen kamen herein, mit Konto, Produktlinie,
+Positionen und echter Stufe. Nur die beiden neuen Kontakte scheiterten:
+
+```
+0x80040217: Entity 'Contact' With Id = f9937060-… Does Not Exist
+```
+
+Die GUID war die des **Kontos**. `contact.parentcustomerid` ist polymorph
+und hat zwei Beziehungen (`parentcustomerid_account`,
+`parentcustomerid_contact`). `DV.navigation` legte Attribut →
+Navigationsname ab, also gewann der letzte — und die Reihenfolge, in der
+Dataverse `ManyToOneRelationships` aufzählt, ist nicht stabil: dreimal
+dieselbe Abfrage, dreimal ein anderes Ergebnis. Fiel es auf `contact`,
+adressierte die Bindung die Kontakttabelle mit einer Konto-GUID.
+
+Ob ein neuer Kontakt sein Konto bekam, war also Glück. Wochenlang ist es
+gut gegangen (der Kontakt vom 22.10. hängt an einem echten Konto), heute
+zweimal nicht. Warum es wochenlang hielt, kann ich nicht belegen; dass die
+Abhängigkeit da war, schon.
+
+Nachgezählt, wie weit das reicht: von allen Verweisen der vier Zieltabellen
+sind genau zwei polymorph, und nur `contact.parentcustomerid` wird
+geschrieben. `opportunity.customerid` ist es auch, das Profil nutzt dort
+aber die getrennten Felder.
+
+Geändert:
+
+- `DV.navigation` liest `ReferencedEntity` mit und legt je Attribut **und
+  Zieltabelle** ab. Einen pauschalen Namen gibt es nur bei genau einer
+  Zieltabelle, sonst wäre er geraten. Der Zwischenspeicher-Schlüssel heisst
+  jetzt `nav2|`, damit ein alter Eintrag der alten Form nicht als gültig
+  gelesen wird.
+- `AUFLOESUNG` wählt den Namen über das `LookupEntitySet` aus dem Profil.
+- Bleibt es mehrdeutig, sperrt der Prüflauf den Schritt mit Grund
+  (`navUnklar`), genau wie bei einem fehlenden Alternativschlüssel.
+
+CLAUDE.md §9 sagte zu polymorphen Verweisen „für DIHAG derzeit nicht
+relevant". Falsch, seit Schritt 20 existiert: an der Verkaufschance nutzt
+das Profil die getrennten Felder, am Kontakt gibt es nur
+`parentcustomerid`. Steht korrigiert.
+
+Merksatz: **wo Metadaten mehrere Antworten geben, ist die erste oder letzte
+keine Wahl, sondern ein Zufall.** Dritter Fall dieser Art in vier Wochen,
+nach dem Primärschlüssel und den Statusgründen.
+
 ## 22.10.2026 — Acht feste Zeiten statt eines engen Takts
 
 Meldung: die Automatik erkenne die neue Mappe nicht. Sie erkennt sie. Es

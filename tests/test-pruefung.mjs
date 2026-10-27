@@ -619,6 +619,29 @@ console.log("\nFehlen die Beschriftungen, ist die Lage unklar und nicht nein");
     "die Meldung nennt Zahl, Ursache und den Weg heraus");
 }
 
+console.log("\nEin unklarer polymorpher Verweis sperrt den Schritt");
+{
+  /* Lieber ein Abbruch mit Grund als eine Bindung, die vielleicht die
+     falsche Tabelle adressiert. Dieselbe Behandlung wie bei einem
+     Alternativschluessel, den es in der Umgebung nicht gibt. */
+  const p = { schritte: [schritt()], zuordnungen };
+
+  // Ein Feld, das dieser Schritt gar nicht schreibt, darf ihn nicht sperren.
+  const a = { ...aufl, navUnklar: new Map([["opportunities|ownerid", "unklar"]]) };
+  const ohne = PRUEFUNG.lauf(p, mappe, a, {}, null);
+  pruefe(!ohne.schritte[0].strukturfehler,
+    "ein Feld, das der Schritt nicht schreibt, sperrt ihn nicht");
+
+  const a2 = { ...aufl, navUnklar: new Map([["opportunities|name",
+    "name verweist auf mehrere Tabellen (account, contact)."]]) };
+  const mit = PRUEFUNG.lauf(p, mappe, a2, {}, null);
+  pruefe(!!mit.schritte[0].strukturfehler,
+    "ein Feld, das er schreibt, sperrt ihn");
+  pruefe(mit.fehler.some(f => /mehrere Tabellen/.test(f.meldung || "")),
+    "und der Grund steht im Bericht, einmal und nicht je Zeile");
+  gleich(mit.gesamt.neu, 0, "geschrieben wird in diesem Schritt nichts mehr");
+}
+
 console.log("\nDie Regel darf nicht davon abhaengen, wer fragt");
 {
   /* Die wahre Ursache des 15.10.2026, gefunden erst an der Notiz, die der

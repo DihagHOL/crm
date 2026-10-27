@@ -415,18 +415,59 @@ const DV = (() => {
    *
    *  @returns {Promise<Object<string,string>>} Attributname → Navigationsname */
   async function navigation(entitySet) {
-    const k = "nav|" + entitySet;
+    /* „nav2", nicht „nav": die Form hat sich am 27.10.2026 geändert (flach
+       → {namen, mehrdeutig}). Ein Eintrag der alten Form im
+       sessionStorage eines offenen Browserfensters würde sonst als
+       gültige Antwort gelesen, und dann gäbe es gar keine
+       Navigationsnamen mehr. */
+    const k = "nav2|" + entitySet;
     if (_meta[k]) return _meta[k];
     const ln = await logischerName(entitySet);
     const d = await call(`/EntityDefinitions(LogicalName='${ln}')/ManyToOneRelationships`
-      + `?$select=ReferencingAttribute,ReferencingEntityNavigationPropertyName`);
-    const out = {};
-    for (const r of d?.value || [])
-      if (r.ReferencingAttribute && r.ReferencingEntityNavigationPropertyName)
-        out[r.ReferencingAttribute] = r.ReferencingEntityNavigationPropertyName;
-    _meta[k] = out;
+      + `?$select=ReferencingAttribute,ReferencedEntity`
+      + `,ReferencingEntityNavigationPropertyName`);
+
+    /* Hier stand bis zum 27.10.2026 `out[attribut] = navigationsname`, und
+       damit gewann der LETZTE. Bei einem polymorphen Verweis ist „der
+       letzte" aber Zufall: `contact.parentcustomerid` hat zwei Beziehungen,
+
+         account -> parentcustomerid_account
+         contact -> parentcustomerid_contact
+
+       und Dataverse liefert sie in wechselnder Reihenfolge — dreimal
+       dieselbe Abfrage, dreimal ein anderes Ergebnis (gemessen). Fiel es
+       auf `contact`, schrieb der Import
+       `parentcustomerid_contact@odata.bind: /accounts(<Konto>)`, Dataverse
+       suchte die Konto-GUID unter den Kontakten und antwortete
+
+         0x80040217: Entity 'Contact' With Id = … Does Not Exist
+
+       Ob ein neuer Kontakt sein Konto bekam, war ein Münzwurf. Am
+       27.10.2026 fiel er zweimal falsch.
+
+       Deshalb: je Attribut UND Zieltabelle ablegen. Einen pauschalen
+       Eintrag gibt es nur, wo der Verweis genau eine Zieltabelle hat —
+       sonst wäre er geraten, und Raten ist genau der Fehler. Wer den Namen
+       braucht, nennt das Ziel (`AUFLOESUNG` tut das aus dem Profil). */
+    const namen = {};
+    const ziele = {};
+    for (const r of d?.value || []) {
+      const attr = r.ReferencingAttribute;
+      const nav = r.ReferencingEntityNavigationPropertyName;
+      if (!attr || !nav) continue;
+      (ziele[attr] = ziele[attr] || []).push(r.ReferencedEntity || "?");
+      if (r.ReferencedEntity) namen[`${attr}@${r.ReferencedEntity}`] = nav;
+      namen[attr] = nav;
+    }
+    const mehrdeutig = {};
+    for (const [attr, zl] of Object.entries(ziele)) {
+      if (zl.length < 2) continue;
+      mehrdeutig[attr] = zl;
+      delete namen[attr];
+    }
+    _meta[k] = { namen, mehrdeutig };
     metaSichern();
-    return out;
+    return _meta[k];
   }
 
   /** Alternativschlüssel einer Tabelle.
