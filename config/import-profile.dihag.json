@@ -244,9 +244,10 @@
         "LookupKeyField": "emailaddress1",
         "Transform": "trim|lower|empty2null",
         "SortOrder": 60,
-        "WritePolicy": "OnCreateOnly",
+        "WritePolicy": "OnlyIfEmpty",
         "OnLookupFail": "WarnAndSkipField",
-        "$onLookupFail": "dummy@dihag.com erzeugt keinen Kontakt (Schritt 20, SkipOnValues). Dann darf Schritt 30 auch nicht darauf verweisen - das Feld bleibt leer, die Zeile wird geschrieben (docs/06)."
+        "$onLookupFail": "dummy@dihag.com erzeugt keinen Kontakt (Schritt 20, SkipOnValues). Dann darf Schritt 30 auch nicht darauf verweisen - das Feld bleibt leer, die Zeile wird geschrieben (docs/06).",
+        "$writePolicy": "Bis 29.10.2026 OnCreateOnly, mit der Begruendung, der Kontakt gehoere nach dem Anlegen dem CRM. Dann entstanden am 27.10. vier Anfragen ohne Kontakt, weil Schritt 20 im selben Lauf gescheitert war - und OnCreateOnly haette das Feld nie wieder gefuellt. OnlyIfEmpty schliesst die Luecke und ueberschreibt trotzdem nichts: gezaehlt am 29.10. haben von 1700 Anfragen 34 keinen Kontakt, davon sind genau diese vier offen."
       },
       {
         "SourceColumn": null,

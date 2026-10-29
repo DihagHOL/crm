@@ -1,5 +1,42 @@
 # Session-Log
 
+## 29.10.2026 — Das Fenster war wieder zu eng
+
+Frage: warum läuft die Mappe von heute nicht automatisch durch? Antwort:
+sie hatte noch keinen Termin. Geliefert um 06:00, letzter Lauf um 00:15,
+Frage kam um 07:02.
+
+Beim Nachsehen fiel aber auf, dass `CRM_Automatik` inzwischen auf
+`Wochentage = Do` und `BisUhr = 14` stand. Mit acht erbetenen Zeiten am Tag
+(02:17, 05:17, 08:17, 11:17, 14:17, 17:17, 20:17, 23:17 deutscher Zeit)
+liegen vier im Fenster, und bei der gemessenen Verspätung bleiben **drei
+brauchbare**. Fallen die ungünstig, wartet die Mappe eine ganze Woche.
+Genau davor warnt der Befund vom 06.10. Jetzt wieder offen: `BisUhr = 23`,
+`Wochentage = täglich`. Das kostet nichts, weil ein Lauf ausserhalb des
+Donnerstags nichts anstehen findet.
+
+**Die Umstellung des Zeitplans hat sich gelohnt**, gemessen über die sieben
+Läufe seit dem 27.10.:
+
+| | vorher (`*/15`) | jetzt (acht feste Zeiten) |
+|---|---|---|
+| Verspätung im Median | 5 h 48 | **1 h 27** |
+| größte | 7 h 33 | **2 h 37** |
+
+**Und der Münzwurf von vorgestern ist beseitigt.** Beide Kontakte stehen
+seit dem 29.10. um 00:16 im CRM, jeder am richtigen Konto. Angelegt hat sie
+ein planmässiger Lauf, ohne Zutun.
+
+Offen geblieben war `parentcontactid` an 7482, 7483, 7484 und 7498: das
+Feld stand auf `OnCreateOnly`, und die vier entstanden am 27.10. ohne
+Kontakt, weil Schritt 20 im selben Lauf scheiterte. `OnCreateOnly` hätte es
+nie wieder gefüllt. Seit heute `OnlyIfEmpty` — schliesst die Lücke,
+überschreibt nichts. Vorher nachgezählt: von 1700 Anfragen haben 34 keinen
+Kontakt, davon sind genau diese vier offen. Die Umstellung berührt also
+vier Datensätze und nicht das halbe CRM.
+
+Merksatz: **`OnCreateOnly` schützt gegen Übersteuern, nicht gegen Lücken.**
+
 ## 27.10.2026 — Vier Anfragen ohne Kunden, und ein Bericht ohne Namen
 
 Nachfrage zu den vier Anfragen, die der Lauf vom 22.10. ausgelassen hat:

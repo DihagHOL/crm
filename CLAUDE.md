@@ -665,6 +665,24 @@ Verbindungsbenutzer des Altflows stehen. Der Schutz aus Review B2 gilt
 weiter, aber als Sichtbarkeit — der Prüfbericht nennt `ownerid` mit Anzahl,
 bevor etwas passiert.
 
+`parentcontactid` **war** `OnCreateOnly` und ist seit dem 29.10.2026
+`OnlyIfEmpty`. Die Begründung für `OnCreateOnly` war richtig und reichte
+trotzdem nicht: am 27.10.2026 entstanden vier Anfragen **ohne** Kontakt,
+weil Schritt 20 im selben Lauf gescheitert war. `OnCreateOnly` hätte das
+Feld nie wieder gefüllt, und zwar still — die Anfrage ist ja da, nur ihr
+Ansprechpartner fehlt für immer.
+
+`OnlyIfEmpty` ist hier das genauere Werkzeug: es schliesst die Lücke und
+überschreibt trotzdem nichts, was ein Mensch im CRM gesetzt hat. Die
+Reichweite war vor der Änderung nachgezählt, und das gehört zu so einer
+Entscheidung dazu: von 1700 Anfragen mit Timeline-Kennung haben **34**
+keinen Kontakt, und davon sind **genau diese vier offen**. Eine Umstellung,
+die nach „alle Altdaten anfassen" klingt, berührt also vier Datensätze.
+
+Merksatz: **`OnCreateOnly` schützt gegen Übersteuern, nicht gegen Lücken.**
+Wo ein Feld beim Anlegen leer bleiben kann, weil ein früherer Schritt
+scheiterte, ist `OnlyIfEmpty` die ehrlichere Richtlinie.
+
 ---
 
 ## 9. Importreihenfolge
