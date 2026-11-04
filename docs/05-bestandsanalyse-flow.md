@@ -224,7 +224,7 @@ oder ob die Spalten fachlich nicht gebraucht werden.
 | Wert | Fundstelle |
 |---|---|
 | Währungs-GUID `be7f5393-3f5d-ed11-9561-0022489c8366` | Anlage der Verkaufschance |
-| Empfänger `boehmer@dihag.com` | Fehlermeldung |
+| Empfänger `fachbereich@dihag.com` | Fehlermeldung |
 | Hilfsmappen-Datei-ID | 6 Aktionen |
 | SharePoint-Bibliotheks-GUID | Auslöser |
 

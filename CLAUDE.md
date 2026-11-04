@@ -88,6 +88,7 @@ nicht startet oder Daten zerstört.
 | 10 | **Alle Texte der Oberfläche auf Deutsch.** Code, Kommentare und Commit-Messages ebenfalls Deutsch. | Fachanwender im Haus. |
 | 11 | **Kopfzeilen beim Einlesen trimmen**, Zuordnung gegen die normalisierte Fassung. | `Breite (mm) ` und `Höhe (mm) ` haben Leerzeichen am Ende. Exakter Vergleich träfe nie. |
 | 12 | **Kein Datensatz wird geschrieben, ohne dass er im Protokoll landet.** Auch übersprungene und gewarnte Zeilen. | Der Altflow kann nicht beantworten, was er getan hat. Das ist der Hauptgrund für den Neubau. |
+| 13 | **Keine echten Personendaten in committete Dateien.** Weder in Doku, Session-Log, Kommentaren noch Tests: keine Namen, keine Mailadressen von Kunden, Lieferanten oder Kolleginnen und Kollegen. Platzhalter wie `ansprechpartner@kunde-a.de` tun dasselbe. | Das Repo ist öffentlich, **und Pages liefert es aus** — `CLAUDE.md`, `SESSION_LOG.md` und `docs/` sind unter der Live-Adresse abrufbar. `.gitignore` kannte die Regel für CSV-Berichte; am 04.11.2026 standen trotzdem vier echte Adressen und zwei Kundennamen in Prosa und Tests. Rohdaten gehören nach SharePoint (§1). |
 
 ---
 
@@ -468,8 +469,8 @@ Dataverse vergleicht Zeichenketten **ohne Rücksicht auf Gross- und
 Kleinschreibung.** Diese Abfrage liefert einen Treffer:
 
 ```
-systemusers?$filter=internalemailaddress eq 'holger.kappelt@schmie-guss.de'
-→ Holger.Kappelt@Schmie-guss.de
+systemusers?$filter=internalemailaddress eq 'm.beispiel@werk-guss.de'
+→ M.Beispiel@Werk-guss.de
 ```
 
 Gesucht klein, zurück gross. Phase 0 legte den Treffer unter der
@@ -960,7 +961,7 @@ Im Profil stehen dafür `Firmaname` **und** `Kontaktemail` als Klartext zu
 Schritt 10. Beide kosten nichts, werden nie geschrieben, und aus
 „99917944 nicht gefunden" wird
 
-    99917944 (haacon hebetechnik gmbh · grimm@haacon.de)
+    99917944 (Kunde A GmbH · ansprechpartner@kunde-a.de)
 
 Das ist der Unterschied zwischen einer Zahl und einer Aufgabe.
 

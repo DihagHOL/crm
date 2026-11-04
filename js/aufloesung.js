@@ -77,9 +77,9 @@ const AUFLOESUNG = (() => {
   /** Vergleichsform eines Schlüsselwerts.
    *
    *  Dataverse vergleicht Zeichenketten **ohne** Rücksicht auf Gross- und
-   *  Kleinschreibung. `internalemailaddress eq 'holger.kappelt@schmie-guss.de'`
+   *  Kleinschreibung. `internalemailaddress eq 'm.beispiel@werk-guss.de'`
    *  findet den Benutzer — zurück kommt er aber als
-   *  `Holger.Kappelt@Schmie-guss.de`.
+   *  `M.Beispiel@Werk-guss.de`.
    *
    *  Die Auflösung legte ihn unter DIESER Schreibweise ab und suchte ihn
    *  danach kleingeschrieben, weil die Spalte `Mitarbeiter` durch

@@ -530,7 +530,7 @@ console.log("\nDie Datei schreibt anders als Dataverse");
 {
   /* Der Fall, der den Besitzer kostete: die Spalte Mitarbeiter laeuft
      durch `trim|lower`, Dataverse fuehrt die Adresse aber als
-     `Holger.Kappelt@Schmie-guss.de`. Die Abfrage FAND den Benutzer -
+     `M.Beispiel@Werk-guss.de`. Die Abfrage FAND den Benutzer -
      Dataverse vergleicht ohne Ruecksicht auf Schreibweise - und die
      Auflösung legte ihn unter der zurueckgemeldeten Schreibweise ab.
      Gesucht wurde danach kleingeschrieben. Ergebnis: "nicht vorhanden"
@@ -1031,7 +1031,7 @@ console.log("\nJede Meldung des Imports traegt den Klartext ihrer Zeile");
   const k = kulisse(EXCEL);
   k.mappe.blaetter[0] = EXCEL.blattAus("Anfragen", [
     ["Firma", "Firmaname", "Kontaktemail"],
-    [99917944, "haacon hebetechnik gmbh", "grimm@haacon.de"],   // Zeile 2: unbekannt
+    [99917944, "Kunde A GmbH", "ansprechpartner@kunde-a.de"],   // Zeile 2: unbekannt
     [10042, "Bekannt GmbH", "a@bekannt.de"]                     // Zeile 3: aufloesbar
   ]);
   k.profil.zuordnungen.KONTO = [
@@ -1053,9 +1053,9 @@ console.log("\nJede Meldung des Imports traegt den Klartext ihrer Zeile");
 
   pruefe(fehlt && fehlt.aktion === "uebersprungen",
     "die unbekannte Kundennummer wird ausgelassen wie bisher");
-  pruefe(fehlt && /haacon hebetechnik gmbh/.test(fehlt.klartext || ""),
+  pruefe(fehlt && /Kunde A GmbH/.test(fehlt.klartext || ""),
     `die Meldung traegt den Firmanamen (war: ${JSON.stringify(fehlt && fehlt.klartext)})`);
-  pruefe(fehlt && /grimm@haacon\.de/.test(fehlt.klartext || ""),
+  pruefe(fehlt && /ansprechpartner@kunde-a\.de/.test(fehlt.klartext || ""),
     "und den Kontakt");
 
   const ok = e.eintraege.find(x => x.schritt === 10 && x.zeile === 3);

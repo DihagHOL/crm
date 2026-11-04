@@ -571,7 +571,7 @@ const AUTOMATIK = (() => {
       g.anzahl++;
       if (g.zeilen.length < 25) g.zeilen.push(e.zeile);
       /* Mit Klartext, wo es einen gibt. „99917944" ist eine Zahl,
-         „99917944 (haacon hebetechnik gmbh · grimm@haacon.de)" ist eine
+         „99917944 (Kunde A GmbH · ansprechpartner@kunde-a.de)" ist eine
          Aufgabe: wer den Bericht liest, weiss ohne Rückgriff auf die Datei,
          welcher Kunde fehlt. Die Angabe stand immer in derselben Zeile. */
       if (g.werte.size < 5 && e.schluessel != null && e.schluessel !== "")

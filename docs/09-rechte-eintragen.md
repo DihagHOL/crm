@@ -21,7 +21,7 @@ Drei sind Pflicht, drei optional.
 | Feld | Pflicht | Was hinein gehört |
 |---|---|---|
 | `Title` | ja | Die E-Mail-Adresse. Ist bei euch als „Konto“ beschriftet. |
-| `UserEmail` | **ja** | Anmeldeadresse, **klein geschrieben** — z. B. `boehmer@dihag.com`. Danach wird abgeglichen. |
+| `UserEmail` | **ja** | Anmeldeadresse, **klein geschrieben** — z. B. `fachbereich@dihag.com`. Danach wird abgeglichen. |
 | `App` | **ja** | `crm`. `*` würde für alle Apps gelten — dafür ist hier keiner gedacht. |
 | `Role` | **ja** | `viewer`, `editor` oder `admin`. Siehe Tabelle unten. |
 | `UserDisplayName` | nein | Klarname, nur zur Anzeige |
@@ -58,9 +58,9 @@ Oder startet die Fachabteilung selbst.
 
 | Title | UserEmail | App | Role | Notes |
 |---|---|---|---|---|
-| boehmer@dihag.com | `boehmer@dihag.com` | `crm` | `editor` | Startet den wöchentlichen Import |
+| fachbereich@dihag.com | `fachbereich@dihag.com` | `crm` | `editor` | Startet den wöchentlichen Import |
 | fedorov@dihag.com | `fedorov@dihag.com` | `crm` | `admin` | Betreuung der Schnittstelle |
-| mitto@dihag.com | `mitto@dihag.com` | `crm` | `viewer` | Sieht Läufe und Protokolle |
+| mitlesend@dihag.com | `mitlesend@dihag.com` | `crm` | `viewer` | Sieht Läufe und Protokolle |
 
 ---
 

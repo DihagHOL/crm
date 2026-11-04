@@ -270,17 +270,17 @@ console.log("\nWelche Zeilen sind nicht durchgegangen, und warum");
      Kontakt stehen in derselben Excel-Zeile, also gehoeren sie daneben. */
   const mitNamen = A.auslassungen([
     { aktion: "uebersprungen", schritt: 10, zeile: 14, schluessel: "99917944",
-      klartext: "haacon hebetechnik gmbh · grimm@haacon.de",
+      klartext: "Kunde A GmbH · ansprechpartner@kunde-a.de",
       meldung: "Nicht gefunden – Zeile wird in allen Folgeschritten übersprungen" },
     { aktion: "uebersprungen", schritt: 10, zeile: 25, schluessel: "99917960",
-      klartext: "FBS Industry GmbH & Co. KG · sjacob@fbs-industry.de",
+      klartext: "Kunde B GmbH & Co. KG · ansprechpartner@kunde-b.de",
       meldung: "Nicht gefunden – Zeile wird in allen Folgeschritten übersprungen" }
   ]);
   const s2 = A.auslassungsSatz(mitNamen[0]);
   gleich(mitNamen.length, 1, "derselbe Grund bleibt EINE Gruppe, trotz zweier Firmen");
-  pruefe(/99917944 \(haacon hebetechnik gmbh · grimm@haacon\.de\)/.test(s2),
+  pruefe(/99917944 \(Kunde A GmbH · ansprechpartner@kunde-a\.de\)/.test(s2),
     "der Satz nennt Nummer, Firma und Kontakt");
-  pruefe(/FBS Industry/.test(s2), "und die zweite Firma auch");
+  pruefe(/Kunde B/.test(s2), "und die zweite Firma auch");
 
   // Ohne Klartext bleibt es bei der nackten Nummer, nicht bei leeren Klammern.
   const ohne = A.auslassungen([
@@ -371,7 +371,7 @@ console.log("\nGeschlossen im CRM, in der Datei noch aktiv");
   const gemischt = A.geschlosseneKonflikte([
     { aktion: "uebersprungen", schritt: 30, zeile: 22, schluessel: "7482",
       meldung: "Zeile wurde in einem früheren Schritt ausgeschlossen" },
-    { aktion: "uebersprungen", schritt: 20, zeile: 22, wert: "grimm@haacon.de",
+    { aktion: "uebersprungen", schritt: 20, zeile: 22, wert: "ansprechpartner@kunde-a.de",
       meldung: "Zeile wurde in einem früheren Schritt ausgeschlossen" },
     { aktion: "uebersprungen", schritt: 40, zeile: 63,
       meldung: "Zeile wurde in einem früheren Schritt ausgeschlossen" },

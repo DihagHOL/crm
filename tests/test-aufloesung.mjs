@@ -302,8 +302,8 @@ console.log("\nGross- und Kleinschreibung");
   /* Der Fall, der den Besitzer kostete. Dataverse vergleicht Zeichenketten
      OHNE Ruecksicht auf Gross- und Kleinschreibung:
 
-       internalemailaddress eq 'holger.kappelt@schmie-guss.de'  -> 1 Treffer
-       zurueck kommt         Holger.Kappelt@Schmie-guss.de
+       internalemailaddress eq 'm.beispiel@werk-guss.de'  -> 1 Treffer
+       zurueck kommt         M.Beispiel@Werk-guss.de
 
      Die Auflösung legte ihn unter der zurueckgemeldeten Schreibweise ab und
      suchte ihn danach kleingeschrieben (die Spalte Mitarbeiter laeuft durch
@@ -311,24 +311,24 @@ console.log("\nGross- und Kleinschreibung");
      Datensatz, den sie sich selbst geholt hatte - und das Feld blieb leer,
      ohne dass irgendetwas fehlschlug. */
   const { A } = baueAufloesung(() => [
-    { internalemailaddress: "Holger.Kappelt@Schmie-guss.de", systemuserid: G1 }
+    { internalemailaddress: "M.Beispiel@Werk-guss.de", systemuserid: G1 }
   ]);
   const m = await A.sammle("systemusers", "internalemailaddress",
-    ["holger.kappelt@schmie-guss.de"], "internalemailaddress,systemuserid");
+    ["m.beispiel@werk-guss.de"], "internalemailaddress,systemuserid");
 
-  pruefe(m.has("holger.kappelt@schmie-guss.de"),
+  pruefe(m.has("m.beispiel@werk-guss.de"),
     "der Treffer liegt unter der Vergleichsform, nicht unter der Antwort");
 
   const aufl = { treffer: new Map([["systemusers|internalemailaddress", m]]),
                  idFelder: new Map([["systemusers", "systemuserid"]]), abfragen: [] };
   const f = A.finde(aufl, "systemusers", "internalemailaddress",
-                    "holger.kappelt@schmie-guss.de");
+                    "m.beispiel@werk-guss.de");
   gleich(f.records.length, 1, "und wird kleingeschrieben gefunden");
-  gleich(f.records[0].internalemailaddress, "Holger.Kappelt@Schmie-guss.de",
+  gleich(f.records[0].internalemailaddress, "M.Beispiel@Werk-guss.de",
     "der Datensatz behaelt dabei seine eigene Schreibweise");
 
   const loesen = A.aufloeser(aufl, null);
-  gleich(loesen("systemusers", ["internalemailaddress"], "HOLGER.KAPPELT@SCHMIE-GUSS.DE"),
+  gleich(loesen("systemusers", ["internalemailaddress"], "M.BEISPIEL@WERK-GUSS.DE"),
     G1, "auch grossgeschrieben - die App vergleicht wie ihre eigene Abfrage");
 }
 
@@ -340,7 +340,7 @@ console.log("\nDer Bericht zaehlt nicht als fehlend, was gefunden wurde");
   const g = {
     DV: { alle: async pfad => {
             gefragt.push(decodeURIComponent(pfad));
-            return [{ internalemailaddress: "Holger.Kappelt@Schmie-guss.de",
+            return [{ internalemailaddress: "M.Beispiel@Werk-guss.de",
                       systemuserid: G1 }];
           },
           logischerName: async es => es.replace(/ies$/, "y").replace(/s$/, ""),
@@ -364,7 +364,7 @@ console.log("\nDer Bericht zaehlt nicht als fehlend, was gefunden wurde");
     ] }
   };
   const mappe = { blaetter: [{ name: "Anfragen", anzahl: 1,
-    zeilen: [{ _zeile: 2, Mitarbeiter: "Holger.Kappelt@Schmie-guss.de" }] }] };
+    zeilen: [{ _zeile: 2, Mitarbeiter: "M.Beispiel@Werk-guss.de" }] }] };
 
   const r = await A.fuer(profil, mappe, () => {});
   const a = r.abfragen.find(x => x.entitySet === "systemusers");

@@ -1,5 +1,52 @@
 # Session-Log
 
+## 04.11.2026 — Die Seite ist aus, und im Repo lagen Personendaten
+
+Frage: warum geht `crm.dihag.com` nicht? Zwei Antworten.
+
+**Diesen Namen gibt es nicht.** Die Adresse heisst `crm.dihag.de`, und nur
+die steht in `CNAME`. `crm.dihag.com` löst gar nicht auf.
+
+**Die richtige Adresse geht aber auch nicht.** DNS zeigt korrekt auf die
+Pages-Adressen, das Zertifikat ist gültig, und trotzdem antworten
+`crm.dihag.de` **und** `dfedorov12.github.io/crm/` mit 404. Der 404 kommt
+von GitHub: `GET /repos/dfedorov12/crm/pages` liefert *Not Found* und das
+Repository meldet `has_pages=false`. **Pages ist abgeschaltet.**
+
+Vorher lief es: die Veröffentlichung vom 29.10.2026 um 06:07 war
+erfolgreich, mit `environment_url https://crm.dihag.de/`. Abgeschaltet
+wurde also danach. Wer oder was, lässt sich von aussen nicht feststellen;
+ein Prüfprotokoll gibt es für ein persönliches Repository nicht.
+
+**Beim Nachsehen der eigentliche Befund.** Weil Pages das ganze Repository
+ausliefert, ist `crm.dihag.de/SESSION_LOG.md` abrufbar — und dort standen
+echte Personendaten:
+
+| | |
+|---|---|
+| Kundenkontakte | zwei Adressen samt Firmennamen |
+| Kolleginnen und Kollegen | zwei Gruppenadressen, zwei Hausadressen |
+| betroffene Dateien | `CLAUDE.md`, `SESSION_LOG.md`, `docs/05`, `docs/09`, `js/aufloesung.js`, `js/automatik.js`, drei Testdateien |
+
+46 Ersetzungen, durchgehend auf Platzhalter (`ansprechpartner@kunde-a.de`,
+`Kunde A GmbH`, `m.beispiel@werk-guss.de`). Die Tests prüfen weiter
+dasselbe, die Gross-/Kleinschreibung bleibt als Paar erhalten, weil sie der
+Witz des Tests ist. `.gitignore` kannte die Regel längst, für CSV-Berichte.
+Jetzt steht sie als **Randbedingung 13** da, wo sie gilt.
+
+**Keine Geheimnisse gefunden.** Kein Secret, kein Token, kein
+Schlüsselmaterial; der einzige Treffer auf `client_secret` ist ein
+Variablenname im Cron. Tenant- und Client-ID stehen bewusst im Klartext
+(Randbedingung 1). Die Rollen-, Rechte- und Anwendungsbenutzer-GUIDs aus
+den Rechtekorrekturen sind nie committet worden.
+
+Was offen bleibt: **die Git-Historie trägt die alten Stände weiter.** Die
+Adressen sind über alte Commits abrufbar. Eine Historie umzuschreiben ist
+bei einem öffentlichen Repository ein Eingriff mit Folgen (alle Klone
+werden ungültig) und keine Entscheidung für mich allein. Und die eigene
+Adresse des Betreuers steht ohnehin in jedem Commit als Autor, die aus
+einer Datei zu nehmen ändert daran nichts.
+
 ## 29.10.2026 — Das Fenster war wieder zu eng
 
 Frage: warum läuft die Mappe von heute nicht automatisch durch? Antwort:
@@ -48,8 +95,8 @@ Kunde gar nicht:
 
 | Konto | angelegt | Chancen | `dag_dihag_kdnr` |
 |---|---|---|---|
-| haacon hebetechnik gmbh | 07.10.2026 | 0 | leer |
-| FBS Industry GmbH & Co. KG | 20.10.2026 | 0 | leer |
+| Kunde A GmbH | 07.10.2026 | 0 | leer |
+| Kunde B GmbH & Co. KG | 20.10.2026 | 0 | leer |
 
 Zwei frisch angelegte Konten ohne Kundennummer. Timeline kennt sie
 (99917944, 99917960), das CRM nie: der Bereich 99910000–99919999 hat genau
@@ -78,7 +125,7 @@ Geändert:
   in `CRM_FieldMappings` und in der Vorlage im Repository.
 
 Aus „99917944 nicht gefunden" wird damit
-„99917944 (haacon hebetechnik gmbh · grimm@haacon.de)". Das ist der
+„99917944 (Kunde A GmbH · ansprechpartner@kunde-a.de)". Das ist der
 Unterschied zwischen einer Zahl und einer Aufgabe.
 
 Nicht geändert: die beiden Kundennummern an den Konten. Das Schreiben in
@@ -959,7 +1006,7 @@ das ist eine CRM-Ansicht, kein Importthema.
 die Notiz vom 17.09. gilt für diese Datei nicht mehr.
 
 **Offen wie gestern:** `-ProfilLaden`, dann Import — und vorher die Seite
-neu laden, damit das JavaScript von heute läuft. 7446 (Erik Bier fehlt als
+neu laden, damit das JavaScript von heute läuft. 7446 (der Vertriebler fehlt als
 Systembenutzer), 5482 (CRM verloren, Timeline Win).
 
 ## 17.09.2026 — Zwei Anfragen „fehlen", und MTZ war ein Stückwert
@@ -969,7 +1016,7 @@ Lauf `1744380e`: 108 angelegt, 32 geändert, 0 Fehler. Zwei Rückmeldungen.
 **„7446 und 5482 fehlen ganz."** Beide existieren — nachgesehen im CRM.
 
 - **7446** wurde in diesem Lauf angelegt, mit einer Position. Aber der
-  Besitzer ist *Admin DIHAG*: `erik.bier@schmie-guss.de` gibt es nicht als
+  Besitzer ist *Admin DIHAG*: `v.beispiel@werk-guss.de` gibt es nicht als
   Systembenutzer, kein Treffer auf „Bier". Das Protokoll sagt das
   (`ownerid: In systemusers nicht gefunden`), die Zeile wurde trotzdem
   geschrieben. Wer nach „meine Chancen" filtert, sieht sie nicht.
@@ -1335,15 +1382,15 @@ hat** — ein Reiter ohne wäre stumm und fiele erst dem Anwender auf.
 ## 03.09.2026 — Der Besitzer blieb leer, und niemand war schuld
 
 Vermutet war, der Mitarbeiter existiere nicht als Systembenutzer. Nachgesehen:
-**acht Benutzer mit `@schmie-guss.de`, alle aktiv**, keiner gesperrt. Der
+**acht Benutzer mit `@werk-guss.de`, alle aktiv**, keiner gesperrt. Der
 Fehler lag in der App.
 
 Dataverse vergleicht Zeichenketten ohne Rücksicht auf Gross- und
 Kleinschreibung. Die Abfrage fand den Benutzer:
 
 ```
-internalemailaddress eq 'holger.kappelt@schmie-guss.de'   → 1 Treffer
-zurück kommt                Holger.Kappelt@Schmie-guss.de
+internalemailaddress eq 'm.beispiel@werk-guss.de'   → 1 Treffer
+zurück kommt                M.Beispiel@Werk-guss.de
 ```
 
 Phase 0 legte ihn unter der **Antwort** ab und schlug ihn danach unter dem
