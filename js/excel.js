@@ -24,7 +24,14 @@ const EXCEL = (() => {
      Rund 900 KB, die beim Start niemand braucht. Version fest gepinnt –
      dasselbe Muster wie in bedarfsanfrage.                              */
 
-  const CDN = "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js";
+  /* Vom Hersteller, nicht von npm. Das npm-Paket `xlsx` wird nicht mehr
+     gepflegt und steht bei 0.18.5; darauf liegen zwei geprüfte Meldungen:
+     CVE-2023-30533 (Prototype Pollution **beim Lesen fremder Dateien**,
+     behoben in 0.19.3) und CVE-2024-22363 (ReDoS, behoben in 0.20.2).
+     Genau das Gefährliche tut diese App: sie liest fremde Dateien. Die
+     behobenen Fassungen gibt es nur auf cdn.sheetjs.com, und dort ist
+     0.20.3 die neueste (nachgesehen am 04.11.2026). */
+  const CDN = "https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js";
 
   /* Bytegenau festgenagelt, nicht nur die Versionsnummer.
      Eine gepinnte Version sagt, WAS geladen werden soll; sie sagt nicht,
@@ -34,10 +41,11 @@ const EXCEL = (() => {
      Datei, wenn sie nicht genau diese ist, und die Oberfläche meldet
      stattdessen einen Ladefehler.
 
-     Gerechnet am 04.11.2026 über die 881.727 Bytes von xlsx@0.18.5. Wer die
-     Version wechselt, muss den Hash neu rechnen:
+     Gerechnet am 04.11.2026 über die 951.904 Bytes von xlsx 0.20.3, zweimal
+     unabhängig abgerufen. Wer die Version wechselt, muss den Hash neu
+     rechnen, sonst lädt der Browser gar nichts mehr:
        curl -sL <URL> | openssl dgst -sha384 -binary | openssl base64 -A   */
-  const CDN_HASH = "sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw";
+  const CDN_HASH = "sha384-EnyY0/GSHQGSxSgMwaIPzSESbqoOLSexfnSMN2AP+39Ckmn92stwABZynq1JyzdT";
   let _laden = null;
 
   function ensureSheetJS() {

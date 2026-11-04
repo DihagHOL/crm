@@ -4,6 +4,7 @@
   "type": "module",
   "description": "Unbeaufsichtigter Import-Lauf. Laeuft in GitHub Actions, nicht im Browser.",
   "dependencies": {
-    "xlsx": "0.18.5"
-  }
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
+  },
+  "$xlsx": "Bezogen von cdn.sheetjs.com und nicht von npm. Das npm-Paket xlsx wird nicht mehr gepflegt und steht bei 0.18.5, das CVE-2023-30533 (Prototype Pollution beim Lesen fremder Dateien, behoben in 0.19.3) und CVE-2024-22363 (ReDoS, behoben in 0.20.2) traegt. Genau das Gefaehrliche tut dieser Lauf: er liest fremde Dateien. Die behobenen Fassungen gibt es nur beim Hersteller. Die Bytes nagelt package-lock.json fest, deshalb installiert der Workflow mit npm ci."
 }

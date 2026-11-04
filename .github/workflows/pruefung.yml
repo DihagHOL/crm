@@ -11,6 +11,12 @@ on:
   pull_request:
   workflow_dispatch:
 
+# Ausdruecklich nur lesen. Dieser Lauf prueft, er veroeffentlicht nicht.
+# Wichtig bei `pull_request`: ein fremder Beitrag soll mit nichts mehr
+# arbeiten als dem Lesen des Codes.
+permissions:
+  contents: read
+
 jobs:
   pruefung:
     runs-on: ubuntu-latest

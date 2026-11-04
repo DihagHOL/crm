@@ -26,17 +26,33 @@ gepinnt, die Bytes nicht. Eine gepinnte Version sagt, was geladen werden
 soll, nicht dass es das auch ist. `integrity` und `crossOrigin` stehen
 jetzt da, Hash über die 881.727 Bytes gerechnet und gegengeprüft.
 
-**Offen, weil Entscheidung:** `xlsx@0.18.5` trägt zwei geprüfte Meldungen
+**Lücke 3, behoben: SheetJS 0.18.5.** Zwei geprüfte Meldungen
 (CVE-2023-30533, Prototype Pollution beim Lesen fremder Dateien, behoben in
 0.19.3; CVE-2024-22363, ReDoS, behoben in 0.20.2). Behobene Fassungen gibt
-es **nicht auf npm** — das Paket wird dort nicht mehr gepflegt, die Fixes
-liegen nur auf `cdn.sheetjs.com`. Betroffen sind Browser und Cron. Ein
-Wechsel ist ein Vorgang und keine Zeile.
+es **nicht auf npm** — das Paket wird dort nicht mehr gepflegt. Beide
+Seiten beziehen jetzt 0.20.3 vom Hersteller: der Browser über
+`cdn.sheetjs.com` mit neu gerechnetem `integrity`, der Cron über ein
+Tarball in `package.json`, dessen Bytes das Lockfile festnagelt. Der
+Workflow installiert mit `npm ci` statt `npm install`, denn nur dann
+entscheidet der Lock, und `ci` bricht ab, wenn Datei und Lock auseinander
+laufen.
 
-**Zwei Dinge, die nur durch die Umstände harmlos sind:** die Rollensperre
-ist reiner Clientcode (es hält, weil die Konfigurationsgruppe einen
-Eigentümer und null Mitglieder hat), und `permissions:` fehlt in zwei
-Workflows (folgenlos, solange die Organisation *read* vorgibt).
+**Einen Versionswechsel unter einer Datei-Leseschnittstelle muss man
+nachmessen**, sonst tauscht man eine Lücke gegen einen stillen Datenfehler.
+Der Code benutzt genau zwei Aufrufe; beide gegen 0.20.3 mit einer echten
+Mappe geprüft. Blattnamen, Datum als `Date`, Kopfzeile mit Leerzeichen am
+Ende, leere Zelle als `null`, und die Leerzeile bleibt erhalten, sodass die
+Excel-Zeilennummern in den Berichten weiter stimmen.
+
+**Lücke 4, behoben: `permissions:` fehlte in zwei Workflows.** Jetzt
+`contents: read` in `automatik.yml` und `pruefung.yml`, `cache-bust.yml`
+bleibt bei `write`, weil es schreibt. Folgenlos, solange die Organisation
+*read* vorgibt, aber `automatik.yml` hat das Client-Secret im Speicher und
+bei `pruefung.yml` läuft auch ein fremder Pull Request mit.
+
+**Offen bleibt:** die Rollensperre ist reiner Clientcode. Sie hält heute,
+weil die Konfigurationsgruppe einen Eigentümer und null Mitglieder hat.
+Das ist eine Annahme über SharePoint-Rechte und keine Eigenschaft der App.
 
 ## 04.11.2026 — Die Seite ist aus, und im Repo lagen Personendaten
 

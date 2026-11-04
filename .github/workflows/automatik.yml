@@ -71,6 +71,13 @@ on:
 # scheitern: ein roter Lauf viermal je Stunde waere eine Fehlermail fuer
 # etwas, das niemand kaputt gemacht hat. Was fehlt, steht im Protokoll.
 
+# Ausdruecklich nur lesen. Die Organisation stellt den GITHUB_TOKEN heute
+# ohnehin auf read, aber dieser Lauf hat das Client-Secret im Speicher: dann
+# soll nicht eine geaenderte Vorgabe an anderer Stelle entscheiden, was er
+# darf. Geschrieben wird hier nichts ins Repository.
+permissions:
+  contents: read
+
 # Zwei Laeufe gleichzeitig wuerden dieselbe Datei zweimal importieren.
 concurrency:
   group: crm-automatik
@@ -85,8 +92,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
+      # `npm ci` und nicht `npm install`: nur so entscheidet das Lockfile,
+      # welche Bytes kommen. `install` darf aufloesen und still etwas
+      # anderes holen - bei einer Abhaengigkeit, die eine fremde Datei
+      # parst, ist das die falsche Freiheit. `ci` bricht ausserdem ab, wenn
+      # package.json und Lock auseinanderlaufen.
       - name: SheetJS installieren
-        run: npm install --prefix cron --no-audit --no-fund
+        run: npm ci --prefix cron --no-audit --no-fund
       - name: Import-Lauf
         working-directory: cron
         env:
