@@ -1,5 +1,43 @@
 # Session-Log
 
+## 04.11.2026 — Sicherheitsdurchsicht, zwei Lücken geschlossen
+
+Nachfrage, ob es weitere Lücken gibt. Also einmal mit Absicht gesucht statt
+nebenbei. Die Einzelheiten stehen in CLAUDE.md §11, hier das Ergebnis.
+
+**Sauber:** `js/auth.js` von vorn bis hinten (PKCE, `state` wird geprüft,
+der Code wird an jedem Ausgang aus der Adresse genommen, Refresh-Token mit
+Rotation), die Berichtserzeugung (der Cron escapet an der Grenze), die
+Workflows (keine Eingabe in einem `run:`, Token organisationsweit auf
+*read*) und das Repository (kein Secret, kein Token, kein
+Schlüsselmaterial).
+
+**Lücke 1, behoben: Skript aus einer Excel-Zelle.** In der
+Auflösungstabelle escapet `a.fehlend` seit immer, die Nachbarzellen
+`mehrdeutig` und `automatisch` nicht — und die zeigen Werte aus der
+Arbeitsmappe. Eine Zelle mit einem `img`-Tag und `onerror` wäre Skript im
+Origin dieser App gewesen, in dem die Token für Graph und Dataverse liegen.
+Wer die Mappe schreiben darf, hätte die Sitzung des Importeurs übernehmen
+können. Das ist der Befund des Tages: **ein `esc()` in der Nachbarzelle ist
+kein Schutz.**
+
+**Lücke 2, behoben: SheetJS ohne Integritätsprüfung.** Die Version war
+gepinnt, die Bytes nicht. Eine gepinnte Version sagt, was geladen werden
+soll, nicht dass es das auch ist. `integrity` und `crossOrigin` stehen
+jetzt da, Hash über die 881.727 Bytes gerechnet und gegengeprüft.
+
+**Offen, weil Entscheidung:** `xlsx@0.18.5` trägt zwei geprüfte Meldungen
+(CVE-2023-30533, Prototype Pollution beim Lesen fremder Dateien, behoben in
+0.19.3; CVE-2024-22363, ReDoS, behoben in 0.20.2). Behobene Fassungen gibt
+es **nicht auf npm** — das Paket wird dort nicht mehr gepflegt, die Fixes
+liegen nur auf `cdn.sheetjs.com`. Betroffen sind Browser und Cron. Ein
+Wechsel ist ein Vorgang und keine Zeile.
+
+**Zwei Dinge, die nur durch die Umstände harmlos sind:** die Rollensperre
+ist reiner Clientcode (es hält, weil die Konfigurationsgruppe einen
+Eigentümer und null Mitglieder hat), und `permissions:` fehlt in zwei
+Workflows (folgenlos, solange die Organisation *read* vorgibt).
+
 ## 04.11.2026 — Die Seite ist aus, und im Repo lagen Personendaten
 
 Frage: warum geht `crm.dihag.com` nicht? Zwei Antworten.

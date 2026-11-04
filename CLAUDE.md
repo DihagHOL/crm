@@ -1434,6 +1434,67 @@ Das gehört in die Oberfläche geschrieben, weil die Frage garantiert kommt.
 Das ist ein Unterschied zum Altflow: der läuft unter den fest hinterlegten
 Verbindungen seines Erstellers, unabhängig davon, wer die Datei ablegt.
 
+### Durchsicht vom 04.11.2026
+
+Einmal mit Absicht gesucht statt nebenbei. Was sauber war: `js/auth.js`
+(PKCE mit 32 Zufallsbytes, `state` mit 16 und **geprüft** beim Rückkommen,
+der Code wird an jedem Ausgang mit `history.replaceState` aus der Adresse
+genommen, Token im `sessionStorage`, Refresh-Token mit Rotation und
+Verwerfen bei `invalid_grant`), die Berichtserzeugung (der Cron escapet an
+der Grenze, `esc(AUTOMATIK.auslassungsSatz(g))`), die Workflows (keine
+Eingabe landet in einem `run:`, also keine Befehlsinjektion; der
+`GITHUB_TOKEN` steht organisationsweit auf *read*, `cache-bust` begrenzt
+sich selbst auf `contents: write`) und das Repository selbst (kein Secret,
+kein Token, kein Schlüsselmaterial).
+
+**Gefunden und behoben: eine echte Lücke in der Auflösungstabelle.** Die
+Zelle `a.fehlend` escapet seit immer, die Nachbarzellen `mehrdeutig` und
+`automatisch` nicht — und die zeigen Werte **aus der Arbeitsmappe**. Eine
+Zelle mit einem `img`-Tag und `onerror` wäre damit Skript im Origin dieser
+App gewesen, und dort liegen die Token für Graph und Dataverse. Wer die
+Mappe schreiben darf, hätte die Sitzung des Importeurs übernehmen können.
+
+Merksatz dazu: **ein `esc()` in der Nachbarzelle ist kein Schutz.** Wo
+Dateiinhalt ins HTML geht, gehört die Prüfung an jede Interpolation, nicht
+an die meisten.
+
+**Gefunden und behoben: SheetJS kam ohne Integritätsprüfung.** Die Version
+war gepinnt, die Bytes nicht. `integrity` plus `crossOrigin` stehen jetzt
+in `js/excel.js`; wer die Version wechselt, rechnet den Hash neu (der
+Befehl steht im Kommentar).
+
+**Offen, weil es eine Entscheidung ist: die SheetJS-Version selbst.** Zwei
+geprüfte Meldungen treffen `xlsx@0.18.5`, und diese App liest genau das,
+was dort gefährlich ist, nämlich fremde Dateien:
+
+| | |
+|---|---|
+| CVE-2023-30533 (GHSA-4r6h-8v6p-xvw6) | Prototype Pollution beim Lesen gebauter Dateien, behoben in **0.19.3** |
+| CVE-2024-22363 (GHSA-5pgg-2g8v-p4x9) | ReDoS, nur Verfügbarkeit, behoben in **0.20.2** |
+
+Der Haken: **auf npm gibt es keine behobene Fassung.** Das Paket `xlsx`
+wird dort nicht mehr gepflegt, 0.19.3 und 0.20.2 liegen nur auf
+`cdn.sheetjs.com`. Betroffen sind beide Seiten — der Browser über das CDN
+und der Cron über `cron/package.json`. Ein Wechsel heisst also: andere
+Bezugsquelle für beide, neuer Hash, und für den Cron eine Abhängigkeit, die
+`npm install` nicht aus der Registry holt. Das ist keine Zeile, sondern ein
+Vorgang, und er gehört entschieden und nicht nebenbei gemacht.
+
+**Zwei Dinge, die heute nur deshalb harmlos sind, wie sie sind:**
+
+1. **Die Rollensperre ist nur im Browser.** Freigeben und Einstellen
+   verlangt `editor` aus `AppPermissions`, geprüft im Clientcode. Die
+   wirkliche Schranke sind die SharePoint-Rechte auf
+   `/teams/crm-integration`, und die halten: die Gruppe ist privat, mit
+   **einem Eigentümer und null Mitgliedern** (gezählt am 04.11.2026). Kommt
+   dort jemand dazu, steht zwischen `viewer` und einer Freigabe, die mit
+   den Rechten des Anwendungsbenutzers schreibt, nur noch Clientcode.
+2. **`permissions:` fehlt in `automatik.yml` und `pruefung.yml`.** Heute
+   folgenlos, weil die Organisation den `GITHUB_TOKEN` auf *read* stellt.
+   Ein ausdrückliches `contents: read` würde das überleben, wenn jemand
+   diese Vorgabe ändert — und `automatik.yml` ist der Lauf, der das
+   Client-Secret im Speicher hat.
+
 ---
 
 ## 12. Umsetzungsreihenfolge

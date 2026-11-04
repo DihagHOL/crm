@@ -647,10 +647,16 @@ const APP = (() => {
                      <button class="btn ghost sm" data-bsp="${esc(a.entitySet)}|${esc(a.feld)}"
                        title="Zeigt, welche Werte in dieser Tabelle wirklich stehen"
                        >Was steht dort?</button>` : ""}</td>
-              <td>${a.mehrdeutig.length ? `<span class="fehlt">${a.mehrdeutig.map(m=>`${m.wert}×${m.anzahl}`).join(", ")}</span>` : ""}</td>
+              <!-- esc() auch hier: m.wert kommt aus der Arbeitsmappe. Die
+                   Nachbarzelle a.fehlend escapet seit immer, diese zwei
+                   nicht - und eine Zelle mit einem img-Tag und onerror
+                   waere damit Skript im Origin, in dem die Token liegen
+                   (Paragraf 11). Gefunden bei der Durchsicht am
+                   04.11.2026. -->
+              <td>${a.mehrdeutig.length ? `<span class="fehlt">${a.mehrdeutig.map(m=>`${esc(m.wert)}×${m.anzahl|0}`).join(", ")}</span>` : ""}</td>
               <td>${(a.automatisch || []).length ? `<span class="hinweis-text"
                      title="Mehrere Treffer, genau einer aktiv – der wurde genommen"
-                     >${a.automatisch.map(m=>`${m.wert}×${m.anzahl}`).join(", ")}</span>` : ""}</td>
+                     >${a.automatisch.map(m=>`${esc(m.wert)}×${m.anzahl|0}`).join(", ")}</span>` : ""}</td>
             </tr>
             <tr class="bsp" id="bsp-${esc(a.entitySet)}-${esc(a.feld)}" hidden>
               <td colspan="7"></td>

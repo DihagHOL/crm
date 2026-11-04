@@ -25,6 +25,19 @@ const EXCEL = (() => {
      dasselbe Muster wie in bedarfsanfrage.                              */
 
   const CDN = "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js";
+
+  /* Bytegenau festgenagelt, nicht nur die Versionsnummer.
+     Eine gepinnte Version sagt, WAS geladen werden soll; sie sagt nicht,
+     dass es das auch ist. Ohne `integrity` liefert jede Änderung am CDN
+     beliebiges Skript in den Origin dieser App — und dort liegen die Token
+     für Graph und Dataverse (§11). Mit `integrity` verwirft der Browser die
+     Datei, wenn sie nicht genau diese ist, und die Oberfläche meldet
+     stattdessen einen Ladefehler.
+
+     Gerechnet am 04.11.2026 über die 881.727 Bytes von xlsx@0.18.5. Wer die
+     Version wechselt, muss den Hash neu rechnen:
+       curl -sL <URL> | openssl dgst -sha384 -binary | openssl base64 -A   */
+  const CDN_HASH = "sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw";
   let _laden = null;
 
   function ensureSheetJS() {
@@ -33,6 +46,8 @@ const EXCEL = (() => {
     _laden = new Promise((ok, fehl) => {
       const s = document.createElement("script");
       s.src = CDN;
+      s.integrity = CDN_HASH;
+      s.crossOrigin = "anonymous";   // ohne CORS prueft der Browser nicht
       s.onload = () => ok();
       s.onerror = () => {
         _laden = null;
