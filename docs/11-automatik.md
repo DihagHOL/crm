@@ -88,7 +88,7 @@ gerufen wird er heute von niemandem. Ein Sender wäre ein Power-Automate-Flow
 einem einzigen HTTP-Schritt:
 
 ```
-POST https://api.github.com/repos/dfedorov12/crm/dispatches
+POST https://api.github.com/repos/DihagHOL/crm/dispatches
 Authorization: Bearer <fein granulierter PAT, nur Contents: read+write>
 Accept: application/vnd.github+json
 {"event_type":"mappe-eingegangen"}
@@ -321,15 +321,15 @@ Verkaufschance. Das betrifft auch Menschen: wer die App mit dieser Rolle
 bedient, kann keine neue Verkaufschance anlegen, denn die Oberfläche
 schreibt mit den Rechten des Angemeldeten.
 
-### 4. Secrets im Repo `dfedorov12/crm`
+### 4. Secrets im Repo `DihagHOL/crm`
 
 Dieselben drei Werte wie bei `bedarfsanfrage`, dieselben Namen. Die beiden
 ersten sind keine Geheimnisse und stehen so auch in den anderen Repos:
 
 ```bash
-gh secret set TENANT_ID     -R dfedorov12/crm -b "fdb70646-023a-403b-a4b9-1f474a935123"
-gh secret set CLIENT_ID     -R dfedorov12/crm -b "089bf9ad-2d9a-4cbc-b85d-88b4484af0bb"
-gh secret set CLIENT_SECRET -R dfedorov12/crm -b "<Wert des Client-Secrets>"
+gh secret set TENANT_ID     -R DihagHOL/crm -b "fdb70646-023a-403b-a4b9-1f474a935123"
+gh secret set CLIENT_ID     -R DihagHOL/crm -b "089bf9ad-2d9a-4cbc-b85d-88b4484af0bb"
+gh secret set CLIENT_SECRET -R DihagHOL/crm -b "<Wert des Client-Secrets>"
 ```
 
 Der Secret-Wert lässt sich nirgends nachlesen — auch nicht aus den anderen

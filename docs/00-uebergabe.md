@@ -223,5 +223,5 @@ Annahmen über die Dateistruktur — noch bevor irgendwo geschrieben wird.
 - Corporate-Design-Vorlage → Phase 8
 - Entscheidung, ob GitHub Pages dauerhaft trägt. Für Test und Abnahme ja.
   Für den Produktivbetrieb spricht der gemeinsame Origin aller Repos unter
-  `dfedorov12.github.io` für eine Firmendomäne oder Azure Static Web Apps.
+  `dihaghol.github.io` für eine Firmendomäne oder Azure Static Web Apps.
   Der Umzug ist klein: anderer Host, andere Redirect-URI, sonst nichts.

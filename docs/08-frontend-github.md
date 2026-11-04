@@ -155,7 +155,7 @@ denen ein stiller Fehler Daten kostet:
 | Name | `crm` |
 | Sichtbarkeit | öffentlich (Pages auf privaten Repos braucht ein kostenpflichtiges Konto; Randbedingung 1 — kein Secret — gilt ohnehin) |
 | Pages | Quelle „Deploy from a branch", `main`, `/` |
-| URL | `https://dfedorov12.github.io/crm/` |
+| URL | `https://dihaghol.github.io/crm/` |
 | Eigene Domäne | siehe unten |
 
 ```
@@ -194,14 +194,14 @@ aber auch nichts und `compliance` hat es aus gutem Grund.
 
 ### Eigene Domäne — und warum sie mehr ist als Kosmetik
 
-`CLAUDE.md` §11 nennt als Sicherheitspunkt: `dfedorov12.github.io` ist **ein
+`CLAUDE.md` §11 nennt als Sicherheitspunkt: `dihaghol.github.io` ist **ein
 gemeinsamer Origin für alle Repos dieses Kontos**, jede andere Pages-Seite
 dort kommt an denselben `sessionStorage` und damit an ein dort liegendes
 Token. Als Konsequenz steht dort „für den Dauerbetrieb eigene Domain oder
 Azure Static Web Apps".
 
 Eine eigene Domäne per `CNAME` ist bereits die vollständige Lösung dieses
-Punktes: `crm.dihag.de` ist ein anderer Origin als `dfedorov12.github.io`.
+Punktes: `crm.dihag.de` ist ein anderer Origin als `dihaghol.github.io`.
 `rundumdenjob.dihag.de` und `zapp.dihag.de` machen genau das. Ein Umzug zu
 Azure Static Web Apps ist dafür nicht nötig.
 

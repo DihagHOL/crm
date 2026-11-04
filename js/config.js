@@ -117,7 +117,7 @@ const CRM_CONFIG = {
   /* ── Sonstiges ─────────────────────────────────────────────────────  */
 
   itMail: "ticket@dihag.com",
-  adminUrl: "https://dfedorov12.github.io/admin/"
+  adminUrl: "https://dihaghol.github.io/admin/"
 };
 
 /** Wert noch nicht geklärt? Alle Stellen, die einen KLAEREN_-Wert benutzen

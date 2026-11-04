@@ -1997,7 +1997,7 @@ const APP = (() => {
     $("btnTest").onclick = selbsttest;
     $("btnDatei").onclick = () => zeigeSchritt("datei");
     $("btnProzess").onclick = () =>
-      window.open("https://github.com/dfedorov12/crm/blob/main/docs/10-prozess.md",
+      window.open("https://github.com/DihagHOL/crm/blob/main/docs/10-prozess.md",
                   "_blank", "noopener");
     $("btnCache").onclick = () => { GRAPH.clearCache(); toast("Cache geleert."); selbsttest(); };
     $("btnRolle").onclick = async () => {

@@ -32,7 +32,7 @@ SPA-Plattform kommt zusätzlich dazu.
 ### Umleitungs-URIs
 
 ```
-https://dfedorov12.github.io/crm/
+https://dihaghol.github.io/crm/
 http://localhost:5173/
 ```
 
@@ -91,7 +91,7 @@ Ausgelesen aus der Registrierung:
 
 | | |
 |---|---|
-| SPA-Umleitungs-URIs | `https://crm.dihag.de`, `https://dfedorov12.github.io/crm/` ✅ |
+| SPA-Umleitungs-URIs | `https://crm.dihag.de`, `https://dihaghol.github.io/crm/` ✅ |
 | Deklarierte Berechtigungen | nur **Graph `User.Read`** |
 | Tatsächlich erteilte Zustimmung | Graph: `User.Read Sites.ReadWrite.All offline_access`, tenantweit (`AllPrincipals`) |
 | Dataverse | **keine Zustimmung** — der Dienstprinzipal „Dataverse“ existiert im Tenant, diese App hat aber keinen Zugriff darauf |

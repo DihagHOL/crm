@@ -40,6 +40,44 @@ Variablenname im Cron. Tenant- und Client-ID stehen bewusst im Klartext
 (Randbedingung 1). Die Rollen-, Rechte- und Anwendungsbenutzer-GUIDs aus
 den Rechtekorrekturen sind nie committet worden.
 
+**Und die Ursache stand in der Push-Ausgabe:**
+
+```
+remote: This repository moved. Please use the new location:
+remote:   https://github.com/DihagHOL/crm.git
+```
+
+Das Repository ist in die Organisation **DihagHOL** umgezogen, und ein
+Umzug nimmt die Pages-Seite samt eigener Domäne mit. Dass es kein Vorsatz
+war, zeigt der Vergleich: **jedes andere Repository der Organisation hat
+Pages an**, acht davon liefern eine Seite aus. Nur das CRM war übrig
+geblieben.
+
+Wieder eingeschaltet, Quelle `main` ▸ `/`. Die Domäne hat Pages selbst aus
+der `CNAME`-Datei übernommen, das Zertifikat war noch freigegeben, HTTPS ist
+erzwungen. Gegengeprüft am Netz:
+
+| | |
+|---|---|
+| `https://crm.dihag.de/` | 200 |
+| `https://crm.dihag.de/prozess.html` | 200 |
+| `https://dihaghol.github.io/crm/` | 200, leitet um |
+| `http://crm.dihag.de/` | 200 über HTTPS |
+
+Der Cron hat den Umzug überlebt: die Secrets sind alle drei da, und die
+planmässigen Läufe gehen ohne Unterbrechung weiter.
+
+Nachgezogen wurden die Verweise auf den alten Ort an 22 Stellen in zehn
+Dateien, darunter der Quellcode-Link in der Oberfläche. Dieses Log bleibt
+wie es ist: hier ist der alte Name die beschriebene Tatsache und keine
+Anleitung.
+
+**Was jemand mit Entra-Zugriff noch tun muss:** die SPA-Umleitungs-URI
+`https://dfedorov12.github.io/crm/` zeigt ins Leere. Entweder auf
+`https://dihaghol.github.io/crm/` ändern oder ganz streichen, denn gebraucht
+wird sie nur als Rückfallweg. `https://crm.dihag.de` ist unberührt, deshalb
+funktioniert die Anmeldung über die Hauptadresse weiter.
+
 Was offen bleibt: **die Git-Historie trägt die alten Stände weiter.** Die
 Adressen sind über alte Commits abrufbar. Eine Historie umzuschreiben ist
 bei einem öffentlichen Repository ein Eingriff mit Folgen (alle Klone

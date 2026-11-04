@@ -19,7 +19,7 @@ Der Browser spricht direkt mit der Dataverse Web API (CORS ist serverseitig
 freigeschaltet).
 
 Deployment-Ziel: `https://crm.dihag.de/`
-(Fallback `https://dfedorov12.github.io/crm/`, leitet dorthin um)
+(Fallback `https://dihaghol.github.io/crm/`, leitet dorthin um)
 
 **Gebaut wird nach der Hausvorlage** — `rundumdenjob`, `powerbi`, `umfrage1`:
 statische Auslieferung ohne Build, Anmeldung ohne MSAL. Begründung und
@@ -1408,12 +1408,19 @@ Das gehört in die Oberfläche geschrieben, weil die Frage garantiert kommt.
 
 ### Punkte, die beim Hosten auf `github.io` konkret relevant sind
 
-1. **`dfedorov12.github.io` ist ein gemeinsamer Origin für alle Repos dieses
-   GitHub-Kontos.** Jede andere Pages-Seite unter demselben Konto kann auf
-   denselben Browser-Storage zugreifen — und damit auf ein dort liegendes
-   Token. Deshalb `sessionStorage` statt `localStorage`, und unter diesem
-   Konto liegt kein fremder oder experimenteller Code. Fremde Konten
+1. **`dihaghol.github.io` ist ein gemeinsamer Origin für alle Repos der
+   Organisation.** Jede andere Pages-Seite darunter kann auf denselben
+   Browser-Storage zugreifen — und damit auf ein dort liegendes Token.
+   Deshalb `sessionStorage` statt `localStorage`, und dort liegt kein
+   fremder oder experimenteller Code. Fremde Konten
    (`andereruser.github.io`) sind ein anderer Origin und kommen nicht heran.
+
+   **Der Punkt ist mit dem Umzug am 04.11.2026 gewichtiger geworden**, nicht
+   leichter: vorher war es ein persönliches Konto, jetzt eine Organisation
+   mit 17 Repositorien, von denen acht eine Pages-Seite ausliefern. Umso
+   besser, dass diese App unter der eigenen Domäne `crm.dihag.de` läuft und
+   damit einen eigenen Origin hat. Die github.io-Adresse bleibt nur als
+   Rückfallweg und leitet dorthin um.
 2. **Für den Dauerbetrieb eigene Domain oder Azure Static Web Apps.** Punkt 1
    ist der Grund. Für Pilot und Abnahme in der Testumgebung ist Pages in
    Ordnung; spätestens beim Produktivgang würde ich wechseln. Der Umzug ist
@@ -1521,7 +1528,7 @@ scharf geschaltet werden.
 - [ ] **DNS-Eintrag für `crm.dihag.de`** und dieselbe Adresse als
       Umleitungs-URI unter der SPA-Plattform der Registrierung. Ohne die
       eigene Domäne liegen die Token auf dem gemeinsamen Origin
-      `dfedorov12.github.io` — siehe §11, Punkt 1.
+      `dihaghol.github.io` — siehe §11, Punkt 1.
 - [ ] SheetJS vom CDN nachladen oder als `js/vendor/xlsx.full.min.js`
       einchecken? Ohne Build ist eine eingecheckte Datei kein Bruch und
       ausfallsicher. Entscheidung vor Phase 3.
