@@ -49,6 +49,37 @@ als Zweitweg.
 braucht einen Token, den jemand anlegt und dessen Ablauf jemand im Blick
 behält.
 
+**Der Import selbst, von Hand gestartet, zweimal.** Erster Lauf um 11:09:
+66 angelegt, 27 geändert, 58 unverändert, 33 ersetzt, 0 Fehler. Darin
+fielen aber drei Zeilen in Schritt 10 aus, und zwar mit demselben Befund
+wie am 27.10.: die Firma ist im CRM, aktiv, nur ohne `dag_dihag_kdnr`.
+Betroffen `DEUTZ AG` (99913521) und `Knauer Engineering GmbH
+Industrieanlagen & Co. KG` (99917972), damit fehlten die Anfragen 7370,
+7511 und 7521 — nachgezählt, 0 von 3 im CRM. Dass die Nummern echt sind und
+nicht etwa ein Platzhalterbereich, ist gegengeprüft: 1777 aktive Firmen
+tragen eine aus dem Bereich `999…`.
+
+Nummern nachgetragen, Mappe auf `Neu` zurückgesetzt, zweiter Lauf um 18:11:
+69 angelegt, 3 geändert, 99 unverändert, 55 ersetzt, 4 übersprungen (die
+vier gewollten `SkipOnValues`-Zeilen), 0 Fehler. Alle drei Anfragen sind
+da.
+
+**Die 69 sahen falsch aus und waren es nicht.** Nach einem Lauf, der schon
+66 angelegt hatte, erwartet man beim zweiten etwa 19. Nachgerechnet im
+Ziel: 63 Positionen, **alle** um 17:11 angelegt, keine einzige aus dem
+Lauf um 10:09, und keine Anfrage mit Positionen aus beiden Läufen. Die
+Ersetzen-Strategie in Schritt 40 löscht und schreibt neu, und die
+neugeschriebenen zählen als *angelegt*. 55 ersetzte Positionen + 8 für die
+Nachzügler + 3 Anfragen + 3 Kontakte = 69, und die 3 „geändert" sind die
+Prozessinstanzen. **Lehre für die Berichte: nach einem Wiederholungslauf
+ist „angelegt" keine Zahl neuer Datensätze**, sondern enthält alles, was
+Ersetzen neu schreibt. Dublettenprüfung über `new_dagextopid` sagt: keine.
+
+Nebenbei hat die Fehlanzeige das Richtige getan. Der zweite Lauf lag nach
+der Frist von 14 Uhr und meldete trotzdem nichts: „1 Mappe(n) im
+Zeitfenster eingegangen … keine Fehlanzeige." Genau die Unterscheidung, die
+am 29.10. eingebaut wurde.
+
 ## 04.11.2026 — Sicherheitsdurchsicht, zwei Lücken geschlossen
 
 Nachfrage, ob es weitere Lücken gibt. Also einmal mit Absicht gesucht statt
