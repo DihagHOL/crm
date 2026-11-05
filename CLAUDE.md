@@ -1046,32 +1046,42 @@ sobald eine davon nach `document` oder `window` greift.
 ### Der Takt steht in SharePoint, nicht im Workflow
 
 Im Workflow steht ein Zeitplan. Das ist ein Blick auf die Uhr, kein
-Takt — und seit dem 06.10.2026 wissen wir, dass es nicht einmal ein
-regelmässiger ist: auf `*/15 * * * *` materialisierte GitHub **fünf bis
-acht** von 96 erbetenen Auslösungen, zu beliebigen Minuten, mit Lücken von
-im Mittel 4,3 und höchstens 9,4 Stunden. Am 22.10.2026 kam die Lieferung um
-06:00, der letzte Lauf war um 04:32, und bis 08:53 löste nichts mehr aus:
-die Mappe lag drei Stunden unbeachtet da, ohne dass etwas defekt war.
+Takt — und es ist nicht einmal ein regelmässiger. Am 05.11.2026 an den
+echten Läufen dieses Workflows gemessen, die beiden Zeitpläne direkt
+nebeneinander:
 
-Die entscheidende Messung kam am selben Tag vom Nachbarprojekt ZAPP: ein
-täglicher Cron (`0 5 * * *`) lief an **20 von 20 Tagen**, aber im Median
-**5 h 48 min zu spät**, zwischen 3 h 54 und 7 h 33. GitHub liefert einen
-sparsamen Zeitplan also zuverlässig ab und hält ihn nur nicht ein.
+| Zeitplan | Zeitraum | Läufe/Tag | erbeten | Lücke Median | Lücke höchstens |
+|---|---|---|---|---|---|
+| `*/15 * * * *` | 23.09.–22.10. | 5,4 | 96 | 4,3 h | 9,4 h |
+| `17 1,4,7,…,22 * * *` | 22.10.–05.11. | 3,8 | 8 | 6,3 h | 12,7 h |
 
-Daraus die Form des Zeitplans: **eine Uhrzeit anzupeilen ist zwecklos,
-steuerbar ist nur der größte Abstand.** Acht Zeiten in gleichen Abständen
-von drei Stunden (`17 1,4,7,10,13,16,19,22 * * *`, UTC, Minute 17 weil die
-volle Stunde die Hauptlast ist). Die Verspätung trifft alle acht gleich und
-verschiebt das Raster, ohne es auszureissen. Eine erste Fassung desselben
-Tages stellte morgens zwei Zeiten dicht hintereinander, weil Timeline um
-06:00 liefert — sie wären gegen 11 bis 13 Uhr gelaufen.
+**Das sparsame Raster vom 22.10. war ein Fehlschluss, und zwar meiner.**
+Die Annahme war, GitHub liefere einen sparsamen Plan zuverlässiger ab, und
+für die ZUSTELLUNG stimmt sie auch: ZAPP fährt einen täglichen Cron, der an
+20 von 20 Tagen lief, nur im Median 5 h 48 min zu spät. Für die LÜCKE
+stimmt sie nicht. GitHub verwirft eine fällige Auslösung, es sammelt sie
+nicht nach — wer öfter bittet, bekommt öfter etwas. Acht Bitten am Tag
+ergaben weniger Läufe und größere Lücken als 96. Der dichte Takt ist
+deshalb wieder da, und die Lehre ist die allgemeinere: **bei GitHubs
+Zeitplan nicht überlegen, sondern nachzählen.** Dieselbe Sorte Irrtum wie
+bei den Statusgründen in §10 — eine plausible Annahme über ein fremdes
+System, die niemand nachgemessen hatte.
 
-Das Fenster in `CRM_Automatik` steht wegen alldem weit offen (0–23 Uhr,
-täglich), und die Fehlanzeige holt eine verpasste Frist beim nächsten Lauf
-nach. Soll der Import binnen Minuten nach der Ablage starten, braucht es
-einen Anstoss von aussen (`repository_dispatch`, docs/11); mit GitHubs
-Zeitplan ist Pünktlichkeit nicht zu haben, auch nicht durch eine
-geschicktere Cron-Zeile.
+Pünktlichkeit liefert auch der dichte Takt nicht. Am 05.11.2026 lag
+„Anfragen 2026-11-05.xlsx“ um 06:00 im Ordner, der letzte Lauf war um
+03:30, und bis 11:00 löste nichts mehr aus: fünf Stunden unbeachtet, ohne
+dass etwas defekt war — dasselbe Bild wie am 22.10. Das Fenster in
+`CRM_Automatik` steht wegen alldem weit offen (0–23 Uhr, täglich), und die
+Fehlanzeige holt eine verpasste Frist beim nächsten Lauf nach.
+
+Soll der Import binnen Minuten nach der Ablage starten, führt kein Weg an
+einem **Anstoss von aussen** vorbei (docs/11). Welchen Weg der nimmt, ist
+eine Rechtefrage und keine Geschmacksfrage: `repository_dispatch` verlangt
+von einem feingranularen Token `Contents: write`, also genau das Recht, mit
+dem man auch Code nach `main` schiebt und damit die veröffentlichte Seite
+ändert. `workflow_dispatch` über die API verlangt `Actions: write` — Läufe
+starten, nichts schreiben. Ein Token, das dauerhaft in einem
+Power-Automate-Flow liegt, soll das engere der beiden haben.
 
 Ob gearbeitet wird, entscheidet die Liste `CRM_Automatik`: Schalter,
 Takt, Zeitfenster, Wochentage. Grund ist derselbe wie beim Importprofil —

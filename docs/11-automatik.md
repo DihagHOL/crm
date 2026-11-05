@@ -26,23 +26,24 @@ Aktiv = ja, TaktMinuten = 30, VonUhr = 0, BisUhr = 23, Wochentage = täglich
   wenn eine neue Mappe da ist.
 ```
 
-**Der Zeitplan ist unzuverlässiger als er aussieht.** Im Workflow stand bis
-zum 22.10.2026 `*/15 * * * *`. Über 100 Läufe gemessen:
+**Der Zeitplan ist unzuverlässiger als er aussieht**, und wie
+unzuverlässig, haben inzwischen zwei Fassungen gezeigt. Am 05.11.2026
+nebeneinandergelegt, gerechnet aus der Lauf-Historie des Workflows selbst:
 
-| erbeten | 96 Auslösungen am Tag |
-|---|---|
-| bekommen | **5 bis 8**, zu beliebigen Minuten |
-| Lücke im Mittel | 4,3 Stunden |
-| längste Lücke | 9,4 Stunden |
+| Zeitplan | Zeitraum | erbeten | geliefert | Lücke Median | längste Lücke |
+|---|---|---|---|---|---|
+| `*/15 * * * *` | 23.09.–22.10. | 96/Tag | **5,4/Tag** | 4,3 h | 9,4 h |
+| `17 1,4,7,10,13,16,19,22 * * *` | 22.10.–05.11. | 8/Tag | **3,8/Tag** | 6,3 h | 12,7 h |
 
-Am 22.10.2026 kam die Lieferung um 06:00 deutscher Zeit, der letzte Lauf war
-um 04:32, und bis 08:53 löste nichts mehr aus. Die Mappe lag drei Stunden
-unbeachtet da, ohne dass irgendetwas defekt war. Der Prüflauf von Hand sah
-sie sofort.
+Zweimal dasselbe Bild in der Praxis: am 22.10.2026 kam die Lieferung um
+06:00, der letzte Lauf war um 04:32, und bis 08:53 löste nichts mehr aus.
+Am 05.11.2026 kam sie um 06:00, der letzte Lauf war um 03:30, und bis 11:00
+löste nichts mehr aus. Beide Male lag die Mappe Stunden unbeachtet da, ohne
+dass irgendetwas defekt war, und beide Male sah der Prüflauf von Hand sie
+sofort.
 
-**Und die Zahl, auf die es wirklich ankommt.** Ein *täglicher* Cron ist
-nicht seltener, sondern nur pünktlicher zu erwarten — stimmt auch nicht. Am
-22.10.2026 am Nachbarprojekt ZAPP nachgemessen (`0 5 * * *`, 20 Tage):
+**Die Zahl zur Zustellung** stammt vom Nachbarprojekt ZAPP (`0 5 * * *`,
+20 Tage, gemessen am 22.10.2026):
 
 | | |
 |---|---|
@@ -50,29 +51,31 @@ nicht seltener, sondern nur pünktlicher zu erwarten — stimmt auch nicht. Am
 | Verspätung im Median | **5 h 48 min** |
 | kleinste / größte | 3 h 54 min / 7 h 33 min |
 
-GitHub liefert einen sparsamen Zeitplan also zuverlässig ab und hält ihn
-nur nicht ein. Daraus zwei Schlüsse.
+Daraus wurde am 22.10. der falsche Schluss gezogen. Er lautete: GitHub
+liefert einen sparsamen Plan zuverlässig ab, steuerbar ist nur der größte
+Abstand, also acht Zeiten in gleichen Abständen von drei Stunden. Die obere
+Tabelle zeigt, was daraus wurde — **weniger Läufe und größere Lücken als
+vorher.** Zustellquote eines einzelnen Termins und Lücke zwischen zwei
+Läufen sind zwei verschiedene Dinge: GitHub verwirft eine fällige
+Auslösung, es sammelt sie nicht nach. Wer öfter bittet, bekommt öfter
+etwas, auch wenn der Anteil mies bleibt.
 
-**Eine Uhrzeit anzupeilen ist zwecklos.** Die erste Fassung vom 22.10.
-stellte morgens zwei Zeiten dicht hintereinander, weil Timeline donnerstags
-um 06:00 liefert. Sie wären gegen 11 bis 13 Uhr gelaufen. Am selben Tag
-bestätigt: der Zeitplan war um 08:58 auf `main`, die Zeit 10:17 verstrich
-ohne Lauf.
-
-**Steuerbar ist nur der größte Abstand.** Deshalb acht Zeiten in gleichen
-Abständen von drei Stunden:
+Seit dem 05.11.2026 steht deshalb wieder:
 
 ```
-17 1,4,7,10,13,16,19,22 * * *      (UTC)
+*/15 * * * *
 ```
 
-Minute 17, weil die volle Stunde bei GitHub die Hauptlast ist. Die
-Verspätung trifft alle acht gleich und verschiebt damit das Raster, ohne es
-auszureissen: nach einer Ablage wartet die Mappe im Regelfall etwa drei
-Stunden, nicht bis zu neun.
+Zu erwarten sind damit rund fünf Läufe am Tag und eine längste Lücke um
+neun Stunden. Mehr gibt GitHubs Zeitplan nicht her. Deshalb steht das
+Zeitfenster in `CRM_Automatik` weit offen (0–23 Uhr), und die Fehlanzeige
+holt eine verpasste Frist nach.
 
-Deshalb steht das Zeitfenster in `CRM_Automatik` weiter offen (0–23 Uhr),
-und die Fehlanzeige holt eine verpasste Frist nach.
+Was dabei **nicht** hilft, ist eine Uhrzeit anzupeilen. Die erste Fassung
+vom 22.10. stellte morgens zwei Zeiten dicht hintereinander, weil Timeline
+donnerstags um 06:00 liefert; sie wären gegen 11 bis 13 Uhr gelaufen. Am
+selben Tag bestätigt: der Zeitplan war um 08:58 auf `main`, die Zeit 10:17
+verstrich ohne Lauf.
 
 ### Wenn es binnen Minuten laufen soll
 
@@ -81,25 +84,52 @@ einer ungeschickten Cron-Zeile: **GitHubs Zeitplan ist eine Bitte, keine
 Zusage, und die Verspätung liegt hier bei Stunden.** Wer Pünktlichkeit
 braucht, bekommt sie dort nicht, egal wie die Zeile aussieht.
 
-Der Workflow hört
-dafür schon auf `repository_dispatch` mit dem Typ `mappe-eingegangen`;
-gerufen wird er heute von niemandem. Ein Sender wäre ein Power-Automate-Flow
-„Wenn eine Datei erstellt wird" auf `Austausch/Projekt CRM-Timeline` mit
-einem einzigen HTTP-Schritt:
+Ein Sender wäre ein Power-Automate-Flow mit zwei Schritten: Auslöser **Wenn
+eine Datei erstellt wird (nur Eigenschaften)** auf `/sites/IT`, Bibliothek
+`Austausch`, Ordner `/Projekt CRM-Timeline`, und dahinter ein einziger
+HTTP-Schritt.
+
+**Empfohlen, weil das Recht enger ist:**
+
+```
+POST https://api.github.com/repos/DihagHOL/crm/actions/workflows/automatik.yml/dispatches
+Authorization: Bearer <feingranularer PAT, nur Actions: read and write>
+Accept: application/vnd.github+json
+X-GitHub-Api-Version: 2022-11-28
+
+{"ref":"main","inputs":{"erzwingen":"true","trocken":"false"}}
+```
+
+Antwort `204 No Content`, also kein Text — kein Zeichen von Misserfolg
+(§Betrieb). `erzwingen: true` ist hier richtig und nicht nachlässig: der
+Anstoß heißt „es ist gerade etwas angekommen“, also soll der Abstand aus
+`TaktMinuten` ihn nicht verschlucken. Alles andere bleibt wie bei einem
+Zeitplanlauf — Umgebung aus `js/config.js`, Stichtag aus `CRM_Automatik`,
+und `Aktiv = nein` hält ihn genauso auf.
+
+**Der Zweitweg** ist `repository_dispatch` mit dem Typ `mappe-eingegangen`,
+auf den der Workflow ebenfalls hört:
 
 ```
 POST https://api.github.com/repos/DihagHOL/crm/dispatches
-Authorization: Bearer <fein granulierter PAT, nur Contents: read+write>
-Accept: application/vnd.github+json
 {"event_type":"mappe-eingegangen"}
 ```
+
+Kürzer, aber teurer bezahlt: dafür braucht der Token `Contents: write` —
+dasselbe Recht, mit dem man Code nach `main` schiebt und damit die
+veröffentlichte Seite ändert. `workflow_dispatch` braucht `Actions: write`,
+also Läufe starten und abbrechen, kein Schreiben im Repository. Für einen
+Token, der dauerhaft in einem Flow liegt und den jeder sehen kann, der den
+Flow bearbeiten darf, ist genau das der Unterschied, auf den es ankommt.
 
 Das ist ausdrücklich **kein** Rückschritt zum Altflow: der Flow trüge keine
 Fachlogik, kein Mapping und keine Zugangsdaten zum CRM, sondern wäre eine
 Klingel. Alles, was entschieden wird, entscheidet weiterhin `CRM_Automatik`
-und der Code im Repository. Der Preis ist ein Token mit Ablaufdatum, das
-jemand verwalten muss — deshalb steht es als Möglichkeit hier und nicht als
-Einrichtungsschritt.
+und der Code im Repository. Der Preis sind zwei Dinge, die jemand pflegen
+muss: ein Token mit Ablaufdatum und ein Flow, der bei einem
+Verbindungsfehler stillschweigend aussetzt. Der Zeitplan bleibt deshalb
+bestehen, auch wenn der Sender steht — er ist dann der Boden und nicht der
+Weg.
 
 Der Grund ist der Bedienbare: **eine Taktänderung soll eine Eingabe im
 Werkzeug sein und kein Pull Request.** Dieselbe Linie wie beim

@@ -6,45 +6,56 @@ name: Automatischer Import
 # dort stehen Schalter, Takt, Zeitfenster und Wochentage. Eine Taktaenderung
 # ist damit eine Eingabe im Werkzeug und kein Pull Request.
 #
-# ZEITPLAN: gleichmaessig verteilt, weil der Zeitpunkt nicht steuerbar ist.
+# ZEITPLAN: so dicht wie moeglich, weil GitHub nur einen Bruchteil liefert.
 #
-# Am 22.10.2026 gemessen, und das ist die Zahl, auf die es ankommt: ein
-# TAEGLICHER Cron (ZAPP, "0 5 * * *") lief an 20 von 20 Tagen - aber im
-# Median 5h48 ZU SPAET, zwischen 3h54 und 7h33. GitHub liefert einen
-# sparsamen Zeitplan also zuverlaessig ab und haelt ihn nur nicht ein.
+# Am 05.11.2026 an den echten Laeufen dieses Workflows gemessen, die beiden
+# Zeitplaene im direkten Vergleich:
 #
-# Zum Vergleich der enge Takt, der hier bis zum 22.10. stand: "*/15" bat um
-# 96 Ausloesungen und bekam FUENF bis ACHT, zu beliebigen Minuten, Luecken
-# im Mittel 4,3 und hoechstens 9,4 Stunden. Dasselbe Bild von der anderen
-# Seite.
+#   "*/15 * * * *"           23.09.-22.10.   5,4 Laeufe/Tag von 96 erbetenen
+#                                            Luecke Median 4,3 h, hoechstens  9,4 h
+#   "17 1,4,7,...,22 * * *"  22.10.-05.11.   3,8 Laeufe/Tag von  8 erbetenen
+#                                            Luecke Median 6,3 h, hoechstens 12,7 h
 #
-# Daraus zwei Schluesse. Erstens: eine Uhrzeit anzupeilen ist zwecklos. Die
-# erste Fassung dieser Datei stellte morgens zwei Zeiten dicht hintereinander,
-# weil Timeline donnerstags um 06:00 liefert - sie waeren gegen 11 bis 13 Uhr
-# gelaufen. Zweitens: steuerbar ist nur der GROESSTE ABSTAND. Deshalb acht
-# Zeiten in gleichen Abstaenden von drei Stunden, zur Minute 17 (die volle
-# Stunde ist bei GitHub die Hauptlast). Die Verspaetung trifft dann alle acht
-# gleich und verschiebt das Raster, ohne es auszureissen.
+# Das sparsame Raster vom 22.10. war ein Fehlschluss. Die Annahme war,
+# GitHub liefere einen sparsamen Plan zuverlaessiger ab - und fuer die
+# ZUSTELLUNG stimmt das auch, das Nachbarprojekt ZAPP zeigt es: ein
+# taeglicher Cron lief an 20 von 20 Tagen, nur im Median 5h48 zu spaet.
+# Fuer die LUECKE stimmt es nicht. GitHub verwirft eine faellige Ausloesung,
+# es sammelt sie nicht nach: wer oefter bittet, bekommt oefter etwas. Acht
+# Bitten am Tag ergaben weniger Laeufe und groessere Luecken als 96.
+# Deshalb zurueck auf den dichten Takt.
 #
-# Ob gearbeitet wird, entscheidet weiter CRM_Automatik in SharePoint:
-# Schalter, Takt, Zeitfenster, Wochentage. Eine Taktaenderung ist eine
-# Eingabe im Werkzeug und kein Pull Request. Das Zeitfenster steht wegen
-# alldem offen (0-23 Uhr), und die Fehlanzeige holt eine verpasste Frist nach.
+# Was damit NICHT zu haben ist: Puenktlichkeit. Am 05.11.2026 lag
+# "Anfragen 2026-11-05.xlsx" um 06:00 im Ordner, der letzte Lauf war um
+# 03:30, und bis 11:00 loeste nichts mehr aus - fuenf Stunden unbeachtet,
+# ohne dass etwas defekt war. Wer den Import binnen Minuten nach der Ablage
+# will, braucht einen Anstoss von aussen (unten, und docs/11). Mit GitHubs
+# Zeitplan ist das nicht zu haben, auch nicht durch eine geschicktere
+# Cron-Zeile.
 #
-# Soll der Import binnen Minuten nach der Ablage starten, fuehrt kein Weg an
-# einem Anstoss von aussen vorbei. Mit GitHubs Zeitplan ist das nicht zu
-# haben, und zwar nicht durch eine geschicktere Cron-Zeile (siehe docs/11).
+# Der dichte Cron fragt nur nach. Gearbeitet wird nur, wenn CRM_Automatik
+# es zulaesst, und der Takt dort (30 min) bleibt die Bremse.
 
 on:
   schedule:
-    - cron: "17 1,4,7,10,13,16,19,22 * * *"
+    - cron: "*/15 * * * *"
 
   # Anstoss von aussen, fuer den Fall, dass der Import binnen Minuten nach
   # der Ablage laufen soll. Heute ruft das niemand; die Zeile steht hier,
   # damit es spaeter keine Codeaenderung braucht, sondern nur einen Sender
   # (docs/11). Alle Eingaben unten sind auf workflow_dispatch eingegrenzt,
-  # ein so angestossener Lauf verhaelt sich deshalb wie ein planmaessiger:
-  # Takt, Zeitfenster und Schalter entscheidet weiter CRM_Automatik.
+  # ein per repository_dispatch angestossener Lauf verhaelt sich deshalb
+  # wie ein planmaessiger: Takt, Zeitfenster und Schalter entscheidet
+  # weiter CRM_Automatik.
+  #
+  # Welchen Weg ein Sender nimmt, ist eine RECHTEFRAGE, nicht Geschmack.
+  # repository_dispatch verlangt von einem feingranularen Token "Contents:
+  # write" - also genau das Recht, mit dem man auch Code nach main schieben
+  # und damit die veroeffentlichte Seite aendern kann. workflow_dispatch
+  # verlangt "Actions: write": Laeufe starten und abbrechen, kein Schreiben
+  # im Repository. Ein Token, das in einem Power-Automate-Flow liegt, soll
+  # das engere der beiden haben. Deshalb ist in docs/11 workflow_dispatch
+  # der empfohlene Weg, und diese Zeile hier bleibt nur der offene Zweitweg.
   repository_dispatch:
     types: [mappe-eingegangen]
   workflow_dispatch:

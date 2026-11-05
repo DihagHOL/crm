@@ -1,5 +1,54 @@
 # Session-Log
 
+## 05.11.2026 — Mein Zeitplan vom 22.10. war schlechter als der alte
+
+Meldung: die Automatik ist wieder nicht durchgelaufen. Erst nachgesehen,
+was tatsächlich los war, bevor etwas geändert wurde.
+
+**Nichts war defekt.** Alle Läufe der letzten zwei Wochen sind grün, der
+letzte um 03:30 mit „78 Mappe(n) im Ordner, 0 anstehend“ — und das war
+richtig, denn um 03:30 lag die Mappe noch nicht da. `Anfragen
+2026-11-05.xlsx` kam um 06:00 (über Graph nachgesehen, `ImportStatus` ist
+leer, zählt also als anstehend). Danach löste GitHub bis 11:00 nichts mehr
+aus. Fünf Stunden, ohne einen Fehler.
+
+**Der Befund, und er geht gegen mich.** Am 22.10. habe ich den engen Takt
+`*/15` gegen acht feste Zeiten im Drei-Stunden-Raster getauscht, mit der
+Begründung, GitHub liefere einen sparsamen Plan zuverlässiger ab und
+steuerbar sei nur der größte Abstand. Heute aus der Lauf-Historie des
+Workflows beides nachgerechnet:
+
+| Zeitplan | Zeitraum | erbeten | geliefert | Lücke Median | längste |
+|---|---|---|---|---|---|
+| `*/15 * * * *` | 23.09.–22.10. | 96/Tag | 5,4/Tag | 4,3 h | 9,4 h |
+| acht Zeiten | 22.10.–05.11. | 8/Tag | 3,8/Tag | 6,3 h | 12,7 h |
+
+**Schlechter in jeder Spalte.** Der Denkfehler war, die Zustellquote eines
+einzelnen Termins (ZAPP: 20 von 20 Tagen) mit der Lücke zwischen zwei
+Läufen zu verwechseln. GitHub verwirft eine fällige Auslösung, es sammelt
+sie nicht nach — wer öfter bittet, bekommt öfter etwas, auch wenn der
+Anteil mies bleibt. Zurück auf `*/15 * * * *`, und die Lehre allgemeiner
+notiert: bei GitHubs Zeitplan nicht überlegen, sondern nachzählen.
+
+**Was die Rückkehr nicht löst.** Pünktlichkeit. Rund fünf Läufe am Tag und
+eine längste Lücke um neun Stunden sind das Beste, was dort zu holen ist.
+Wer den Import binnen Minuten nach der Ablage will, braucht den Anstoß von
+außen, auf den der Workflow schon hört.
+
+**Dabei eine Rechtefrage schärfer gefasst** als bisher dokumentiert.
+`repository_dispatch` verlangt von einem feingranularen Token `Contents:
+write` — dasselbe Recht, mit dem man Code nach `main` schiebt und damit die
+veröffentlichte Seite ändert. `workflow_dispatch` über die API verlangt
+`Actions: write`: Läufe starten, nichts schreiben. Für einen Token, der
+dauerhaft in einem Power-Automate-Flow liegt und den jeder Bearbeiter des
+Flows sehen kann, ist das der Unterschied, auf den es ankommt. docs/11
+empfiehlt deshalb jetzt `workflow_dispatch` und führt `repository_dispatch`
+als Zweitweg.
+
+**Offen.** Der Sender selbst. Zwei Schritte in Power Automate, aber er
+braucht einen Token, den jemand anlegt und dessen Ablauf jemand im Blick
+behält.
+
 ## 04.11.2026 — Sicherheitsdurchsicht, zwei Lücken geschlossen
 
 Nachfrage, ob es weitere Lücken gibt. Also einmal mit Absicht gesucht statt
