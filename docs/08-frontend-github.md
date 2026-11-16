@@ -420,8 +420,9 @@ Token-Satz:
 }
 ```
 
-Schrift ist **Exo** über Google Fonts, mit `"Segoe UI", system-ui` als
-Rückfall. Logo: `assets/dihag-logo.png`, im Kopf über
+Schrift ist **Exo** aus dem eigenen Repository (`assets/fonts`, variable WOFF2,
+SIL Open Font License, bis zum 16.11.2026 über Google Fonts), mit
+`"Segoe UI", system-ui` als Rückfall. Logo: `assets/dihag-logo.png`, im Kopf über
 `filter: brightness(0) invert(1)` weiß auf Navy.
 
 Damit kehrt sich die Reihenfolge um: Das CI kommt in **Phase 1** und nicht

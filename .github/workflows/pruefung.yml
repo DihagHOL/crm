@@ -80,3 +80,6 @@ jobs:
 
       - name: Konfiguration, Ladereihenfolge und Doku auf Konsistenz prüfen
         run: node tests/test-konsistenz.mjs
+
+      - name: Schrift aus dem eigenen Repository, kein Abruf bei Google
+        run: node tests/test-schrift.mjs
