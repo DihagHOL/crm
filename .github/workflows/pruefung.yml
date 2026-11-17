@@ -2,8 +2,14 @@ name: Prüfung
 
 # Läuft bei jedem Push und Pull Request. Verhindert, dass ein Syntaxfehler
 # oder eine kaputte Kernlogik auf GitHub Pages landet – die Seite wird ohne
-# Build-Schritt ausgeliefert, es gibt also keine zweite Instanz, die das
-# abfängt.
+# Build-Schritt ausgeliefert.
+#
+# Seit dem 17.11.2026 veröffentlicht derselbe Lauf, und zwar nur nach grüner
+# Prüfung und nur für main. Hochgeladen werden allein die Seiten, assets/,
+# css/, js/ und aus docs/ nur, was die App zur Laufzeit lädt (die Anleitung
+# 10-prozess.md und die Prozessmodelle). Bis dahin lieferte Pages das ganze
+# Repository aus, und cache-bust.yml schrieb nach jedem Push einen Bot-Commit
+# mit ?v=<SHA> zurück. Jetzt setzt der Lauf ?v= nur in seiner eigenen Kopie.
 
 on:
   push:
@@ -11,7 +17,7 @@ on:
   pull_request:
   workflow_dispatch:
 
-# Ausdruecklich nur lesen. Dieser Lauf prueft, er veroeffentlicht nicht.
+# Ausdruecklich nur lesen. Veröffentlichen darf nur der Job weiter unten.
 # Wichtig bei `pull_request`: ein fremder Beitrag soll mit nichts mehr
 # arbeiten als dem Lesen des Codes.
 permissions:
@@ -81,5 +87,47 @@ jobs:
       - name: Konfiguration, Ladereihenfolge und Doku auf Konsistenz prüfen
         run: node tests/test-konsistenz.mjs
 
-      - name: Schrift aus dem eigenen Repository, kein Abruf bei Google
-        run: node tests/test-schrift.mjs
+      - name: Verdrahtung der Seite (Schrift, Versionsparameter, Veröffentlichung)
+        run: node tests/test-seite.mjs
+
+  veroeffentlichen:
+    needs: pruefung
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    # Nur dieser Job darf veröffentlichen, und nur das.
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    # Zwei Pushes kurz nacheinander: nacheinander veröffentlichen, keinen Lauf abbrechen.
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4.4.0, auf den Commit festgelegt
+
+      # Ohne das lädt ein Browser nach einer Änderung weiter die alte app.js
+      # (Pages liefert mit max-age=600). Früher als Bot-Commit, jetzt nur in der Kopie.
+      - name: "Versionsparameter ?v=… auf den Commit setzen"
+        run: |
+          SHA="${GITHUB_SHA::8}"
+          sed -i -E "s/\?v=[A-Za-z0-9._-]+/?v=$SHA/g" index.html prozess.html
+
+      # Nur was die Seite braucht. Von docs/ nur, was die App zur Laufzeit lädt.
+      - name: Dateien der Seite zusammenstellen
+        run: |
+          mkdir -p _site/docs
+          cp -r index.html prozess.html CNAME assets css js _site/
+          cp -r docs/bpmn _site/docs/
+          cp -r docs/10-prozess.md _site/docs/
+
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9   # v5.0.0
+        with:
+          path: _site
+
+      - name: Veröffentlichen
+        id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346   # v5.0.1

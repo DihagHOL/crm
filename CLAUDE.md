@@ -101,7 +101,7 @@ nicht startet oder Daten zerstört.
 | Auth | `js/auth.js` — Auth-Code + PKCE, ohne Bibliothek | Zwei Ressourcen über einen Login, siehe §6 |
 | Excel | `xlsx` (SheetJS Community, Apache-2.0) | bei Bedarf nachgeladen, Version gepinnt — Muster aus `bedarfsanfrage` |
 | Styling | Eigenes CSS mit Custom Properties | CI-Token-Satz aus `rundumdenjob`, in Phase 1 gesetzt |
-| Deployment | Pages „Deploy from a branch“, `main`, `/` | Workflow **prüft** nur: `node --check` plus Tests |
+| Deployment | Pages-Quelle „GitHub Actions“ (seit 17.11.2026) | `pruefung.yml` prüft (`node --check`, Tests) und veröffentlicht danach nur die Dateien der Seite, aus `docs/` nur `10-prozess.md` und `bpmn/`. Kein Bot-Commit mehr. Neue Seite oder Laufzeitdatei → in die Kopierliste, `tests/test-seite.mjs` meldet es |
 
 Keine weiteren Laufzeit-Abhängigkeiten ohne Rückfrage. Jede zusätzliche
 Dependency in einem Frontend, das Firmendaten anfasst, ist Angriffsfläche.
@@ -143,7 +143,7 @@ crm/
 │  └─ automatik.js         ✓ Takt, Tor zum Import, Freigaben, Bericht
 ├─ cron/automatik.mjs       ✓ unbeaufsichtigter Lauf (GitHub Actions)
 ├─ tests/                   ✓ *.mjs, laufen unter Node ohne Browser
-├─ .github/workflows/       ✓ pruefung.yml, automatik.yml
+├─ .github/workflows/       ✓ pruefung.yml (Prüfung + Veröffentlichung), automatik.yml
 ├─ config/import-profile.dihag.json ✓
 └─ docs/                    ✓ 00–11, darunter 10-prozess.md und 11-automatik.md
 ```

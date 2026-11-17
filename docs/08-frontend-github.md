@@ -154,7 +154,7 @@ denen ein stiller Fehler Daten kostet:
 |---|---|
 | Name | `crm` |
 | Sichtbarkeit | öffentlich (Pages auf privaten Repos braucht ein kostenpflichtiges Konto; Randbedingung 1 — kein Secret — gilt ohnehin) |
-| Pages | Quelle „Deploy from a branch", `main`, `/` |
+| Pages | Quelle „GitHub Actions“ (bis 16.11.2026 „Deploy from a branch“, `main`, `/`). Veröffentlicht `pruefung.yml` nach grüner Prüfung |
 | URL | `https://dihaghol.github.io/crm/` |
 | Eigene Domäne | siehe unten |
 
