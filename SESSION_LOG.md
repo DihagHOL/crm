@@ -2559,7 +2559,7 @@ geführt, „erst wenn die Vorlage vorliegt“. Sie lag vor: der `:root`-Block i
 
 **`hauptAdmins` mit zwei Adressen.** `defaultRole` ist `none`; ohne Eintrag
 in `AppPermissions` für `crm` käme sonst beim ersten Aufruf niemand hinein.
-`administrator@dihag.com` und `fedorov@dihag.com` sind deshalb fest
+`administrator@dihag.com` und `vorname.nachname@dihag.com` sind deshalb fest
 hinterlegt. Sobald die Rechteliste gepflegt ist, kann die zweite Adresse
 wieder raus.
 

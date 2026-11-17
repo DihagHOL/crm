@@ -59,7 +59,7 @@ Oder startet die Fachabteilung selbst.
 | Title | UserEmail | App | Role | Notes |
 |---|---|---|---|---|
 | fachbereich@dihag.com | `fachbereich@dihag.com` | `crm` | `editor` | Startet den wöchentlichen Import |
-| fedorov@dihag.com | `fedorov@dihag.com` | `crm` | `admin` | Betreuung der Schnittstelle |
+| vorname.nachname@dihag.com | `vorname.nachname@dihag.com` | `crm` | `admin` | Betreuung der Schnittstelle |
 | mitlesend@dihag.com | `mitlesend@dihag.com` | `crm` | `viewer` | Sieht Läufe und Protokolle |
 
 ---
@@ -81,10 +81,10 @@ gibt es dafür **🔄 Rolle neu einlesen**; sonst genügt ein Neuladen.
 ## Solange nichts eingetragen ist
 
 `js/config.js` führt unter `hauptAdmins` zwei Adressen, die immer `admin`
-sind — `administrator@dihag.com` und `fedorov@dihag.com`. Ohne sie käme beim
+sind — `administrator@dihag.com` und `vorname.nachname@dihag.com`. Ohne sie käme beim
 ersten Aufruf niemand hinein, weil die Liste noch keinen `crm`-Eintrag hat.
 
-Sobald die Einträge stehen, gehört `fedorov@dihag.com` dort wieder heraus und
+Sobald die Einträge stehen, gehört `vorname.nachname@dihag.com` dort wieder heraus und
 stattdessen als normale Zeile in die Liste. Ein fest verdrahteter Zugang, den
 niemand in der Rechteliste sieht, ist genau die Sorte Sonderfall, die man
 später sucht.
