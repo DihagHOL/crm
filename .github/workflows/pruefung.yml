@@ -102,7 +102,7 @@ jobs:
       actions: read   # nur zum Nachsehen, ob das Paket schon gelistet ist (Schritt „Warten …“)
     environment:
       name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      url: ${{ steps.deployment.outputs.page_url || steps.deployment2.outputs.page_url }}
     # Zwei Pushes kurz nacheinander: nacheinander veröffentlichen, keinen Lauf abbrechen.
     concurrency:
       group: pages
@@ -146,4 +146,16 @@ jobs:
 
       - name: Veröffentlichen
         id: deployment
+        continue-on-error: true   # zweiter Versuch weiter unten
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346   # v5.0.1
+
+      # deploy-pages sieht das Paket manchmal auch nach dem Warten noch nicht (25.11.2026 in
+      # e-rechnung). Dann nach einer halben Minute ein zweiter Versuch. Scheitert auch der, ist der Lauf rot.
+      - name: Vor dem zweiten Versuch warten
+        if: steps.deployment.outcome == 'failure'
+        run: sleep 30
+
+      - name: Veröffentlichen, zweiter Versuch
+        id: deployment2
+        if: steps.deployment.outcome == 'failure'
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346   # v5.0.1
