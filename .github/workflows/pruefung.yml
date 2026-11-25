@@ -99,6 +99,7 @@ jobs:
       contents: read
       pages: write
       id-token: write
+      actions: read   # nur zum Nachsehen, ob das Paket schon gelistet ist (Schritt „Warten …“)
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -127,6 +128,21 @@ jobs:
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9   # v5.0.0
         with:
           path: _site
+
+      # GitHub listet das hochgeladene Paket manchmal erst Sekunden später. deploy-pages fragt
+      # sofort danach und bricht dann mit „No artifacts named github-pages“ ab (in der
+      # Bedarfsanfrage am 25.11.2026 dreimal, das Paket war jeweils eine Sekunde später da).
+      # Darum erst warten, bis es da ist.
+      - name: Warten, bis das Paket gelistet ist
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for i in $(seq 1 30); do
+            n=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts" --jq '[.artifacts[] | select(.name == "github-pages")] | length')
+            if [ "${n:-0}" -ge 1 ]; then echo "Paket gelistet (Versuch $i)"; sleep 3; exit 0; fi
+            sleep 2
+          done
+          echo "::warning::Paket nach 60 Sekunden noch nicht gelistet, Veröffentlichen wird trotzdem versucht"
 
       - name: Veröffentlichen
         id: deployment
